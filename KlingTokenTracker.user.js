@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kling Token Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.2.1
+// @version      0.3.0
 // @description  Tracks Kling credits/tokens spending from the Generate UI and reads balance from account API.
 // @match        https://kling.ai/app/*
 // @run-at       document-start
@@ -14,7 +14,7 @@
     if (window.__KLING_TOKEN_TRACKER_INSTALLED__) return;
     window.__KLING_TOKEN_TRACKER_INSTALLED__ = true;
 
-    const VERSION = '0.2.1';
+    const VERSION = '0.3.0';
     const UI_CLICK_DEDUP_MS = 3000;
     const STORAGE_PREFIX = 'klingTokenTracker.';
     const HISTORY_KEY = STORAGE_PREFIX + 'history.v1';
@@ -24,6 +24,8 @@
     const PANEL_KEY = STORAGE_PREFIX + 'panel.v1';
     const UI_KEY = STORAGE_PREFIX + 'ui.v1';
     const PROJECT_KEY = STORAGE_PREFIX + 'project.v1';
+    const PROJECTS_LIBRARY_KEY = STORAGE_PREFIX + 'projects.v1';
+    const MAX_PROJECTS = 100;
     const MAX_EVENTS = 200;
     const DUPLICATE_WINDOW_MS = 45 * 1000;
     const UI_SCAN_DEBOUNCE_MS = 450;
@@ -48,12 +50,14 @@
         diagnostics: [],
         lastUiSpend: null,
         activeTab: sanitizeUiState(readJson(UI_KEY, {})).activeTab,
-        project: sanitizeProject(readJson(PROJECT_KEY, {}))
+        project: sanitizeProject(readJson(PROJECT_KEY, {})),
+        projectDraft: { name: '', url: '' }
     };
 
     let history = sanitizeEvents(readJson(HISTORY_KEY, []));
     let session = sanitizeSession(readJson(SESSION_KEY, null)) || createSession();
     let meta = sanitizeMeta(readJson(META_KEY, {}));
+    let projectLibrary = sanitizeProjectLibrary(readJson(PROJECTS_LIBRARY_KEY, []));
     const ADAPTERS = [createKlingAdapter()];
     const activeAdapter = getActiveAdapter();
     runtime.debug = readJson(DEBUG_KEY, false) === true;
@@ -61,6 +65,8 @@
     runtime.balanceSource = meta.balanceSource || 'none';
     runtime.balancePath = meta.balancePath || '';
     runtime.lastBalanceAt = meta.lastBalanceAt || null;
+
+    migrateProjectLibrary();
 
     exposeApi();
     patchFetch();
@@ -79,6 +85,11 @@
             resetAll,
             setProject,
             clearProject,
+            listProjects,
+            addProject,
+            updateProject,
+            deleteProject,
+            selectProject,
             getDebugReport,
             copyDebugReport
         };
@@ -95,6 +106,7 @@
             lastBalanceAt: runtime.lastBalanceAt,
             session,
             project: runtime.project,
+            projects: listProjects(),
             history,
             pending: runtime.pending.map(function (item) {
                 return Object.assign({}, item);
@@ -184,6 +196,8 @@
         runtime.diagnostics = [];
         runtime.sourceSeen = { network: false, ui: false };
         runtime.project = sanitizeProject({});
+        projectLibrary = [];
+        runtime.projectDraft = { name: '', url: '' };
         runtime.balance = null;
         runtime.balanceSource = 'none';
         runtime.balancePath = '';
@@ -197,20 +211,213 @@
         saveHistory();
         saveSession();
         saveMeta();
+        saveProjectLibrary();
         saveProject();
         renderSoon();
         return getState();
     }
 
     function setProject(project) {
-        runtime.project = sanitizeProject(project || {});
+        const sanitized = sanitizeProject(project || {});
+        if (sanitized.id && !findProjectById(sanitized.id)) {
+            sanitized.id = '';
+        }
+        runtime.project = sanitized;
+        syncProjectDraftFromActive();
         saveProject();
         renderSoon();
         return getState();
     }
 
     function clearProject() {
-        return setProject({});
+        runtime.project = sanitizeProject({});
+        saveProject();
+        renderSoon();
+        return getState();
+    }
+
+    function listProjects() {
+        return projectLibrary.map(function (entry) {
+            return deepClone(entry);
+        });
+    }
+
+    function findProjectById(id) {
+        const needle = String(id || '').trim();
+        if (!needle) return null;
+        for (let i = 0; i < projectLibrary.length; i += 1) {
+            if (projectLibrary[i].id === needle) return projectLibrary[i];
+        }
+        return null;
+    }
+
+    function createProjectEntry(name, url) {
+        const now = Date.now();
+        return sanitizeProjectEntry({
+            id: createId('project'),
+            name: name,
+            url: url,
+            createdAt: now,
+            updatedAt: now
+        });
+    }
+
+    function addProject(name, url) {
+        const sanitized = sanitizeProject({ name: name, url: url });
+        if (!sanitized.name) return null;
+        const entry = createProjectEntry(sanitized.name, sanitized.url);
+        projectLibrary.unshift(entry);
+        projectLibrary = sanitizeProjectLibrary(projectLibrary);
+        saveProjectLibrary();
+        renderSoon();
+        return deepClone(entry);
+    }
+
+    function updateProject(id, name, url) {
+        const entry = findProjectById(id);
+        if (!entry) return null;
+        const sanitized = sanitizeProject({ name: name, url: url });
+        if (!sanitized.name) return null;
+        entry.name = sanitized.name;
+        entry.url = sanitized.url;
+        entry.updatedAt = Date.now();
+        projectLibrary = sanitizeProjectLibrary(projectLibrary);
+        saveProjectLibrary();
+        if (runtime.project && runtime.project.id === entry.id) {
+            runtime.project = sanitizeProject({
+                id: entry.id,
+                name: entry.name,
+                url: entry.url
+            });
+            syncProjectDraftFromActive();
+            saveProject();
+        }
+        renderSoon();
+        return deepClone(entry);
+    }
+
+    function deleteProject(id) {
+        const needle = String(id || '').trim();
+        if (!needle) return false;
+        const before = projectLibrary.length;
+        projectLibrary = projectLibrary.filter(function (entry) {
+            return entry.id !== needle;
+        });
+        if (projectLibrary.length === before) return false;
+        saveProjectLibrary();
+        if (runtime.project && runtime.project.id === needle) {
+            runtime.project = sanitizeProject({});
+            syncProjectDraftFromActive();
+            saveProject();
+        }
+        renderSoon();
+        return true;
+    }
+
+    function selectProject(id) {
+        const entry = findProjectById(id);
+        if (!entry) {
+            return clearProject();
+        }
+        entry.updatedAt = Date.now();
+        projectLibrary = sanitizeProjectLibrary(projectLibrary);
+        saveProjectLibrary();
+        runtime.project = sanitizeProject({
+            id: entry.id,
+            name: entry.name,
+            url: entry.url
+        });
+        syncProjectDraftFromActive();
+        saveProject();
+        renderSoon();
+        return getState();
+    }
+
+    function syncProjectDraftFromActive() {
+        runtime.projectDraft = {
+            name: runtime.project.name || '',
+            url: runtime.project.url || ''
+        };
+    }
+
+    function syncProjectDraftFromInputs(root) {
+        const nameInput = root.querySelector('[data-field="projectName"]');
+        const urlInput = root.querySelector('[data-field="projectUrl"]');
+        runtime.projectDraft = {
+            name: nameInput ? nameInput.value : '',
+            url: urlInput ? urlInput.value : ''
+        };
+    }
+
+    function migrateProjectLibrary() {
+        projectLibrary = sanitizeProjectLibrary(projectLibrary);
+        const active = sanitizeProject(readJson(PROJECT_KEY, {}));
+        if (!projectLibrary.length && active.name) {
+            const entry = createProjectEntry(active.name, active.url);
+            projectLibrary = [entry];
+            active.id = entry.id;
+            saveProjectLibrary();
+        } else if (active.id && !findProjectById(active.id) && active.name) {
+            const match = projectLibrary.find(function (entry) {
+                return entry.name === active.name && entry.url === active.url;
+            });
+            active.id = match ? match.id : '';
+        }
+        runtime.project = active;
+        syncProjectDraftFromActive();
+        saveProject();
+    }
+
+    function saveProjectFromForm(root) {
+        syncProjectDraftFromInputs(root);
+        const selectedId = runtime.project && runtime.project.id ? runtime.project.id : '';
+        const select = root.querySelector('[data-field="projectSelect"]');
+        const selectId = select ? select.value : '';
+        const editingId = selectId || selectedId;
+        let entry = null;
+
+        if (editingId && findProjectById(editingId)) {
+            entry = updateProject(
+                editingId,
+                runtime.projectDraft.name,
+                runtime.projectDraft.url
+            );
+        } else {
+            entry = addProject(runtime.projectDraft.name, runtime.projectDraft.url);
+        }
+        if (!entry) return null;
+
+        runtime.project = sanitizeProject({
+            id: entry.id,
+            name: entry.name,
+            url: entry.url
+        });
+        syncProjectDraftFromActive();
+        saveProject();
+        renderSoon();
+        return entry;
+    }
+
+    function beginNewProjectForm(root) {
+        runtime.project = sanitizeProject({});
+        runtime.projectDraft = { name: '', url: '' };
+        saveProject();
+        const select = root.querySelector('[data-field="projectSelect"]');
+        const nameInput = root.querySelector('[data-field="projectName"]');
+        const urlInput = root.querySelector('[data-field="projectUrl"]');
+        if (select) select.value = '';
+        if (nameInput) nameInput.value = '';
+        if (urlInput) urlInput.value = '';
+        if (nameInput) nameInput.focus();
+        renderSoon();
+    }
+
+    function deleteSelectedProject(root) {
+        const select = root.querySelector('[data-field="projectSelect"]');
+        const selectedId = select ? select.value : '';
+        if (!selectedId || !deleteProject(selectedId)) return false;
+        beginNewProjectForm(root);
+        return true;
     }
 
     function setDebug(enabled) {
@@ -498,23 +705,43 @@
     }
 
     function getGenerateClickText(clickable) {
-        const parts = [
-            clickable.textContent || '',
-            clickable.getAttribute('aria-label') || '',
-            clickable.getAttribute('title') || ''
-        ];
+        const candidates = [];
 
-        let element = clickable.parentElement;
-        for (let depth = 0; element && depth < 4; depth += 1) {
-            if (runtime.panelHost && runtime.panelHost.contains(element)) break;
-            const text = compactText(element.textContent || '');
-            if (text && text.length <= 220 && /generate|生成|創建|创建/i.test(text)) {
-                parts.push(text);
-            }
-            element = element.parentElement;
+        function consider(element, maxLen) {
+            if (!element) return;
+            const text = compactText([
+                element.textContent || '',
+                (element.getAttribute && element.getAttribute('aria-label')) || '',
+                (element.getAttribute && element.getAttribute('title')) || ''
+            ].join(' '));
+            if (!text || text.length > maxLen) return;
+            if (element !== clickable && !/generate|生成|創建|创建/i.test(text)) return;
+            if (candidates.indexOf(text) >= 0) return;
+            candidates.push(text);
         }
 
-        return compactText(parts.join(' ')).slice(0, 260);
+        consider(clickable, 140);
+
+        let parent = clickable.parentElement;
+        for (let depth = 0; parent && depth < 2; depth += 1) {
+            if (runtime.panelHost && runtime.panelHost.contains(parent)) break;
+            consider(parent, 200);
+            parent = parent.parentElement;
+        }
+
+        if (!candidates.length) return compactText(clickable.textContent || '').slice(0, 260);
+
+        candidates.sort(function (a, b) {
+            return a.length - b.length;
+        });
+
+        for (let i = 0; i < candidates.length; i += 1) {
+            if (isFiniteCredit(extractCostFromUiText(candidates[i]))) {
+                return candidates[i].slice(0, 260);
+            }
+        }
+
+        return candidates[0].slice(0, 260);
     }
 
     function recordUiGenerateClick(parsed, clickable) {
@@ -535,6 +762,8 @@
         }
 
         const before = runtime.balance == null ? amount : runtime.balance;
+        const metadata = parsed.metadata || {};
+        const detailRaw = cleanUiDetailText(String(parsed.detail || ''), { project: runtime.project });
         const event = recordSpend({
             amount,
             before,
@@ -548,8 +777,8 @@
             path: 'ui generate button',
             score: null,
             pendingId: null,
-            detail: String(parsed.detail || '').slice(0, 180),
-            metadata: parsed.metadata || {},
+            detail: hasDisplayMetadata({ metadata: metadata }) ? '' : detailRaw.slice(0, 180),
+            metadata: metadata,
             estimated: true
         }, now);
 
@@ -956,11 +1185,49 @@
     }
 
     function sanitizeProject(value) {
-        if (!value || typeof value !== 'object' || Array.isArray(value)) return { name: '', url: '' };
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return { id: '', name: '', url: '' };
         return {
+            id: String(value.id || '').trim().slice(0, 80),
             name: String(value.name || '').trim().slice(0, 160),
             url: sanitizeProjectUrl(value.url || '')
         };
+    }
+
+    function sanitizeProjectEntry(value) {
+        const project = sanitizeProject(value || {});
+        return {
+            id: project.id || createId('project'),
+            name: project.name,
+            url: project.url,
+            createdAt: Number(value && value.createdAt || Date.now()),
+            updatedAt: Number(value && value.updatedAt || Date.now())
+        };
+    }
+
+    function sanitizeProjectLibrary(value) {
+        if (!Array.isArray(value)) return [];
+        const seen = {};
+        return value.map(function (entry) {
+            return sanitizeProjectEntry(entry);
+        }).filter(function (entry) {
+            if (!entry.name) return false;
+            if (seen[entry.id]) return false;
+            seen[entry.id] = true;
+            return true;
+        }).sort(function (a, b) {
+            return b.updatedAt - a.updatedAt;
+        }).slice(0, MAX_PROJECTS);
+    }
+
+    function formatProjectOptionLabel(entry) {
+        const name = entry.name || 'Untitled';
+        if (!entry.url) return name;
+        try {
+            const parsed = new URL(entry.url);
+            return name + ' · ' + parsed.hostname.replace(/^www\./i, '');
+        } catch (_) {
+            return name;
+        }
     }
 
     function sanitizeProjectUrl(value) {
@@ -1043,6 +1310,10 @@
             x: [
                 '<path d="M18 6L6 18"/>',
                 '<path d="M6 6l12 12"/>'
+            ],
+            plus: [
+                '<path d="M12 5v14"/>',
+                '<path d="M5 12h14"/>'
             ]
         };
         return '<svg viewBox="0 0 24 24" aria-hidden="true">' + (icons[name] || []).join('') + '</svg>';
@@ -1090,7 +1361,12 @@
             '.raw{margin-top:5px;color:#8f98a6;font-size:11px;word-break:break-word}',
             '.projectBox{margin-top:10px;border-top:1px solid rgba(255,255,255,.12);padding-top:9px;display:grid;gap:6px}',
             '.projectHead{display:flex;align-items:center;justify-content:space-between;color:#bfc6d1;font-size:12px}',
+            '.projectToolbar{display:flex;gap:4px;align-items:center}',
             '.projectFields{display:grid;gap:6px}',
+            '.projectActionsRow{display:grid;grid-template-columns:1fr auto;gap:6px}',
+            '.projectActionsRow button{font-weight:600}',
+            '.projectHint{color:#8f98a6;font-size:11px;line-height:1.35}',
+            '.select.field{cursor:pointer;padding-right:24px}',
             '.field{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;border-radius:6px;padding:7px 8px;font:12px Arial,sans-serif;outline:none}',
             '.field:focus{border-color:#2d6cdf;background:rgba(255,255,255,.09)}',
             '.miniBtn{width:26px;height:26px}',
@@ -1127,11 +1403,20 @@
             '      <div class="label">Today</div><div class="value" data-field="todayTotal">0</div>',
             '    </div>',
             '    <div class="projectBox">',
-            '      <div class="projectHead"><span>Project / Bitrix task</span><button type="button" class="iconBtn miniBtn" data-action="clearProject" data-tooltip="Clear project" aria-label="Clear project">' + iconSvg('x') + '</button></div>',
+            '      <div class="projectHead"><span>Project / Bitrix task</span><div class="projectToolbar">',
+            '        <button type="button" class="iconBtn miniBtn" data-action="newProject" data-tooltip="New project" aria-label="New project">' + iconSvg('plus') + '</button>',
+            '        <button type="button" class="iconBtn miniBtn" data-action="deleteProject" data-tooltip="Delete project" aria-label="Delete project">' + iconSvg('trash-2') + '</button>',
+            '        <button type="button" class="iconBtn miniBtn" data-action="clearProject" data-tooltip="Clear active project" aria-label="Clear active project">' + iconSvg('x') + '</button>',
+            '      </div></div>',
+            '      <select class="field select" data-field="projectSelect" aria-label="Select project"></select>',
             '      <div class="projectFields">',
             '        <input class="field" data-field="projectName" type="text" placeholder="Task name">',
             '        <input class="field" data-field="projectUrl" type="url" placeholder="Task URL">',
             '      </div>',
+            '      <div class="projectActionsRow">',
+            '        <button type="button" data-action="saveProject">Save to list</button>',
+            '      </div>',
+            '      <div class="projectHint" data-field="projectHint">Select a saved project or create a new one.</div>',
             '    </div>',
             '    <div class="events" data-field="events"></div>',
             '   </div>',
@@ -1167,11 +1452,28 @@
         shadow.querySelector('[data-action="clearProject"]').addEventListener('click', function () {
             clearProject();
         });
+        shadow.querySelector('[data-action="newProject"]').addEventListener('click', function () {
+            beginNewProjectForm(shadow);
+        });
+        shadow.querySelector('[data-action="deleteProject"]').addEventListener('click', function () {
+            deleteSelectedProject(shadow);
+        });
+        shadow.querySelector('[data-action="saveProject"]').addEventListener('click', function () {
+            saveProjectFromForm(shadow);
+        });
+        shadow.querySelector('[data-field="projectSelect"]').addEventListener('change', function (event) {
+            const id = event.currentTarget.value;
+            if (!id) {
+                clearProject();
+                return;
+            }
+            selectProject(id);
+        });
         shadow.querySelector('[data-field="projectName"]').addEventListener('input', function (event) {
-            updateProjectFromInputs(event.currentTarget.getRootNode());
+            syncProjectDraftFromInputs(event.currentTarget.getRootNode());
         });
         shadow.querySelector('[data-field="projectUrl"]').addEventListener('input', function (event) {
-            updateProjectFromInputs(event.currentTarget.getRootNode());
+            syncProjectDraftFromInputs(event.currentTarget.getRootNode());
         });
         Array.from(shadow.querySelectorAll('[data-tab]')).forEach(function (button) {
             button.addEventListener('click', function () {
@@ -1334,25 +1636,34 @@
                 meta.appendChild(pill);
             });
 
-            const raw = document.createElement('div');
-            raw.className = 'raw';
-            if (event.project && event.project.url) {
-                const link = document.createElement('a');
-                link.href = event.project.url;
-                link.target = '_blank';
-                link.rel = 'noopener noreferrer';
-                link.textContent = event.project.name || event.project.url;
-                link.style.color = '#8eb6ff';
-                link.style.textDecoration = 'none';
-                raw.appendChild(link);
-                if (event.detail) raw.appendChild(document.createTextNode(' · ' + event.detail));
-            } else {
-                raw.textContent = event.detail || '';
-            }
+            const detailText = hasDisplayMetadata(event)
+                ? ''
+                : cleanUiDetailText(event.detail, event);
+            const showProjectLink = event.project && event.project.url;
+            const showDetail = !!detailText;
 
             item.appendChild(top);
             item.appendChild(meta);
-            if (event.detail) item.appendChild(raw);
+
+            if (showProjectLink || showDetail) {
+                const raw = document.createElement('div');
+                raw.className = 'raw';
+                if (showProjectLink) {
+                    const link = document.createElement('a');
+                    link.href = event.project.url;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.textContent = event.project.name || event.project.url;
+                    link.style.color = '#8eb6ff';
+                    link.style.textDecoration = 'none';
+                    raw.appendChild(link);
+                    if (showDetail) raw.appendChild(document.createTextNode(' · ' + detailText));
+                } else {
+                    raw.textContent = detailText;
+                }
+                item.appendChild(raw);
+            }
+
             historyEl.appendChild(item);
         });
     }
@@ -1371,6 +1682,37 @@
         return pills;
     }
 
+    function hasDisplayMetadata(event) {
+        const metadata = (event && event.metadata) || {};
+        return ['resolution', 'duration', 'outputs', 'audio', 'mode', 'aspectRatio', 'model'].some(function (key) {
+            return metadata[key] != null && metadata[key] !== '';
+        });
+    }
+
+    function cleanUiDetailText(text, event) {
+        let result = compactText(text);
+        if (!result) return '';
+
+        if (event && event.project && event.project.name) {
+            const projectName = compactText(event.project.name);
+            if (projectName) {
+                result = result.replace(new RegExp('^' + escapeRegExp(projectName) + '\\s*·\\s*', 'i'), '');
+                if (result.toLowerCase() === projectName.toLowerCase()) return '';
+            }
+        }
+
+        result = result.replace(/\b(\d+\s*(?:generate|生成|創建|创建))(?:\s+\1\b)+/gi, '$1');
+
+        const half = Math.floor(result.length / 2);
+        if (half > 20) {
+            const first = result.slice(0, half).trim();
+            const second = result.slice(half).trim();
+            if (first && first === second) result = first;
+        }
+
+        return result.slice(0, 180);
+    }
+
     function setActiveTab(tab) {
         runtime.activeTab = tab === 'history' ? 'history' : 'summary';
         writeJson(UI_KEY, { activeTab: runtime.activeTab });
@@ -1386,18 +1728,46 @@
         const active = root.activeElement;
         const nameInput = root.querySelector('[data-field="projectName"]');
         const urlInput = root.querySelector('[data-field="projectUrl"]');
-        if (nameInput && active !== nameInput) nameInput.value = runtime.project.name || '';
-        if (urlInput && active !== urlInput) urlInput.value = runtime.project.url || '';
-    }
+        const select = root.querySelector('[data-field="projectSelect"]');
+        const hint = root.querySelector('[data-field="projectHint"]');
+        const deleteButton = root.querySelector('[data-action="deleteProject"]');
+        const activeProject = runtime.project || sanitizeProject({});
+        const activeId = activeProject.id && findProjectById(activeProject.id) ? activeProject.id : '';
 
-    function updateProjectFromInputs(root) {
-        const nameInput = root.querySelector('[data-field="projectName"]');
-        const urlInput = root.querySelector('[data-field="projectUrl"]');
-        runtime.project = sanitizeProject({
-            name: nameInput ? nameInput.value : '',
-            url: urlInput ? urlInput.value : ''
-        });
-        saveProject();
+        if (select && active !== select) {
+            select.textContent = '';
+            const emptyOption = document.createElement('option');
+            emptyOption.value = '';
+            emptyOption.textContent = '— No active project —';
+            select.appendChild(emptyOption);
+            projectLibrary.forEach(function (entry) {
+                const option = document.createElement('option');
+                option.value = entry.id;
+                option.textContent = formatProjectOptionLabel(entry);
+                select.appendChild(option);
+            });
+            select.value = activeId;
+        }
+
+        if (nameInput && active !== nameInput) nameInput.value = runtime.projectDraft.name || '';
+        if (urlInput && active !== urlInput) urlInput.value = runtime.projectDraft.url || '';
+
+        if (deleteButton) {
+            const selectedId = select ? select.value : '';
+            deleteButton.disabled = !selectedId;
+            deleteButton.style.opacity = selectedId ? '1' : '0.45';
+            deleteButton.style.pointerEvents = selectedId ? 'auto' : 'none';
+        }
+
+        if (hint) {
+            if (activeId && activeProject.name) {
+                hint.textContent = 'Active: ' + activeProject.name;
+            } else if (projectLibrary.length) {
+                hint.textContent = 'Select a saved project or save a new one.';
+            } else {
+                hint.textContent = 'Create your first project and save it to the list.';
+            }
+        }
     }
 
     function getDisplaySource() {
@@ -1749,12 +2119,20 @@
         writeJson(PROJECT_KEY, runtime.project);
     }
 
+    function saveProjectLibrary() {
+        writeJson(PROJECTS_LIBRARY_KEY, projectLibrary);
+    }
+
     function deepClone(value) {
         return JSON.parse(JSON.stringify(value));
     }
 
     function compactText(text) {
         return String(text || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function escapeRegExp(text) {
+        return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     function redactUrl(value) {
