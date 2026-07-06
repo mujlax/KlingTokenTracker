@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name         AI Token Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.8.0
+// @version      0.8.1
 // @description  Tracks AI credits/tokens spending from Generate UI across supported platforms.
-// @match        https://kling.ai/app/*
-// @match        https://higgsfield.ai/*
+// @match        *://kling.ai/*
+// @match        *://*.kling.ai/*
+// @match        *://higgsfield.ai/*
+// @match        *://*.higgsfield.ai/*
 // @run-at       document-start
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -16,7 +18,7 @@
 
 (() => {
   // src/core/constants.js
-  var VERSION = "0.8.0";
+  var VERSION = "0.8.1";
   var UI_CLICK_DEDUP_MS = 3e3;
   var SPEND_MERGE_MS = 8e3;
   var STORAGE_PREFIX = "klingTokenTracker.";
@@ -422,7 +424,7 @@
       name: "Kling",
       networkEnabled: true,
       matchesLocation: function(url) {
-        return /https:\/\/kling\.ai\/app\//i.test(String(url || ""));
+        return /^https?:\/\/(?:[\w-]+\.)*kling\.ai(?:[:/]|$)/i.test(String(url || ""));
       },
       parseGenerateClick: function(clickable, event) {
         const directText = getDirectClickableText(clickable);
@@ -466,7 +468,7 @@
       networkEnabled: false,
       uiBalanceEnabled: true,
       matchesLocation: function(url) {
-        return /https:\/\/higgsfield\.ai\//i.test(String(url || ""));
+        return /^https?:\/\/(?:[\w-]+\.)*higgsfield\.ai(?:[:/]|$)/i.test(String(url || ""));
       },
       parseGenerateClick: function(clickable, event) {
         const directText = getDirectClickableText(clickable);
@@ -3505,7 +3507,14 @@
     if (pageWindow.__AI_TOKEN_TRACKER_INSTALLED__ || pageWindow.__KLING_TOKEN_TRACKER_INSTALLED__) return;
     pageWindow.__AI_TOKEN_TRACKER_INSTALLED__ = true;
     pageWindow.__KLING_TOKEN_TRACKER_INSTALLED__ = true;
-    createTracker();
+    try {
+      createTracker();
+      console.info("[AI Token Tracker]", VERSION, "started on", location.href);
+    } catch (error) {
+      console.error("[AI Token Tracker] boot failed:", error);
+      pageWindow.__AI_TOKEN_TRACKER_INSTALLED__ = false;
+      pageWindow.__KLING_TOKEN_TRACKER_INSTALLED__ = false;
+    }
   }
   boot();
 })();
