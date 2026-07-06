@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kling Token Tracker Harness</title>
+    <style>
+        body {
+            margin: 0;
+            font: 14px Arial, sans-serif;
+            background: #f4f6f8;
+            color: #17202a;
+        }
+        main {
+            max-width: 720px;
+            margin: 48px auto;
+            padding: 0 20px;
+        }
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 18px 0;
+        }
+        button {
+            border: 1px solid #c9d2dc;
+            background: #fff;
+            border-radius: 6px;
+            padding: 9px 12px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #eef4ff;
+        }
+        .wallet {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            padding: 10px 12px;
+            border: 1px solid #d9e1ea;
+            border-radius: 8px;
+            background: #fff;
+            font-weight: 700;
+        }
+        pre {
+            min-height: 160px;
+            padding: 12px;
+            border: 1px solid #d9e1ea;
+            border-radius: 8px;
+            background: #fff;
+            white-space: pre-wrap;
+        }
+    </style>
+    <script>
+        var fakeBalance = 1200;
+
+        function jsonResponse(payload) {
+            return Promise.resolve(new Response(JSON.stringify(payload), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+            }));
+        }
+
+        window.fetch = function fakeFetch(input) {
+            var url = String(input && input.url ? input.url : input);
+            if (url.indexOf('/api/account/wallet') >= 0) {
+                return jsonResponse({
+                    data: {
+                        wallet: {
+                            creditBalance: fakeBalance
+                        }
+                    }
+                });
+            }
+            if (url.indexOf('/api/video/generate') >= 0) {
+                fakeBalance -= 35;
+                return jsonResponse({
+                    data: {
+                        taskId: 'task-' + Date.now(),
+                        costCredits: 35
+                    }
+                });
+            }
+            return jsonResponse({ ok: true });
+        };
+    </script>
+    <script src="./KlingTokenTracker.user.js"></script>
+</head>
+<body>
+    <main>
+        <h1>Kling Token Tracker Harness</h1>
+        <p>This page simulates Kling wallet and generation behavior without spending real credits.</p>
+
+        <div class="wallet">
+            <span>Credits balance</span>
+            <span id="balance">1200</span>
+            <span>Credits</span>
+        </div>
+
+        <div class="toolbar">
+            <button id="fetchWallet" type="button">Fetch wallet</button>
+            <button id="networkSpend" type="button">Generate video via network</button>
+            <button id="uiSpend" type="button">Generate video UI only</button>
+            <button id="mixedSpend" type="button">Generate video mixed</button>
+            <button id="debug" type="button">Toggle tracker debug</button>
+        </div>
+
+        <pre id="log"></pre>
+    </main>
+
+    <script>
+        var balanceEl = document.getElementById('balance');
+        var logEl = document.getElementById('log');
+
+        function log(message) {
+            logEl.textContent = new Date().toLocaleTimeString() + '  ' + message + '\n' + logEl.textContent;
+        }
+
+        function syncDomBalance() {
+            balanceEl.textContent = String(fakeBalance);
+        }
+
+        document.getElementById('fetchWallet').addEventListener('click', function () {
+            fetch('/api/account/wallet').then(function () {
+                log('wallet fetched: ' + fakeBalance);
+            });
+        });
+
+        document.getElementById('networkSpend').addEventListener('click', function () {
+            fetch('/api/video/generate', {
+                method: 'POST',
+                body: JSON.stringify({ prompt: 'harness video', duration: 5 })
+            }).then(function () {
+                return fetch('/api/account/wallet');
+            }).then(function () {
+                log('network-only spend: -35');
+            });
+        });
+
+        document.getElementById('uiSpend').addEventListener('click', function () {
+            fakeBalance -= 20;
+            window.setTimeout(function () {
+                syncDomBalance();
+                log('ui-only spend: -20');
+            }, 300);
+        });
+
+        document.getElementById('mixedSpend').addEventListener('click', function () {
+            fetch('/api/video/generate', {
+                method: 'POST',
+                body: JSON.stringify({ prompt: 'mixed harness video', duration: 5 })
+            }).then(function () {
+                syncDomBalance();
+                return fetch('/api/account/wallet');
+            }).then(function () {
+                log('mixed spend: -35');
+            });
+        });
+
+        document.getElementById('debug').addEventListener('click', function () {
+            if (window.KlingTokenTracker) {
+                var state = window.KlingTokenTracker.getState();
+                window.KlingTokenTracker.setDebug(!state.debug);
+                log('debug toggled');
+            }
+        });
+    </script>
+</body>
+</html>

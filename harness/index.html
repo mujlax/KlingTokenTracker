@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI Token Tracker Harness</title>
+    <style>
+        body { margin: 0; font: 14px Arial, sans-serif; background: #111; color: #eee; }
+        main { max-width: 960px; margin: 32px auto; padding: 0 20px; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+        .tabs button { padding: 8px 14px; border-radius: 6px; border: 1px solid #444; background: #222; color: #eee; cursor: pointer; }
+        .tabs button.active { background: #2d6cdf; border-color: #2d6cdf; }
+        .panel { display: none; border: 1px solid #333; border-radius: 10px; padding: 16px; background: #1a1a1a; }
+        .panel.active { display: block; }
+        .wallet { display: inline-flex; gap: 8px; align-items: center; padding: 10px 12px; border: 1px solid #333; border-radius: 8px; background: #222; font-weight: 700; margin: 12px 0; }
+        .higgs-sidebar { max-width: 320px; background: #161616; border: 1px solid #333; border-radius: 12px; padding: 14px; }
+        .higgs-header { background: #222; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+        .higgs-header strong { color: #b8ff3d; font-size: 18px; }
+        .higgs-model { margin: 12px 0; color: #bbb; font-size: 12px; }
+        .higgs-pills { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+        .higgs-pills button { background: #222; border: 1px solid #444; color: #ddd; border-radius: 999px; padding: 6px 10px; font-size: 12px; }
+        .higgs-generate { width: 100%; margin-top: 16px; padding: 14px; border: none; border-radius: 8px; background: #b8ff3d; color: #111; font-weight: 700; font-size: 15px; cursor: pointer; }
+        pre { min-height: 120px; padding: 12px; border: 1px solid #333; border-radius: 8px; background: #0d0d0d; white-space: pre-wrap; font-size: 12px; }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+        .toolbar button { padding: 8px 12px; border-radius: 6px; border: 1px solid #444; background: #222; color: #eee; cursor: pointer; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>AI Token Tracker Harness</h1>
+    <p>Load <code>dist/AI-Token-Tracker.user.js</code> via Tampermonkey or inject below, then use the mocks.</p>
+
+    <div class="tabs">
+        <button type="button" class="active" data-tab="kling">Kling mock</button>
+        <button type="button" data-tab="higgsfield">Higgsfield mock</button>
+    </div>
+
+    <section class="panel active" data-panel="kling">
+        <div class="wallet">Credits balance: <span id="klingBalance">1200</span></div>
+        <button type="button" class="kling-generate" style="padding:10px 16px;background:#2d6cdf;color:#fff;border:none;border-radius:6px;cursor:pointer;">
+            15 Generate 720p · 5s
+        </button>
+    </section>
+
+    <section class="panel" data-panel="higgsfield">
+        <div class="higgs-profile" style="display:inline-block;margin-bottom:12px;padding:10px 14px;background:#222;border:1px solid #444;border-radius:8px;cursor:pointer;">
+            Profile
+        </div>
+        <div class="higgs-credits-menu" style="display:none;max-width:280px;background:#161616;border:1px solid #333;border-radius:12px;padding:14px;margin-bottom:12px;">
+            <div style="font-weight:700;margin-bottom:8px;">brutalist_pretzel_deluxe</div>
+            <div style="color:#aaa;font-size:12px;margin-bottom:12px;">Ultimate Plan</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;color:#ddd;">
+                <span>Credits</span>
+                <span class="higgs-balance-text">994 left &gt;</span>
+            </div>
+        </div>
+        <div class="higgs-sidebar">
+            <div class="higgs-header">
+                <strong>GENERAL</strong><br>
+                <span style="color:#aaa;font-size:12px;">Veo 3.1 Lite</span>
+            </div>
+            <div class="higgs-model">Model · Google Veo 3.1 Lite</div>
+            <div class="higgs-pills">
+                <button type="button">8s</button>
+                <button type="button">Auto</button>
+                <button type="button">1080p</button>
+            </div>
+            <button type="button" class="higgs-generate">Generate ✦ 16</button>
+        </div>
+    </section>
+
+    <div class="toolbar">
+        <button type="button" id="showState">Show state</button>
+        <button type="button" id="clearHistory">Clear history</button>
+    </div>
+    <pre id="output">Waiting for tracker...</pre>
+</main>
+<script src="../dist/AI-Token-Tracker.user.js"></script>
+<script>
+    var klingBalance = 1200;
+
+    Array.from(document.querySelectorAll('[data-tab]')).forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            Array.from(document.querySelectorAll('[data-tab]')).forEach(function (b) { b.classList.remove('active'); });
+            Array.from(document.querySelectorAll('[data-panel]')).forEach(function (p) { p.classList.remove('active'); });
+            btn.classList.add('active');
+            document.querySelector('[data-panel="' + btn.getAttribute('data-tab') + '"]').classList.add('active');
+        });
+    });
+
+    document.querySelector('.kling-generate').addEventListener('click', function () {
+        klingBalance -= 15;
+        document.getElementById('klingBalance').textContent = String(klingBalance);
+    });
+
+    document.querySelector('.higgs-profile').addEventListener('click', function () {
+        var menu = document.querySelector('.higgs-credits-menu');
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+    });
+
+    document.querySelector('.higgs-generate').addEventListener('click', function () {
+        setTimeout(function () {
+            var api = window.AITokenTracker || window.KlingTokenTracker;
+            if (api) {
+                var state = api.getState();
+                var last = state.history && state.history[0];
+                document.getElementById('output').textContent = last
+                    ? 'Recorded: -' + last.amount + (last.estimated ? ' (est.)' : '') + ' | ' + JSON.stringify(last.metadata)
+                    : 'Click recorded — open Show state for full JSON';
+            }
+        }, 100);
+    });
+
+    document.getElementById('showState').addEventListener('click', function () {
+        var api = window.AITokenTracker || window.KlingTokenTracker;
+        document.getElementById('output').textContent = api
+            ? JSON.stringify(api.getState(), null, 2)
+            : 'Tracker not loaded';
+    });
+
+    document.getElementById('clearHistory').addEventListener('click', function () {
+        var api = window.AITokenTracker || window.KlingTokenTracker;
+        if (api) api.clearHistory();
+        document.getElementById('output').textContent = 'History cleared';
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+export const VERSION = '0.8.2';
+
+export const UI_CLICK_DEDUP_MS = 3000;
+export const SPEND_MERGE_MS = 8000;
+export const STORAGE_PREFIX = 'klingTokenTracker.';
+export const HISTORY_KEY = STORAGE_PREFIX + 'history.v1';
+export const SESSION_KEY = STORAGE_PREFIX + 'session.v1';
+export const META_KEY = STORAGE_PREFIX + 'meta.v1';
+export const DEBUG_KEY = STORAGE_PREFIX + 'debug.v1';
+export const PANEL_KEY = STORAGE_PREFIX + 'panel.v1';
+export const UI_KEY = STORAGE_PREFIX + 'ui.v1';
+export const SETTINGS_KEY = STORAGE_PREFIX + 'settings.v1';
+export const SHEETS_SYNC_KEY = STORAGE_PREFIX + 'sheetsSync.v1';
+export const DEFAULT_SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyBKgzw0oZmfdaOSHU4iBdsRY6l-tXupdUNjcRbMDNw7-glxMuw9kC2rJCljgJquDZORA/exec';
+export const DEFAULT_SHEETS_SECRET_TOKEN = 'token';
+export const PROJECT_KEY = STORAGE_PREFIX + 'project.v1';
+export const PROJECTS_LIBRARY_KEY = STORAGE_PREFIX + 'projects.v1';
+export const MAX_PROJECTS = 100;
+export const MAX_EVENTS = 200;
+export const DUPLICATE_WINDOW_MS = 45 * 1000;
+export const UI_SCAN_DEBOUNCE_MS = 450;
+export const UI_SCAN_INTERVAL_MS = 3000;
+export const MIN_BALANCE_SCORE = 14;
+export const MIN_UI_SCORE = 14;
