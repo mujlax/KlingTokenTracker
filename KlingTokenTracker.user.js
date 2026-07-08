@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         AI Token Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.8.1
+// @version      0.8.8
 // @description  Tracks AI credits/tokens spending from Generate UI across supported platforms.
 // @match        *://kling.ai/*
 // @match        *://*.kling.ai/*
 // @match        *://higgsfield.ai/*
 // @match        *://*.higgsfield.ai/*
+// @match        *://sjinn.ai/*
+// @match        *://*.sjinn.ai/*
 // @run-at       document-start
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -18,8 +20,67 @@
 
 (() => {
   // src/core/constants.js
-  var VERSION = "0.8.1";
+  var VERSION = "0.8.8";
+  var VERSION_HISTORY = [
+    {
+      version: "0.8.8",
+      date: "2026-07-06",
+      changes: [
+        "Added shared Google Sheets pull sync",
+        "Slimmed Sheets columns to essentials",
+        "Showed spend author in History"
+      ]
+    },
+    {
+      version: "0.8.7",
+      date: "2026-07-06",
+      changes: [
+        "Show undo notice in panel header",
+        "Replace title bar while undo is active",
+        "Highlighted spend timestamps"
+      ]
+    },
+    {
+      version: "0.8.6",
+      date: "2026-07-06",
+      changes: [
+        "Fixed Kling balance scale",
+        "Normalized point/ticket credits",
+        "Added regression coverage"
+      ]
+    },
+    {
+      version: "0.8.5",
+      date: "2026-07-06",
+      changes: [
+        "Added spend delete from History",
+        "Added 10s undo for recent spends",
+        "Delayed Sheets sync with delete support"
+      ]
+    },
+    {
+      version: "0.8.4",
+      date: "2026-07-06",
+      changes: [
+        "Shortened panel title to AITT",
+        "Added clickable version badge",
+        "Added Settings changelog"
+      ]
+    },
+    {
+      version: "0.8.3",
+      date: "2026-07-06",
+      changes: [
+        "Added SJinn Seedance support",
+        "Calculated Seedance spend from selected settings",
+        "Moved adapters to factory list"
+      ]
+    }
+  ];
   var UI_CLICK_DEDUP_MS = 3e3;
+  var SPEND_UNDO_WINDOW_MS = 1e4;
+  var SHEETS_SYNC_DELAY_MS = 1e4;
+  var SHEETS_PULL_INTERVAL_MS = 6e4;
   var SPEND_MERGE_MS = 8e3;
   var STORAGE_PREFIX = "klingTokenTracker.";
   var HISTORY_KEY = STORAGE_PREFIX + "history.v1";
@@ -30,7 +91,12 @@
   var UI_KEY = STORAGE_PREFIX + "ui.v1";
   var SETTINGS_KEY = STORAGE_PREFIX + "settings.v1";
   var SHEETS_SYNC_KEY = STORAGE_PREFIX + "sheetsSync.v1";
-  var DEFAULT_SHEETS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyBKgzw0oZmfdaOSHU4iBdsRY6l-tXupdUNjcRbMDNw7-glxMuw9kC2rJCljgJquDZORA/exec";
+  var DEFAULT_SHEETS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwG2o3NIhF6zUURKV_0G0YBRm3nYIPHfbnLKIf4kuOQb2NuGljoqAD8AbG5blBRUAXc5g/exec";
+  var LEGACY_SHEETS_WEB_APP_URLS = [
+    "https://script.google.com/macros/s/AKfycbyBKgzw0oZmfdaOSHU4iBdsRY6l-tXupdUNjcRbMDNw7-glxMuw9kC2rJCljgJquDZORA/exec",
+    "https://script.google.com/macros/s/AKfycbxi3YrJYesMvttSYoFVA-_E_RxIeSHXIOjmGvFVc4HVmOp0QDka_rUo2Oxw82fTP2HXmg/exec",
+    "https://script.google.com/macros/s/AKfycbwZ4SqCwMEvByu8L1MNO1OdRz30Q96HDGabFl5nj_ZvoT2Lw1Z9iWLH5vvswalTwV90kg/exec"
+  ];
   var DEFAULT_SHEETS_SECRET_TOKEN = "token";
   var PROJECT_KEY = STORAGE_PREFIX + "project.v1";
   var PROJECTS_LIBRARY_KEY = STORAGE_PREFIX + "projects.v1";
@@ -323,6 +389,31 @@
     }
     return normalized ? normalized.slice(0, 100) : "";
   }
+  function findFormLikeContainer(start, requiredLabels, panelHost, maxDepth) {
+    if (!start) return null;
+    const labels = Array.isArray(requiredLabels) ? requiredLabels : [];
+    let element = start;
+    const limit = Number(maxDepth) > 0 ? Number(maxDepth) : 8;
+    for (let depth = 0; element && depth < limit; depth += 1) {
+      if (panelHost && panelHost.contains(element) && element !== start) break;
+      const text = compactText(element.innerText || element.textContent || "");
+      if (text && labels.every(function(label) {
+        return new RegExp("\\b" + String(label).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(text);
+      })) {
+        return element;
+      }
+      element = element.parentElement;
+    }
+    return null;
+  }
+  function buildCalculatedSpendDetail(name, settings, amount) {
+    const parts = [name || "Generate"];
+    if (settings && settings.resolution) parts.push(settings.resolution);
+    if (settings && settings.mode) parts.push(settings.mode);
+    if (settings && settings.duration) parts.push(settings.duration);
+    if (isFiniteCredit(amount)) parts.push(String(normalizeCredit(amount)) + " credits");
+    return compactText(parts.join(" \xB7 ")).slice(0, 140);
+  }
 
   // src/adapters/metadata.js
   var HIGGSFIELD_IGNORE_RE = /your browser does not support|enhance\s*off|does not support the video/i;
@@ -417,6 +508,115 @@
     return metadata;
   }
 
+  // src/lib/balance-parse.js
+  function scoreBalancePath(pathText, url) {
+    const path = String(pathText || "").toLowerCase();
+    const urlText = String(url || "").toLowerCase();
+    let score = 0;
+    if (/\/api\/notify\/expiredpoint/.test(urlText)) return -100;
+    if (/\/api\/task\/price|\/api\/task\/calculate-price/.test(urlText)) return -100;
+    if (/remainpoints|remain_points/.test(path) && !/\/api\/account\/pointandticket/.test(urlText)) return -100;
+    if (/quota/.test(path) && !/\/api\/account\//.test(urlText)) return -100;
+    if (/\/api\/account\/pointandticket/.test(urlText) && /^data\.total$/.test(path)) score += 25;
+    if (/\/api\/account\/pointandticket/.test(urlText) && /^data\.points\.\d+\.balance$/.test(path)) score -= 6;
+    if (/\/api\/account\//.test(urlText) && /balance|point|credit|ticket/.test(path)) score += 12;
+    if (/balance/.test(path)) score += 12;
+    if (/remain|remaining|available|left/.test(path)) score += 10;
+    if (/wallet|account|quota/.test(path)) score += 7;
+    if (/credit|credits|token|tokens/.test(path)) score += 6;
+    if (/coin|coins/.test(path)) score += 4;
+    if (/wallet|account|balance|credit|quota|asset|pointandticket/.test(urlText)) score += 3;
+    if (/\/api\/user\/|\/api\/elements|\/api\/product|\/api\/libraries|\/api\/lora|\/api\/task\//.test(urlText)) score -= 8;
+    if (/generate|generation|submit|create|task/.test(urlText)) score -= 4;
+    if (/cost|consume|consumed|spend|spent|used|usage|price|deduct|fee|charge/.test(path)) score -= 8;
+    if (/count|num|number|duration|second|width|height|fps|size|limit|max|min|id$/.test(path)) score -= 5;
+    if (/expire|expiry|deadline|timestamp|time|date/.test(path)) score -= 6;
+    return score;
+  }
+  function normalizeKlingPointAndTicketCredit(value) {
+    return normalizeCredit(value / 100);
+  }
+  function extractKlingPointAndTicketBalance(payload) {
+    const data = payload && payload.data;
+    if (!data || typeof data !== "object") return null;
+    const total = normalizeJsonNumber(data.total);
+    if (isFiniteCredit(total)) {
+      return {
+        value: normalizeKlingPointAndTicketCredit(total),
+        path: "data.total",
+        score: 30
+      };
+    }
+    if (Array.isArray(data.points) && data.points.length) {
+      let sum = 0;
+      let hasAny = false;
+      data.points.forEach(function(point) {
+        const balance = normalizeJsonNumber(point && point.balance);
+        if (!isFiniteCredit(balance)) return;
+        sum += balance;
+        hasAny = true;
+      });
+      if (hasAny) {
+        return {
+          value: normalizeKlingPointAndTicketCredit(sum),
+          path: "data.points[].balance(sum)",
+          score: 28
+        };
+      }
+    }
+    const remain = normalizeJsonNumber(
+      data.remainPoints != null ? data.remainPoints : data.remain_points
+    );
+    if (isFiniteCredit(remain)) {
+      return {
+        value: normalizeKlingPointAndTicketCredit(remain),
+        path: data.remainPoints != null ? "data.remainPoints" : "data.remain_points",
+        score: 26
+      };
+    }
+    return null;
+  }
+  function extractBalanceFromPayload(payload, url) {
+    const urlText = String(url || "");
+    if (/\/api\/account\/pointandticket/i.test(urlText)) {
+      const klingBalance = extractKlingPointAndTicketBalance(payload);
+      if (klingBalance) return klingBalance;
+    }
+    const candidates = [];
+    walkJson(payload, [], function(value, path) {
+      const number = normalizeJsonNumber(value);
+      if (!isFiniteCredit(number)) return;
+      const pathText = path.join(".").toLowerCase();
+      const score = scoreBalancePath(pathText, url);
+      if (score >= MIN_BALANCE_SCORE) {
+        candidates.push({
+          value: normalizeCredit(number),
+          path: path.join("."),
+          score
+        });
+      }
+    });
+    if (!candidates.length) return null;
+    candidates.sort(function(a, b) {
+      if (b.score !== a.score) return b.score - a.score;
+      return String(a.path).length - String(b.path).length;
+    });
+    return candidates[0];
+  }
+  function extractTaskId(payload) {
+    let found = null;
+    walkJson(payload, [], function(value, path) {
+      if (found != null) return;
+      if (typeof value !== "string" && typeof value !== "number") return;
+      const pathText = path.join(".").toLowerCase();
+      if (!/(task|job|generation|video).*(id)|(^|\.)(taskid|task_id|jobid|job_id)$/.test(pathText)) return;
+      const text = String(value);
+      if (text.length < 3 || text.length > 120) return;
+      found = text;
+    });
+    return found;
+  }
+
   // src/adapters/kling.js
   function createKlingAdapter(h) {
     return {
@@ -451,6 +651,10 @@
         };
       },
       extractBalance: function(payload, url) {
+        if (/\/api\/account\/pointandticket/i.test(String(url || ""))) {
+          const structured = extractKlingPointAndTicketBalance(payload);
+          if (structured) return structured;
+        }
         return h.extractBalanceFromPayload(payload, url);
       },
       isRelevantDebugUrl: function(url, payload) {
@@ -510,13 +714,204 @@
     };
   }
 
+  // src/adapters/seedance.js
+  var SEEDANCE_RATES = {
+    "480P": { Pro: 143, Fast: 100, Mini: 72 },
+    "720P": { Pro: 240, Fast: 168, Mini: 120 },
+    "1080P": { Pro: 600, Fast: 420, Mini: 300 },
+    "4K": { Pro: 1200, Fast: 840, Mini: 600 }
+  };
+  var SEEDANCE_LABELS = ["Aspect Ratio", "Duration", "Mode", "Resolution"];
+  function normalizeResolution(value) {
+    const text = compactText(value).toUpperCase();
+    if (/^4\s*K$/.test(text)) return "4K";
+    const match = text.match(/\b(480P|720P|1080P|4K)\b/i);
+    return match ? match[1].toUpperCase() : "";
+  }
+  function normalizeMode(value) {
+    const match = compactText(value).match(/\b(Pro|Fast|Mini)\b/i);
+    if (!match) return "";
+    return match[1].slice(0, 1).toUpperCase() + match[1].slice(1).toLowerCase();
+  }
+  function normalizeDuration(value) {
+    const match = compactText(value).match(/(\d+(?:[.,]\d+)?)\s*s\b/i);
+    if (!match) return { label: "", seconds: NaN };
+    const seconds = parseLooseNumber(match[1]);
+    return {
+      label: isFiniteCredit(seconds) ? normalizeCredit(seconds) + "s" : "",
+      seconds
+    };
+  }
+  function normalizeAspectRatio(value) {
+    const match = compactText(value).match(/\b(\d{1,2}:\d{1,2})\b/);
+    return match ? match[1] : "";
+  }
+  function extractPrompt(container) {
+    if (!container || typeof container.querySelectorAll !== "function") return "";
+    const fields = container.querySelectorAll('textarea, [contenteditable="true"], input[type="text"], input:not([type])');
+    for (let i = 0; i < fields.length; i += 1) {
+      const field = fields[i];
+      const text = compactText(field.value || field.textContent || "");
+      if (text && !/^generate$/i.test(text)) return text.slice(0, 200);
+    }
+    return "";
+  }
+  function getElementText(element) {
+    if (!element) return "";
+    return compactText([
+      element.innerText || "",
+      element.textContent || "",
+      element.value || "",
+      element.getAttribute ? element.getAttribute("aria-label") || "" : "",
+      element.getAttribute ? element.getAttribute("title") || "" : ""
+    ].join(" "));
+  }
+  function isUsefulSelectValue(text, label) {
+    const normalized = compactText(text);
+    if (!normalized || normalized.length > 40) return false;
+    if (label && normalized.toLowerCase() === String(label).toLowerCase()) return false;
+    if (/upload|generate|prompt|collection|guide/i.test(normalized)) return false;
+    return true;
+  }
+  function readSeedanceComboboxValues(container) {
+    if (!container || typeof container.querySelectorAll !== "function") return null;
+    const controls = Array.from(container.querySelectorAll('button[role="combobox"], [role="combobox"], select')).filter(function(element) {
+      return isUsefulSelectValue(getElementText(element), "");
+    });
+    if (controls.length < SEEDANCE_LABELS.length) return null;
+    const selected = controls.slice(-SEEDANCE_LABELS.length);
+    return {
+      aspectRatio: getElementText(selected[0]),
+      duration: getElementText(selected[1]),
+      mode: getElementText(selected[2]),
+      resolution: getElementText(selected[3])
+    };
+  }
+  function calculateSeedanceCost(settings) {
+    const resolution = normalizeResolution(settings && settings.resolution);
+    const mode = normalizeMode(settings && settings.mode);
+    const duration = normalizeDuration(settings && settings.duration);
+    const rate = resolution && mode && SEEDANCE_RATES[resolution] && SEEDANCE_RATES[resolution][mode];
+    if (!isFiniteCredit(duration.seconds) || duration.seconds <= 0 || !isFiniteCredit(rate) || rate <= 0) {
+      return NaN;
+    }
+    return normalizeCredit(duration.seconds * rate);
+  }
+  function parseSeedanceSettingsFromText(text) {
+    const values = {};
+    SEEDANCE_LABELS.forEach(function(label, index) {
+      values[label] = "";
+      const nextLabels = SEEDANCE_LABELS.slice(index + 1).map(function(item) {
+        return String(item).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      });
+      const endPattern = nextLabels.length ? "(?=\\s+(?:" + nextLabels.join("|") + ")\\b|$)" : "(?=$)";
+      const match = compactText(text).match(new RegExp("\\b" + label + "\\b\\s+(.+?)" + endPattern, "i"));
+      if (match) values[label] = compactText(match[1]);
+    });
+    return normalizeSeedanceSettings({
+      aspectRatio: values["Aspect Ratio"],
+      duration: values.Duration,
+      mode: values.Mode,
+      resolution: values.Resolution
+    });
+  }
+  function normalizeSeedanceSettings(input) {
+    const duration = normalizeDuration(input && input.duration);
+    return {
+      aspectRatio: normalizeAspectRatio(input && input.aspectRatio),
+      duration: duration.label,
+      durationSeconds: duration.seconds,
+      mode: normalizeMode(input && input.mode),
+      resolution: normalizeResolution(input && input.resolution),
+      prompt: compactText(input && input.prompt || "").slice(0, 200)
+    };
+  }
+  function getSeedanceSettings(container) {
+    const comboValues = readSeedanceComboboxValues(container);
+    if (comboValues) {
+      return normalizeSeedanceSettings({
+        aspectRatio: comboValues.aspectRatio,
+        duration: comboValues.duration,
+        mode: comboValues.mode,
+        resolution: comboValues.resolution,
+        prompt: extractPrompt(container)
+      });
+    }
+    const values = parseSeedanceSettingsFromText(container && (container.innerText || container.textContent) || "");
+    return normalizeSeedanceSettings({
+      aspectRatio: values.aspectRatio,
+      duration: values.duration,
+      mode: values.mode,
+      resolution: values.resolution,
+      prompt: extractPrompt(container)
+    });
+  }
+  function createSeedanceAdapter(h) {
+    return {
+      id: "seedance",
+      name: "Seedance",
+      networkEnabled: false,
+      uiBalanceEnabled: false,
+      matchesLocation: function(url) {
+        return /^https?:\/\/(?:[\w-]+\.)*sjinn\.ai\/tools\/seedance20-video(?:[/?#]|$)/i.test(String(url || ""));
+      },
+      parseGenerateClick: function(clickable, event) {
+        const directText = getDirectClickableText(clickable);
+        if (!/^generate$/i.test(directText)) return null;
+        const container = findFormLikeContainer(clickable, SEEDANCE_LABELS, h.getPanelHost(), 10);
+        if (!container) {
+          h.addDiagnostic("ignored seedance generate without form context", directText, getElementRectSummary(clickable));
+          return null;
+        }
+        if (event && clickable && typeof clickable.getBoundingClientRect === "function") {
+          const rect = clickable.getBoundingClientRect();
+          if (rect && Number.isFinite(rect.left) && Number.isFinite(event.clientX)) {
+            const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+            if (!inside) return null;
+          }
+        }
+        const settings = getSeedanceSettings(container);
+        const amount = calculateSeedanceCost(settings);
+        if (!isFiniteCredit(amount) || amount <= 0) {
+          h.addDiagnostic("seedance generate click without calculable cost", settings);
+          return null;
+        }
+        return {
+          amount,
+          detail: buildCalculatedSpendDetail("Seedance Generate", settings, amount),
+          metadata: {
+            resolution: settings.resolution,
+            duration: settings.duration,
+            mode: settings.mode,
+            aspectRatio: settings.aspectRatio,
+            model: "Seedance 2.0",
+            prompt: settings.prompt
+          },
+          estimated: true
+        };
+      },
+      extractBalance: function() {
+        return null;
+      },
+      isRelevantDebugUrl: function() {
+        return false;
+      }
+    };
+  }
+
+  // src/adapters/index.js
+  var ADAPTER_FACTORIES = [
+    createKlingAdapter,
+    createHiggsfieldAdapter,
+    createSeedanceAdapter
+  ];
+
   // src/adapters/registry.js
   var ADAPTERS = [];
   function initAdapters(helpers) {
-    ADAPTERS = [
-      createKlingAdapter(helpers),
-      createHiggsfieldAdapter(helpers)
-    ];
+    ADAPTERS = ADAPTER_FACTORIES.map(function(createAdapter) {
+      return createAdapter(helpers);
+    });
     return ADAPTERS;
   }
   function getActiveAdapter() {
@@ -524,66 +919,6 @@
       if (ADAPTERS[i].matchesLocation(window.location.href)) return ADAPTERS[i];
     }
     return ADAPTERS[0] || null;
-  }
-
-  // src/lib/balance-parse.js
-  function scoreBalancePath(pathText, url) {
-    const path = String(pathText || "").toLowerCase();
-    const urlText = String(url || "").toLowerCase();
-    let score = 0;
-    if (/\/api\/notify\/expiredpoint/.test(urlText)) return -100;
-    if (/\/api\/task\/price|\/api\/task\/calculate-price/.test(urlText)) return -100;
-    if (/remainpoints|remain_points/.test(path)) return -100;
-    if (/quota/.test(path) && !/\/api\/account\//.test(urlText)) return -100;
-    if (/\/api\/account\/pointandticket/.test(urlText) && /^data\.points\.\d+\.balance$/.test(path)) score += 20;
-    if (/\/api\/account\//.test(urlText) && /balance|point|credit|ticket/.test(path)) score += 12;
-    if (/balance/.test(path)) score += 12;
-    if (/remain|remaining|available|left/.test(path)) score += 10;
-    if (/wallet|account|quota/.test(path)) score += 7;
-    if (/credit|credits|token|tokens/.test(path)) score += 6;
-    if (/coin|coins/.test(path)) score += 4;
-    if (/wallet|account|balance|credit|quota|asset|pointandticket/.test(urlText)) score += 3;
-    if (/\/api\/user\/|\/api\/elements|\/api\/product|\/api\/libraries|\/api\/lora|\/api\/task\//.test(urlText)) score -= 8;
-    if (/generate|generation|submit|create|task/.test(urlText)) score -= 4;
-    if (/cost|consume|consumed|spend|spent|used|usage|price|deduct|fee|charge/.test(path)) score -= 8;
-    if (/count|num|number|duration|second|width|height|fps|size|limit|max|min|id$/.test(path)) score -= 5;
-    if (/expire|expiry|deadline|timestamp|time|date/.test(path)) score -= 6;
-    return score;
-  }
-  function extractBalanceFromPayload(payload, url) {
-    const candidates = [];
-    walkJson(payload, [], function(value, path) {
-      const number = normalizeJsonNumber(value);
-      if (!isFiniteCredit(number)) return;
-      const pathText = path.join(".").toLowerCase();
-      const score = scoreBalancePath(pathText, url);
-      if (score >= MIN_BALANCE_SCORE) {
-        candidates.push({
-          value: normalizeCredit(number),
-          path: path.join("."),
-          score
-        });
-      }
-    });
-    if (!candidates.length) return null;
-    candidates.sort(function(a, b) {
-      if (b.score !== a.score) return b.score - a.score;
-      return String(a.path).length - String(b.path).length;
-    });
-    return candidates[0];
-  }
-  function extractTaskId(payload) {
-    let found = null;
-    walkJson(payload, [], function(value, path) {
-      if (found != null) return;
-      if (typeof value !== "string" && typeof value !== "number") return;
-      const pathText = path.join(".").toLowerCase();
-      if (!/(task|job|generation|video).*(id)|(^|\.)(taskid|task_id|jobid|job_id)$/.test(pathText)) return;
-      const text = String(value);
-      if (text.length < 3 || text.length > 120) return;
-      found = text;
-    });
-    return found;
   }
 
   // src/core/storage.js
@@ -855,6 +1190,8 @@
         metadata: sanitizeMetadata(event.metadata || {}),
         project: sanitizeProject(event.project || {}),
         estimated: event.estimated === true,
+        user: String(event.user || ""),
+        remote: event.remote === true,
         updatedAt: event.updatedAt ? Number(event.updatedAt) : void 0
       };
     }).sort(function(a, b) {
@@ -868,17 +1205,28 @@
     session.total = normalizeCredit(Number(session.total || 0) + Number(event.amount || 0));
     return session;
   }
+  function removeEventFromSession(session, event) {
+    if (!session || !Array.isArray(session.eventIds)) session = createSession();
+    if (!event || !event.id) return session;
+    if (session.eventIds.indexOf(event.id) < 0) return session;
+    session.eventIds = session.eventIds.filter(function(id) {
+      return id !== event.id;
+    });
+    session.total = normalizeCredit(Math.max(0, Number(session.total || 0) - Number(event.amount || 0)));
+    return session;
+  }
   function eventMatchesService(event, serviceId) {
     return String(event && event.service || "kling") === serviceId;
+  }
+  function normalizeProjectName(name) {
+    return String(name || "").trim().toLowerCase();
   }
   function eventMatchesProject(event, project) {
     if (!project || !project.name) return false;
     const eventProject = sanitizeProject(event && event.project || {});
     if (!eventProject.name) return false;
     if (project.id && eventProject.id) return eventProject.id === project.id;
-    if (eventProject.name !== project.name) return false;
-    if (project.url && eventProject.url && project.url !== eventProject.url) return false;
-    return true;
+    return normalizeProjectName(eventProject.name) === normalizeProjectName(project.name);
   }
   function getFilteredHistory(history, project) {
     if (!project || !project.name) return history.slice();
@@ -890,6 +1238,35 @@
     return normalizeCredit(getFilteredHistory(history, project).reduce(function(sum, event) {
       return sum + Number(event.amount || 0);
     }, 0));
+  }
+  function getProjectTotalsByService(history, project) {
+    const grouped = {};
+    getFilteredHistory(history, project).forEach(function(event) {
+      const service = String(event && event.service || "kling");
+      if (!grouped[service]) {
+        grouped[service] = {
+          service,
+          serviceName: String(event && event.serviceName || service),
+          total: 0,
+          count: 0
+        };
+      } else if (event && event.serviceName && grouped[service].serviceName === service) {
+        grouped[service].serviceName = String(event.serviceName);
+      }
+      grouped[service].total += Number(event && event.amount || 0);
+      grouped[service].count += 1;
+    });
+    return Object.keys(grouped).map(function(service) {
+      return {
+        service: grouped[service].service,
+        serviceName: grouped[service].serviceName,
+        total: normalizeCredit(grouped[service].total),
+        count: grouped[service].count
+      };
+    }).sort(function(a, b) {
+      if (b.total !== a.total) return b.total - a.total;
+      return a.serviceName.localeCompare(b.serviceName);
+    });
   }
   function getTodayTotal(history, serviceId) {
     const today = localDateKey(Date.now());
@@ -956,6 +1333,9 @@
     }
     function getProjectAllTimeTotal2(project) {
       return getProjectAllTimeTotal(ctx.getHistory(), project || getActiveProject());
+    }
+    function getProjectTotalsByService2(project) {
+      return getProjectTotalsByService(ctx.getHistory(), project || getActiveProject());
     }
     function getProjectLastSpend(project) {
       const filtered = getFilteredHistory2(project);
@@ -1193,6 +1573,7 @@
       isProjectFilterActive,
       getFilteredHistory: getFilteredHistory2,
       getProjectAllTimeTotal: getProjectAllTimeTotal2,
+      getProjectTotalsByService: getProjectTotalsByService2,
       getProjectLastSpend,
       getProjectEventCount,
       backfillHistoryProjectIds,
@@ -1845,6 +2226,8 @@
         clearHistory,
         forgetBalance,
         resetAll,
+        deleteSpendEvent: ctx.deleteSpendEvent,
+        undoLastSpend: ctx.undoLastSpend,
         setProject: ctx.setProject,
         clearProject: ctx.clearProject,
         listProjects: ctx.listProjects,
@@ -1871,6 +2254,8 @@
       forgetBalance,
       resetAll,
       setDebug,
+      deleteSpendEvent: ctx.deleteSpendEvent,
+      undoLastSpend: ctx.undoLastSpend,
       downloadExport
     };
   }
@@ -2016,17 +2401,27 @@
     const value = settings || {};
     return value.sheetsEnabled !== false && !String(value.sheetsNickname || "").trim();
   }
+  function isLegacySheetsWebAppUrl(url) {
+    const value = String(url || "").trim().replace(/\/dev$/i, "/exec");
+    return LEGACY_SHEETS_WEB_APP_URLS.indexOf(value) >= 0;
+  }
   function loadSettings() {
     const raw = readJson(SETTINGS_KEY, {});
     const settings = sanitizeSettings(raw);
-    if (!String(raw.sheetsWebAppUrl || "").trim()) {
+    const storedUrl = String(raw.sheetsWebAppUrl || "").trim();
+    let migrated = false;
+    if (!storedUrl || isLegacySheetsWebAppUrl(storedUrl)) {
       settings.sheetsWebAppUrl = DEFAULT_SHEETS_WEB_APP_URL;
+      migrated = migrated || storedUrl !== "" && storedUrl !== DEFAULT_SHEETS_WEB_APP_URL;
     }
     if (!String(raw.sheetsSecretToken || "").trim()) {
       settings.sheetsSecretToken = DEFAULT_SHEETS_SECRET_TOKEN;
     }
     if (raw.sheetsEnabled !== false) {
       settings.sheetsEnabled = true;
+    }
+    if (migrated) {
+      writeJson(SETTINGS_KEY, settings);
     }
     return settings;
   }
@@ -2075,15 +2470,22 @@
       const shadow = host.attachShadow({ mode: "open" });
       shadow.innerHTML = [
         "<style>",
-        ":host{display:block;--ktt-idle-opacity:.2;opacity:var(--ktt-idle-opacity);transition:opacity .2s ease}",
-        ":host(:hover){opacity:1}",
-        ".panel{width:286px;color:#f6f7f8;background:rgba(18,20,24,.92);border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 30px rgba(0,0,0,.26);border-radius:8px;overflow:hidden;font:13px/1.35 Arial,sans-serif;backdrop-filter:blur(8px)}",
+        ":host{display:block;position:relative;--ktt-idle-opacity:.2}",
+        ":host(:hover) .panel,.panel.undo-active{opacity:1}",
+        ".panel{position:relative;width:286px;color:#f6f7f8;background:rgba(18,20,24,.92);border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 30px rgba(0,0,0,.26);border-radius:8px;overflow:hidden;font:13px/1.35 Arial,sans-serif;backdrop-filter:blur(8px);opacity:var(--ktt-idle-opacity);transition:opacity .2s ease}",
         ".panel.collapsed .panelContent{display:none}",
-        ".header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:rgba(255,255,255,.06);user-select:none}",
+        ".panelContent{position:relative}",
+        ".header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:rgba(255,255,255,.06);user-select:none;min-height:28px;cursor:move}",
+        ".headerDefault{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;flex:1}",
+        ".panel.undo-active .header{background:rgba(45,108,223,.14)}",
+        ".panel.undo-active .headerDefault{display:none}",
         ".headerDrag{display:flex;align-items:center;gap:8px;min-width:0;flex:1;cursor:move}",
+        ".headerControls{display:flex;align-items:center;gap:6px;flex-shrink:0}",
         ".headerBtn{width:28px;height:28px;flex-shrink:0;cursor:pointer}",
         ".headerBtn svg{width:15px;height:15px}",
         ".title{font-weight:700;letter-spacing:0}",
+        ".versionBtn{appearance:none;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);color:#d8dde6;border-radius:999px;padding:2px 7px;font:11px Arial,sans-serif;cursor:pointer;white-space:nowrap}",
+        ".versionBtn:hover{background:rgba(255,255,255,.14);color:#fff}",
         ".badge{font-size:11px;border-radius:999px;padding:2px 7px;background:#2d6cdf;color:#fff;text-transform:uppercase}",
         ".body{padding:10px 12px 12px}",
         ".tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 10px 0}",
@@ -2100,6 +2502,12 @@
         ".history{margin-top:10px;display:flex;flex-direction:column;gap:8px;max-height:320px;overflow:auto}",
         ".histItem{border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:8px;background:rgba(255,255,255,.04)}",
         ".histTop{display:flex;justify-content:space-between;gap:8px;color:#fff;font-weight:700;font-size:12px}",
+        ".histSpendMain{min-width:0;flex:1;display:flex;align-items:center;gap:6px;flex-wrap:wrap}",
+        ".histTime{display:inline-flex;align-items:center;border:1px solid rgba(142,182,255,.28);background:rgba(45,108,223,.18);color:#d6e4ff;border-radius:999px;padding:1px 6px;font-size:11px;line-height:1.35;font-weight:700}",
+        ".histAmount{color:#fff;font-weight:800}",
+        ".histSpendService{color:#d8dde6;white-space:nowrap}",
+        ".histDelete{width:24px;height:24px;flex-shrink:0;opacity:.72}",
+        ".histDelete:hover{opacity:1}",
         ".histMeta{margin-top:5px;color:#bfc6d1;font-size:11px;display:flex;flex-wrap:wrap;gap:5px}",
         ".pill{border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:1px 6px;background:rgba(255,255,255,.05)}",
         ".raw{margin-top:5px;color:#8f98a6;font-size:11px;word-break:break-word}",
@@ -2122,8 +2530,16 @@
         ".projectMiniStat{color:#8eb6ff;font-weight:700;white-space:nowrap;font-size:11px}",
         ".projectGrid{margin-top:8px;border-top:1px solid rgba(255,255,255,.12);padding-top:8px}",
         ".projectGrid .label{color:#8eb6ff}",
+        ".projectBreakdown{grid-column:1/-1;display:grid;gap:4px;margin-top:2px}",
+        ".projectBreakdownRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;color:#d8dde6;font-size:12px}",
+        ".projectBreakdownName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+        ".projectBreakdownValue{font-weight:700;color:#fff;text-align:right}",
+        ".projectBreakdownEmpty{color:#8f98a6;font-size:11px}",
         ".histHeader{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:#bfc6d1;margin-bottom:6px}",
         ".histHeader strong{color:#fff}",
+        ".histHeaderText{min-width:0}",
+        ".histStats{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap;flex-shrink:0}",
+        ".histStat{border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:1px 6px;background:rgba(255,255,255,.05);white-space:nowrap}",
         ".histShowAll{appearance:none;border:none;background:none;color:#8eb6ff;padding:0;font:11px Arial,sans-serif;cursor:pointer;text-decoration:underline}",
         ".histItem--matched{border-color:rgba(45,108,223,.45);background:rgba(45,108,223,.08)}",
         ".select.field{cursor:pointer;padding-right:24px}",
@@ -2163,20 +2579,46 @@
         ".settingsCheck{display:inline-flex;align-items:center;gap:5px;color:#d8dde6;font-size:10px;cursor:pointer;user-select:none;grid-column:1/-1}",
         ".settingsCheck input{width:12px;height:12px;margin:0;cursor:pointer}",
         ".settingsStatus{color:#9aa3b2;font-size:10px;line-height:1.3;word-break:break-word;grid-column:1/-1}",
-        ".settingsActions{display:grid;grid-template-columns:1fr 1fr;gap:4px;grid-column:1/-1}",
+        ".settingsActions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;grid-column:1/-1}",
         ".settingsActions button,.settingsReset{padding:4px 6px;font-size:10px}",
         ".settingsReset{margin-top:2px}",
+        ".versionList{display:grid;gap:7px}",
+        ".versionItem{display:grid;gap:3px;border-top:1px solid rgba(255,255,255,.08);padding-top:7px}",
+        ".versionItem:first-child{border-top:none;padding-top:0}",
+        ".versionTop{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#fff;font-weight:700;font-size:11px}",
+        ".versionDate{color:#8f98a6;font-weight:400}",
+        ".versionChanges{margin:0;padding-left:14px;color:#bfc6d1;font-size:10px;line-height:1.35}",
+        ".undoToast{display:none;width:100%;grid-template-columns:auto minmax(0,1fr) auto auto;gap:6px;align-items:center}",
+        ".panel.undo-active .undoToast{display:grid}",
+        ".undoIcon{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(45,108,223,.32);color:#fff}",
+        ".undoIcon svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}",
+        ".undoText{display:grid;gap:0;min-width:0;color:#d8dde6;font-size:10px;line-height:1.2}",
+        ".undoText strong{color:#fff;font-size:11px;line-height:1.15}",
+        ".undoMeta{color:#bfc6d1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+        ".undoAction{padding:4px 8px;font-size:11px;font-weight:700;border-radius:999px;background:#2d6cdf;border-color:#2d6cdf}",
+        ".undoClose{width:22px;height:22px;border-radius:999px}",
         ".sheetsNicknameWarn{padding:5px 10px;background:rgba(242,184,75,.14);border-bottom:1px solid rgba(242,184,75,.28);color:#f2d49b;font-size:10px;line-height:1.35;cursor:pointer}",
         ".sheetsNicknameWarn[hidden]{display:none}",
         '.tabPanel[data-panel="settings"]{max-height:260px;overflow:auto;padding-top:2px}',
         "</style>",
         '<div class="panel' + (ctx.runtime.panelCollapsed ? " collapsed" : "") + '">',
-        '  <div class="header">',
-        '    <div class="headerDrag" data-drag-handle>',
-        '      <div class="title">AI Token Tracker</div>',
-        '      <div class="badge" data-field="serviceName">none</div>',
+        '  <div class="header" data-drag-handle>',
+        '    <div class="headerDefault" data-field="headerDefault">',
+        '      <div class="headerDrag">',
+        '        <div class="title">AITT</div>',
+        '        <div class="badge" data-field="serviceName">none</div>',
+        "      </div>",
+        '      <div class="headerControls">',
+        '        <button type="button" class="versionBtn" data-action="showVersions" data-field="versionBadge" aria-label="Show version history">v-</button>',
+        '        <button type="button" class="iconBtn headerBtn" data-action="toggleCollapse" data-tooltip="Collapse panel" aria-label="Collapse panel">' + iconSvg(ctx.runtime.panelCollapsed ? "chevron-up" : "chevron-down") + "</button>",
+        "      </div>",
         "    </div>",
-        '    <button type="button" class="iconBtn headerBtn" data-action="toggleCollapse" data-tooltip="Collapse panel" aria-label="Collapse panel">' + iconSvg(ctx.runtime.panelCollapsed ? "chevron-up" : "chevron-down") + "</button>",
+        '    <div class="undoToast" data-field="undoToast" aria-hidden="true">',
+        '      <span class="undoIcon">' + iconSvg("rotate-ccw") + "</span>",
+        '      <span class="undoText"><strong>Recorded</strong><span class="undoMeta" data-field="undoMeta"></span></span>',
+        '      <button type="button" class="undoAction" data-action="undoSpend">Undo</button>',
+        '      <button type="button" class="iconBtn undoClose" data-action="closeUndoToast" data-tooltip="Close" aria-label="Close undo">' + iconSvg("x") + "</button>",
+        "    </div>",
         "  </div>",
         '  <div class="panelContent">',
         '  <div class="projectBox compact" data-field="projectBox">',
@@ -2218,13 +2660,10 @@
         '   <div class="tabPanel" data-panel="summary">',
         '    <div class="grid">',
         '      <div class="label">Balance</div><div class="value" data-field="balance">-</div>',
-        '      <div class="label">Last spend</div><div class="value" data-field="lastSpend">-</div>',
-        '      <div class="label">Session</div><div class="value" data-field="sessionTotal">0</div>',
-        '      <div class="label">Today</div><div class="value" data-field="todayTotal">0</div>',
         "    </div>",
         '    <div class="projectGrid grid" data-field="projectGrid" hidden>',
         '      <div class="label">Project total</div><div class="value" data-field="projectTotal">0</div>',
-        '      <div class="label" data-field="projectLastLabel">Last (project)</div><div class="value" data-field="projectLastSpend">-</div>',
+        '      <div class="projectBreakdown" data-field="projectBreakdown"></div>',
         "    </div>",
         '    <div class="events" data-field="events"></div>',
         "   </div>",
@@ -2288,6 +2727,16 @@
         "          </div>",
         "        </div>",
         "      </div>",
+        '      <div class="acc" data-acc="versions">',
+        '        <button type="button" class="accHead" data-action="toggleSettingsAcc">',
+        '          <span class="accTitle">Versions</span>',
+        '          <span class="accMeta" data-field="settingAccMetaVersions">v-</span>',
+        '          <span class="accChevron">' + iconSvg("chevron-down") + "</span>",
+        "        </button>",
+        '        <div class="accBody">',
+        '          <div class="versionList" data-field="versionHistory"></div>',
+        "        </div>",
+        "      </div>",
         '      <div class="acc' + (needsSheetsNickname(ctx.runtime.settings) ? " open" : "") + '" data-acc="sheets">',
         '        <button type="button" class="accHead" data-action="toggleSettingsAcc">',
         '          <span class="accTitle">Google Sheets</span>',
@@ -2315,6 +2764,7 @@
         '          <div class="settingsActions">',
         '            <button type="button" data-action="testSheetsConnection">Test</button>',
         '            <button type="button" data-action="retrySheetsSync">Retry</button>',
+        '            <button type="button" data-action="refreshSheetsData">Refresh</button>',
         "          </div>",
         "        </div>",
         "      </div>",
@@ -2328,7 +2778,6 @@
         '      <button type="button" class="iconBtn" data-action="export" data-tooltip="Export JSON" aria-label="Export JSON">' + iconSvg("download") + "</button>",
         '      <button type="button" class="iconBtn" data-action="debug" data-tooltip="Collect debug report" aria-label="Collect debug report">' + iconSvg("bug") + "</button>",
         "    </div>",
-        "  </div>",
         "  </div>",
         "</div>"
       ].join("");
@@ -2346,6 +2795,21 @@
       });
       shadow.querySelector('[data-action="debug"]').addEventListener("click", function() {
         ctx.setDebug(!ctx.runtime.debug);
+      });
+      shadow.querySelector('[data-action="undoSpend"]').addEventListener("click", function() {
+        ctx.undoLastSpend();
+      });
+      shadow.querySelector('[data-action="closeUndoToast"]').addEventListener("click", function() {
+        ctx.hideUndoSpend();
+      });
+      shadow.querySelector('[data-action="showVersions"]').addEventListener("click", function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        ctx.setActiveTab("settings");
+        window.setTimeout(function() {
+          const versionsAcc = shadow.querySelector('[data-acc="versions"]');
+          if (versionsAcc) versionsAcc.classList.add("open");
+        }, 60);
       });
       shadow.querySelector('[data-action="clearProject"]').addEventListener("click", function() {
         ctx.clearProject();
@@ -2455,10 +2919,22 @@
           ctx.renderSoon();
         });
       });
+      shadow.querySelector('[data-action="refreshSheetsData"]').addEventListener("click", function() {
+        applySheetsFieldsFromForm(ctx, shadow);
+        const statusEl = shadow.querySelector('[data-field="settingSheetsStatus"]');
+        const refreshButton = shadow.querySelector('[data-action="refreshSheetsData"]');
+        if (statusEl) statusEl.textContent = "Refreshing shared data...";
+        if (refreshButton) refreshButton.disabled = true;
+        Promise.resolve(ctx.pullEventsFromSheets()).catch(function() {
+        }).then(function() {
+          if (refreshButton) refreshButton.disabled = false;
+          ctx.renderSoon();
+        });
+      });
       shadow.querySelector('[data-action="resetSettings"]').addEventListener("click", function() {
         ctx.resetSettings();
       });
-      installPanelDrag(host, shadow.querySelector("[data-drag-handle]"));
+      installPanelDrag(host, shadow.querySelector(".header"));
       mount.appendChild(host);
       ctx.runtime.panelHost = host;
       ctx.runtime.shadowRoot = shadow;
@@ -2499,6 +2975,9 @@
       let startRight = 0;
       let startBottom = 0;
       handle.addEventListener("pointerdown", function(event) {
+        if (event.target && event.target.closest && event.target.closest('button, input, select, textarea, a, [role="button"]')) {
+          return;
+        }
         dragging = true;
         startX = event.clientX;
         startY = event.clientY;
@@ -2663,6 +3142,7 @@
       const pills = [
         event.source || "unknown"
       ];
+      if (event.user) pills.push("by " + event.user);
       if (event.estimated) pills.push("estimated");
       if (!options.hideProjectPill && event.project && event.project.name) {
         pills.push("project: " + event.project.name);
@@ -2692,11 +3172,32 @@
       const top = document.createElement("div");
       top.className = "histTop";
       const left = document.createElement("div");
-      left.textContent = formatTime(event.ts) + "  -" + formatCredit(event.amount) + (event.estimated ? " est." : "");
+      left.className = "histSpendMain";
+      const time = document.createElement("span");
+      time.className = "histTime";
+      time.textContent = formatTime(event.ts);
+      const amount = document.createElement("span");
+      amount.className = "histAmount";
+      amount.textContent = "-" + formatCredit(event.amount) + (event.estimated ? " est." : "");
+      left.appendChild(time);
+      left.appendChild(amount);
       const right = document.createElement("div");
+      right.className = "histSpendService";
       right.textContent = event.serviceName || event.service || ctx.getActiveAdapter().name;
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "iconBtn miniBtn histDelete";
+      deleteButton.setAttribute("aria-label", "Delete spend");
+      deleteButton.setAttribute("data-tooltip", "Delete spend");
+      deleteButton.innerHTML = iconSvg("trash-2");
+      deleteButton.addEventListener("click", function(clickEvent) {
+        clickEvent.preventDefault();
+        clickEvent.stopPropagation();
+        ctx.deleteSpendEvent(event.id);
+      });
       top.appendChild(left);
       top.appendChild(right);
+      top.appendChild(deleteButton);
       const meta = document.createElement("div");
       meta.className = "histMeta";
       getHistoryPills(event, { hideProjectPill: context.filterOn === true }).forEach(function(text) {
@@ -2732,24 +3233,35 @@
     }
     function renderProjectSummary(root, activeProject, hasProject, filterOn) {
       const projectGrid = root.querySelector('[data-field="projectGrid"]');
-      const lastLabel = root.querySelector('[data-field="projectLastLabel"]');
-      const lastValue = root.querySelector('[data-field="projectLastSpend"]');
+      const breakdownEl = root.querySelector('[data-field="projectBreakdown"]');
       if (!projectGrid) return;
       projectGrid.hidden = !hasProject;
       if (!hasProject) return;
       const projectTotal = ctx.getProjectAllTimeTotal(activeProject);
       setText(root, "projectTotal", "-" + formatCredit(projectTotal));
-      if (filterOn) {
-        const lastProject = ctx.getProjectLastSpend(activeProject);
-        if (lastLabel) lastLabel.hidden = false;
-        if (lastValue) {
-          lastValue.hidden = false;
-          lastValue.textContent = lastProject ? "-" + formatCredit(lastProject.amount) + (lastProject.estimated ? " est." : "") : "-";
-        }
-      } else {
-        if (lastLabel) lastLabel.hidden = true;
-        if (lastValue) lastValue.hidden = true;
+      if (!breakdownEl) return;
+      breakdownEl.textContent = "";
+      const totals = ctx.getProjectTotalsByService(activeProject);
+      if (!totals.length) {
+        const empty = document.createElement("div");
+        empty.className = "projectBreakdownEmpty";
+        empty.textContent = "No project spend by platform yet";
+        breakdownEl.appendChild(empty);
+        return;
       }
+      totals.forEach(function(item) {
+        const row = document.createElement("div");
+        row.className = "projectBreakdownRow";
+        const name = document.createElement("div");
+        name.className = "projectBreakdownName";
+        name.textContent = item.serviceName || item.service;
+        const value = document.createElement("div");
+        value.className = "projectBreakdownValue";
+        value.textContent = "-" + formatCredit(item.total);
+        row.appendChild(name);
+        row.appendChild(value);
+        breakdownEl.appendChild(row);
+      });
     }
     function renderTabs(root) {
       Array.from(root.querySelectorAll("[data-tab]")).forEach(function(button) {
@@ -2765,26 +3277,41 @@
       if (!historyEl) return;
       if (historyHeader) {
         historyHeader.textContent = "";
+        const headerText = document.createElement("span");
+        headerText.className = "histHeaderText";
         if (hasProject) {
           const projectTotal = ctx.getProjectAllTimeTotal(activeProject);
           const projectCount = ctx.getProjectEventCount(activeProject);
-          const headerText = document.createElement("span");
           if (filterOn) {
             headerText.innerHTML = "Showing project only \xB7 <strong>" + projectCount + " events</strong> \xB7 -" + formatCredit(projectTotal);
-            const showAll = document.createElement("button");
-            showAll.type = "button";
-            showAll.className = "histShowAll";
-            showAll.textContent = "Show all";
-            showAll.addEventListener("click", function() {
-              ctx.setProjectFilterEnabled(false);
-            });
-            historyHeader.appendChild(headerText);
-            historyHeader.appendChild(showAll);
           } else {
             headerText.innerHTML = "All history \xB7 Project: <strong>" + escapeHtml(activeProject.name) + "</strong> \xB7 -" + formatCredit(projectTotal);
-            historyHeader.appendChild(headerText);
           }
+        } else {
+          headerText.textContent = "All history";
         }
+        historyHeader.appendChild(headerText);
+        const stats = document.createElement("span");
+        stats.className = "histStats";
+        const sessionStat = document.createElement("span");
+        sessionStat.className = "histStat";
+        sessionStat.textContent = "Session: " + formatCredit(ctx.getSession().total || 0);
+        const todayStat = document.createElement("span");
+        todayStat.className = "histStat";
+        todayStat.textContent = "Today: " + formatCredit(getTodayTotal2());
+        stats.appendChild(sessionStat);
+        stats.appendChild(todayStat);
+        if (hasProject && filterOn) {
+          const showAll = document.createElement("button");
+          showAll.type = "button";
+          showAll.className = "histShowAll";
+          showAll.textContent = "Show all";
+          showAll.addEventListener("click", function() {
+            ctx.setProjectFilterEnabled(false);
+          });
+          stats.appendChild(showAll);
+        }
+        historyHeader.appendChild(stats);
       }
       historyEl.textContent = "";
       const history = ctx.getHistory();
@@ -2921,6 +3448,11 @@
           sheetsMeta.textContent = "off";
         }
       }
+      const versionsMeta = root.querySelector('[data-field="settingAccMetaVersions"]');
+      if (versionsMeta) {
+        versionsMeta.textContent = "v" + VERSION;
+      }
+      renderVersionHistory(root);
       const sheetsEnabled = root.querySelector('[data-field="settingSheetsEnabled"]');
       const sheetsNickname = root.querySelector('[data-field="settingSheetsNickname"]');
       const sheetsUrl = root.querySelector('[data-field="settingSheetsWebAppUrl"]');
@@ -2956,27 +3488,85 @@
         }
       }
     }
+    function renderVersionHistory(root) {
+      const versionBadge = root.querySelector('[data-field="versionBadge"]');
+      if (versionBadge) {
+        versionBadge.textContent = "v" + VERSION;
+      }
+      const list = root.querySelector('[data-field="versionHistory"]');
+      if (!list || list.getAttribute("data-rendered-version") === VERSION) return;
+      list.textContent = "";
+      VERSION_HISTORY.forEach(function(entry) {
+        const item = document.createElement("div");
+        item.className = "versionItem";
+        const top = document.createElement("div");
+        top.className = "versionTop";
+        const version = document.createElement("span");
+        version.textContent = "v" + entry.version;
+        const date = document.createElement("span");
+        date.className = "versionDate";
+        date.textContent = entry.date || "";
+        top.appendChild(version);
+        top.appendChild(date);
+        const changes = document.createElement("ul");
+        changes.className = "versionChanges";
+        (entry.changes || []).slice(0, 3).forEach(function(change) {
+          const li = document.createElement("li");
+          li.textContent = change;
+          changes.appendChild(li);
+        });
+        item.appendChild(top);
+        item.appendChild(changes);
+        list.appendChild(item);
+      });
+      list.setAttribute("data-rendered-version", VERSION);
+    }
+    function renderUndoToast(root) {
+      const toast = root.querySelector('[data-field="undoToast"]');
+      const panel = root.querySelector(".panel");
+      if (!toast || !panel) return;
+      const undo = ctx.runtime.undoSpend;
+      const now = Date.now();
+      const visible = !!(undo && undo.expiresAt > now);
+      if (!undo || undo.expiresAt <= now) {
+        ctx.runtime.undoSpend = null;
+      }
+      panel.classList.toggle("undo-active", visible);
+      if (!visible) {
+        toast.setAttribute("aria-hidden", "true");
+        return;
+      }
+      const seconds = Math.max(1, Math.ceil((undo.expiresAt - now) / 1e3));
+      const meta = root.querySelector('[data-field="undoMeta"]');
+      if (meta) {
+        meta.textContent = "-" + formatCredit(undo.amount) + " \xB7 " + (undo.serviceName || "spend") + " \xB7 " + seconds + "s";
+      }
+      toast.setAttribute("aria-hidden", "false");
+      if (!ctx.runtime.undoRenderTimer) {
+        ctx.runtime.undoRenderTimer = window.setTimeout(function() {
+          ctx.runtime.undoRenderTimer = null;
+          renderSoon();
+        }, 1e3);
+      }
+    }
     function renderPanel() {
       if (!ctx.runtime.shadowRoot) return;
       const root = ctx.runtime.shadowRoot;
       const history = ctx.getHistory();
-      const session = ctx.getSession();
-      const last = history[0] || null;
       const source = getDisplaySource();
       const activeProject = ctx.getActiveProject();
       const hasProject = ctx.hasActiveProject();
       const filterOn = ctx.isProjectFilterActive();
       const recentEvents = filterOn ? ctx.getFilteredHistory(activeProject) : history;
       setText(root, "serviceName", ctx.getActiveAdapter().name || "none");
+      setText(root, "versionBadge", "v" + VERSION);
       setText(root, "source", source);
       setText(root, "balance", ctx.runtime.balance == null ? "-" : formatCredit(ctx.runtime.balance));
-      setText(root, "lastSpend", last ? "-" + formatCredit(last.amount) : "-");
-      setText(root, "sessionTotal", formatCredit(session.total || 0));
-      setText(root, "todayTotal", formatCredit(getTodayTotal2()));
       renderProjectFields(root);
       renderProjectSummary(root, activeProject, hasProject, filterOn);
       renderTabs(root);
       renderSettingsTab(root);
+      renderUndoToast(root);
       const nicknameWarn = root.querySelector('[data-field="sheetsNicknameWarn"]');
       if (nicknameWarn) {
         nicknameWarn.hidden = !needsSheetsNickname(ctx.getSettings());
@@ -3007,7 +3597,15 @@
         if (event.source === "mixed") dot.style.background = "#28b67a";
         if (event.source === "network") dot.style.background = "#2d6cdf";
         const label = document.createElement("div");
-        label.textContent = formatTime(event.ts) + "  -" + formatCredit(event.amount) + (event.estimated ? " est." : "");
+        label.className = "histSpendMain";
+        const time = document.createElement("span");
+        time.className = "histTime";
+        time.textContent = formatTime(event.ts);
+        const amount = document.createElement("span");
+        amount.className = "histAmount";
+        amount.textContent = "-" + formatCredit(event.amount) + (event.estimated ? " est." : "");
+        label.appendChild(time);
+        label.appendChild(amount);
         const src = document.createElement("div");
         src.className = "source";
         src.textContent = (event.serviceName || event.service || ctx.getActiveAdapter().name) + " \xB7 " + (event.source || "unknown");
@@ -3034,6 +3632,8 @@
       renderProjectSummary,
       renderTabs,
       renderSettingsTab,
+      renderVersionHistory,
+      renderUndoToast,
       setActiveTab,
       setText,
       getDisplaySource,
@@ -3048,8 +3648,41 @@
 
   // src/core/sheets.js
   var SHEETS_POST_HEADERS = { "Content-Type": "text/plain;charset=utf-8" };
-  function buildProjectKey(name) {
-    return String(name || "").trim().toLowerCase();
+  function serviceNameForId(service) {
+    const id = String(service || "");
+    for (let i = 0; i < ADAPTERS.length; i += 1) {
+      if (ADAPTERS[i] && ADAPTERS[i].id === id) return ADAPTERS[i].name;
+    }
+    if (!id) return "";
+    return id.charAt(0).toUpperCase() + id.slice(1);
+  }
+  function convertRemoteRowToEvent(row) {
+    if (!row || !row.eventId) return null;
+    const parsedTs = row.syncedAt ? Date.parse(row.syncedAt) : NaN;
+    const ts = Number.isFinite(parsedTs) ? parsedTs : Date.now();
+    return {
+      id: String(row.eventId),
+      ts,
+      localDate: localDateKey(ts),
+      amount: Number(row.amount || 0),
+      before: 0,
+      after: 0,
+      source: "remote",
+      service: String(row.service || ""),
+      serviceName: serviceNameForId(row.service),
+      taskId: null,
+      url: "",
+      method: "",
+      path: "",
+      score: null,
+      pendingId: null,
+      detail: "",
+      metadata: {},
+      project: { id: "", name: String(row.projectName || ""), url: "" },
+      estimated: false,
+      user: String(row.user || ""),
+      remote: true
+    };
   }
   function sanitizeSheetsWebAppUrl(value) {
     const url = String(value || "").trim();
@@ -3075,17 +3708,11 @@
     const projectName = String(project.name || "").trim();
     return {
       eventId: String(event.id || ""),
-      ts: new Date(event.ts || Date.now()).toISOString(),
-      localDate: String(event.localDate || ""),
       amount: event.amount,
       service: String(event.service || ""),
-      serviceName: String(event.serviceName || event.service || ""),
       projectId: String(project.id || ""),
       projectName,
-      projectKey: buildProjectKey(projectName),
       user: String(settings.sheetsNickname || "").trim(),
-      source: String(event.source || "unknown"),
-      estimated: event.estimated === true,
       trackerVersion: VERSION
     };
   }
@@ -3113,6 +3740,12 @@
     if (!eventId) return;
     const state = loadSyncState();
     state[String(eventId)] = status;
+    saveSyncState(state);
+  }
+  function clearSyncState(eventId) {
+    if (!eventId) return;
+    const state = loadSyncState();
+    delete state[String(eventId)];
     saveSyncState(state);
   }
   function updateSheetsStatus(ctx, patch) {
@@ -3250,6 +3883,62 @@
       return null;
     });
   }
+  function scheduleEventSyncToSheets(ctx, event, delayMs) {
+    if (!event || !event.id) return null;
+    if (!canSyncToSheets(ctx.getSettings())) return null;
+    const eventId = event.id;
+    const current = getSyncState(eventId);
+    if (current === "synced") return null;
+    ctx.runtime.sheetsSyncTimers = ctx.runtime.sheetsSyncTimers || {};
+    if (ctx.runtime.sheetsSyncTimers[eventId]) {
+      window.clearTimeout(ctx.runtime.sheetsSyncTimers[eventId]);
+    }
+    markSyncState(eventId, "pending");
+    const delay = Number(delayMs);
+    ctx.runtime.sheetsSyncTimers[eventId] = window.setTimeout(function() {
+      delete ctx.runtime.sheetsSyncTimers[eventId];
+      const stillExists = ctx.getHistory().some(function(item) {
+        return item && item.id === eventId;
+      });
+      if (!stillExists) {
+        clearSyncState(eventId);
+        ctx.addDiagnostic("sheets sync canceled before append", eventId);
+        return;
+      }
+      syncEventToSheets(ctx, event);
+    }, Number.isFinite(delay) && delay >= 0 ? delay : SHEETS_SYNC_DELAY_MS);
+    ctx.addDiagnostic("sheets sync scheduled", eventId);
+    return event;
+  }
+  function cancelEventSyncToSheets(ctx, eventId) {
+    if (!eventId) return;
+    ctx.runtime.sheetsSyncTimers = ctx.runtime.sheetsSyncTimers || {};
+    if (ctx.runtime.sheetsSyncTimers[eventId]) {
+      window.clearTimeout(ctx.runtime.sheetsSyncTimers[eventId]);
+      delete ctx.runtime.sheetsSyncTimers[eventId];
+    }
+    if (getSyncState(eventId) === "pending") {
+      clearSyncState(eventId);
+    }
+  }
+  function deleteEventFromSheets(ctx, event) {
+    if (!event || !event.id) return Promise.resolve(null);
+    cancelEventSyncToSheets(ctx, event.id);
+    if (!canSyncToSheets(ctx.getSettings())) return Promise.resolve(null);
+    if (getSyncState(event.id) !== "synced") {
+      clearSyncState(event.id);
+      return Promise.resolve(null);
+    }
+    return sendSheetsRequest(ctx, "deleteEvent", { eventId: event.id }).then(function() {
+      markSyncState(event.id, "deleted");
+      ctx.addDiagnostic("sheets delete ok", event.id);
+      return event;
+    }).catch(function(error) {
+      markSyncState(event.id, "deleteFailed");
+      ctx.addDiagnostic("sheets delete failed", event.id, error && error.message);
+      return null;
+    });
+  }
   function retryFailedSyncs(ctx) {
     if (!canSyncToSheets(ctx.getSettings())) {
       return Promise.resolve({ retried: 0, synced: 0 });
@@ -3274,16 +3963,88 @@
   function testSheetsConnection(ctx) {
     return sendSheetsRequest(ctx, "ping", null);
   }
+  function pullEventsFromSheets(ctx) {
+    const settings = ctx.getSettings();
+    if (!canSyncToSheets(settings)) return Promise.resolve(null);
+    return postJsonToSheets(settings, { action: "listEvents", payload: null }).then(function(response) {
+      const parsed = parseSheetsResponse(response);
+      const data = parsed.data;
+      if (!data || data.ok !== true || !Array.isArray(data.events)) {
+        const message = getSheetsErrorMessage(parsed);
+        updateSheetsStatus(ctx, { sheetsLastError: message });
+        throw new Error(message);
+      }
+      const remoteEvents = data.events.map(convertRemoteRowToEvent).filter(function(event) {
+        return event && event.id;
+      });
+      const remoteIds = {};
+      remoteEvents.forEach(function(event) {
+        remoteIds[event.id] = true;
+      });
+      const localOnly = ctx.getHistory().filter(function(event) {
+        if (!event || !event.id) return false;
+        if (remoteIds[event.id]) return false;
+        return getSyncState(event.id) !== "synced";
+      });
+      const merged = mergeEventHistories(remoteEvents, localOnly, MAX_EVENTS);
+      ctx.setHistory(sanitizeEvents(merged));
+      ctx.saveHistory();
+      remoteEvents.forEach(function(event) {
+        markSyncState(event.id, "synced");
+      });
+      updateSheetsStatus(ctx, {
+        sheetsLastSyncAt: Date.now(),
+        sheetsLastError: ""
+      });
+      ctx.addDiagnostic("sheets pull ok", remoteEvents.length);
+      if (typeof ctx.renderSoon === "function") ctx.renderSoon();
+      return { pulled: remoteEvents.length };
+    }).catch(function(error) {
+      const message = error && error.message ? error.message : "network error";
+      updateSheetsStatus(ctx, { sheetsLastError: message });
+      ctx.addDiagnostic("sheets pull failed", message);
+      throw error;
+    });
+  }
+  function startSheetsAutoPull(ctx) {
+    if (ctx.runtime.sheetsPullTimer) {
+      window.clearInterval(ctx.runtime.sheetsPullTimer);
+      ctx.runtime.sheetsPullTimer = null;
+    }
+    function runPull() {
+      if (!canSyncToSheets(ctx.getSettings())) return;
+      pullEventsFromSheets(ctx).catch(function() {
+      });
+    }
+    runPull();
+    ctx.runtime.sheetsPullTimer = window.setInterval(runPull, SHEETS_PULL_INTERVAL_MS);
+    return ctx.runtime.sheetsPullTimer;
+  }
   function createSheets(ctx) {
     return {
       syncEventToSheets: function(event) {
         return syncEventToSheets(ctx, event);
+      },
+      scheduleEventSyncToSheets: function(event, delayMs) {
+        return scheduleEventSyncToSheets(ctx, event, delayMs);
+      },
+      cancelEventSyncToSheets: function(eventId) {
+        return cancelEventSyncToSheets(ctx, eventId);
+      },
+      deleteEventFromSheets: function(event) {
+        return deleteEventFromSheets(ctx, event);
       },
       retryFailedSyncs: function() {
         return retryFailedSyncs(ctx);
       },
       testSheetsConnection: function() {
         return testSheetsConnection(ctx);
+      },
+      pullEventsFromSheets: function() {
+        return pullEventsFromSheets(ctx);
+      },
+      startSheetsAutoPull: function() {
+        return startSheetsAutoPull(ctx);
       },
       buildSheetsPayload: function(event) {
         return buildSheetsPayload(event, ctx.getSettings());
@@ -3324,9 +4085,13 @@
       uiScanTimer: null,
       uiInterval: null,
       renderTimer: null,
+      undoRenderTimer: null,
+      sheetsPullTimer: null,
       debug: false,
       diagnostics: [],
       lastUiSpend: null,
+      undoSpend: null,
+      sheetsSyncTimers: {},
       activeTab: initialUiState.activeTab,
       projectFilterEnabled: initialUiState.projectFilterEnabled,
       project: sanitizeProject(readJson(PROJECT_KEY, {})),
@@ -3418,6 +4183,57 @@
       });
       runtime.diagnostics = runtime.diagnostics.slice(-120);
     };
+    ctx.showUndoSpend = function(event) {
+      if (!event || !event.id) return;
+      runtime.undoSpend = {
+        eventId: event.id,
+        amount: event.amount,
+        serviceName: event.serviceName || event.service || getActiveAdapter().name,
+        expiresAt: Date.now() + SPEND_UNDO_WINDOW_MS
+      };
+      ctx.renderSoon();
+    };
+    ctx.hideUndoSpend = function() {
+      runtime.undoSpend = null;
+      ctx.renderSoon();
+    };
+    ctx.deleteSpendEvent = function(eventId, options) {
+      const id = String(eventId || "");
+      if (!id) return null;
+      const event = history.find(function(item) {
+        return item && item.id === id;
+      });
+      if (!event) return null;
+      if (typeof ctx.cancelEventSyncToSheets === "function") {
+        ctx.cancelEventSyncToSheets(id);
+      }
+      history = history.filter(function(item) {
+        return item && item.id !== id;
+      });
+      session = removeEventFromSession(session, event);
+      runtime.lastUiSpend = null;
+      if (runtime.undoSpend && runtime.undoSpend.eventId === id) {
+        runtime.undoSpend = null;
+      }
+      ctx.saveHistory();
+      ctx.saveSession();
+      ctx.addDiagnostic("deleted spend", id);
+      if (!options || options.deleteSheets !== false) {
+        if (typeof ctx.deleteEventFromSheets === "function") {
+          ctx.deleteEventFromSheets(event);
+        }
+      }
+      ctx.renderSoon();
+      return event;
+    };
+    ctx.undoLastSpend = function() {
+      if (!runtime.undoSpend || runtime.undoSpend.expiresAt <= Date.now()) {
+        runtime.undoSpend = null;
+        ctx.renderSoon();
+        return null;
+      }
+      return ctx.deleteSpendEvent(runtime.undoSpend.eventId);
+    };
     ctx.recordSpend = function(input, now) {
       if (!input || !isFiniteCredit(input.amount) || input.amount <= 0) return null;
       const duplicate = findDuplicateSpend(history, input, now);
@@ -3456,7 +4272,8 @@
         detail: input.detail || "",
         metadata: sanitizeMetadata(input.metadata || {}),
         project: sanitizeProject(input.project || runtime.project),
-        estimated: input.estimated === true
+        estimated: input.estimated === true,
+        user: String(runtime.settings && runtime.settings.sheetsNickname || "").trim()
       };
       history.unshift(event);
       history = sanitizeEvents(history);
@@ -3464,8 +4281,9 @@
       ctx.saveHistory();
       ctx.saveSession();
       ctx.addDiagnostic("recorded spend", event);
+      ctx.showUndoSpend(event);
       if (runtime.settings.sheetsEnabled) {
-        ctx.syncEventToSheets(event);
+        ctx.scheduleEventSyncToSheets(event, SHEETS_SYNC_DELAY_MS);
         ctx.retryFailedSyncs();
       }
       return event;
@@ -3494,6 +4312,9 @@
     network.patchFetch();
     network.patchXMLHttpRequest();
     panel.bootWhenBodyExists();
+    if (runtime.settings.sheetsEnabled && typeof ctx.startSheetsAutoPull === "function") {
+      ctx.startSheetsAutoPull();
+    }
     return {
       version: VERSION,
       getState: ctx.getState,
