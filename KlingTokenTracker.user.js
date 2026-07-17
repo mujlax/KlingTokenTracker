@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI Token Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.8.8
+// @version      0.9.0
 // @description  Tracks AI credits/tokens spending from Generate UI across supported platforms.
 // @match        *://kling.ai/*
 // @match        *://*.kling.ai/*
@@ -20,8 +20,17 @@
 
 (() => {
   // src/core/constants.js
-  var VERSION = "0.8.8";
+  var VERSION = "0.9.0";
   var VERSION_HISTORY = [
+    {
+      version: "0.9.0",
+      date: "2026-07-17",
+      changes: [
+        "Added shared Google Sheets project catalog",
+        "Added smart duplicate suggestions for new projects",
+        "Added safe shared project archiving"
+      ]
+    },
     {
       version: "0.8.8",
       date: "2026-07-06",
@@ -91,11 +100,13 @@
   var UI_KEY = STORAGE_PREFIX + "ui.v1";
   var SETTINGS_KEY = STORAGE_PREFIX + "settings.v1";
   var SHEETS_SYNC_KEY = STORAGE_PREFIX + "sheetsSync.v1";
-  var DEFAULT_SHEETS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwG2o3NIhF6zUURKV_0G0YBRm3nYIPHfbnLKIf4kuOQb2NuGljoqAD8AbG5blBRUAXc5g/exec";
+  var PROJECTS_SYNC_KEY = STORAGE_PREFIX + "projectsSync.v1";
+  var DEFAULT_SHEETS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzYAcB-tOiiNjUs9_wNM2VbIYqobqn9BMGJSuQzXTzZgwsp9-gRNYOdlpTF8JhabtTPfg/exec";
   var LEGACY_SHEETS_WEB_APP_URLS = [
     "https://script.google.com/macros/s/AKfycbyBKgzw0oZmfdaOSHU4iBdsRY6l-tXupdUNjcRbMDNw7-glxMuw9kC2rJCljgJquDZORA/exec",
     "https://script.google.com/macros/s/AKfycbxi3YrJYesMvttSYoFVA-_E_RxIeSHXIOjmGvFVc4HVmOp0QDka_rUo2Oxw82fTP2HXmg/exec",
-    "https://script.google.com/macros/s/AKfycbwZ4SqCwMEvByu8L1MNO1OdRz30Q96HDGabFl5nj_ZvoT2Lw1Z9iWLH5vvswalTwV90kg/exec"
+    "https://script.google.com/macros/s/AKfycbwZ4SqCwMEvByu8L1MNO1OdRz30Q96HDGabFl5nj_ZvoT2Lw1Z9iWLH5vvswalTwV90kg/exec",
+    "https://script.google.com/macros/s/AKfycbwG2o3NIhF6zUURKV_0G0YBRm3nYIPHfbnLKIf4kuOQb2NuGljoqAD8AbG5blBRUAXc5g/exec"
   ];
   var DEFAULT_SHEETS_SECRET_TOKEN = "token";
   var PROJECT_KEY = STORAGE_PREFIX + "project.v1";
@@ -922,7 +933,7 @@
   }
 
   // src/core/storage.js
-  var SHARED_KEYS = /* @__PURE__ */ new Set([HISTORY_KEY, PROJECT_KEY, PROJECTS_LIBRARY_KEY]);
+  var SHARED_KEYS = /* @__PURE__ */ new Set([HISTORY_KEY, PROJECT_KEY, PROJECTS_LIBRARY_KEY, PROJECTS_SYNC_KEY]);
   function gmAvailable() {
     return typeof GM_getValue === "function" && typeof GM_setValue === "function";
   }
@@ -1060,12 +1071,15 @@
   }
   function sanitizeProjectEntry(value) {
     const project = sanitizeProject(value || {});
+    const status = value && value.status === "archived" ? "archived" : "active";
     return {
       id: project.id || createId("project"),
       name: project.name,
       url: project.url,
+      status,
       createdAt: Number(value && value.createdAt || Date.now()),
-      updatedAt: Number(value && value.updatedAt || Date.now())
+      updatedAt: Number(value && value.updatedAt || Date.now()),
+      updatedBy: String(value && value.updatedBy || "").trim().slice(0, 80)
     };
   }
   function sanitizeProjectLibrary(value) {
@@ -1277,9 +1291,144 @@
     }, 0));
   }
 
+  // src/core/project-search.js
+  function normalizeUnicode(value) {
+    const raw = String(value || "");
+    try {
+      return raw.normalize("NFKC");
+    } catch (_) {
+      return raw;
+    }
+  }
+  function normalizeProjectName2(value) {
+    return normalizeUnicode(value).toLowerCase().replace(/ё/g, "\u0435").replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
+  }
+  function normalizeProjectUrl(value) {
+    const raw = normalizeUnicode(value).trim();
+    if (!raw) return "";
+    const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : "https://" + raw;
+    try {
+      const parsed = new URL(candidate);
+      const host = parsed.hostname.toLowerCase().replace(/^www\./i, "");
+      let path = parsed.pathname || "";
+      try {
+        path = decodeURIComponent(path);
+      } catch (_) {
+      }
+      path = path.toLowerCase().replace(/\/+$/, "");
+      return host + path;
+    } catch (_) {
+      return raw.toLowerCase().replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/[?#].*$/, "").replace(/\/+$/, "");
+    }
+  }
+  function levenshteinDistance(left, right) {
+    if (left === right) return 0;
+    if (!left) return right.length;
+    if (!right) return left.length;
+    let previous = Array.from({ length: right.length + 1 }, function(_, index) {
+      return index;
+    });
+    for (let i = 1; i <= left.length; i += 1) {
+      const current = [i];
+      for (let j = 1; j <= right.length; j += 1) {
+        const cost = left.charAt(i - 1) === right.charAt(j - 1) ? 0 : 1;
+        current[j] = Math.min(
+          current[j - 1] + 1,
+          previous[j] + 1,
+          previous[j - 1] + cost
+        );
+      }
+      previous = current;
+    }
+    return previous[right.length];
+  }
+  function nameMatchScore(query, candidate) {
+    if (!query || !candidate) return 0;
+    if (query === candidate) return 0.98;
+    if (candidate.indexOf(query) === 0 || query.indexOf(candidate) === 0) return 0.86;
+    if (candidate.indexOf(query) >= 0 || query.indexOf(candidate) >= 0) return 0.8;
+    if (query.length < 4 || candidate.length < 4) return 0;
+    const queryTokens = query.split(" ").filter(Boolean);
+    const candidateTokens = candidate.split(" ").filter(Boolean);
+    let shared = 0;
+    let bestTokenSimilarity = 0;
+    queryTokens.forEach(function(token) {
+      if (candidateTokens.indexOf(token) >= 0) shared += 1;
+      if (token.length < 4) return;
+      candidateTokens.forEach(function(candidateToken) {
+        if (candidateToken.length < 4) return;
+        const tokenLength = Math.max(token.length, candidateToken.length);
+        const tokenSimilarity = 1 - levenshteinDistance(token, candidateToken) / tokenLength;
+        if (tokenSimilarity > bestTokenSimilarity) bestTokenSimilarity = tokenSimilarity;
+      });
+    });
+    const tokenScore = queryTokens.length ? 0.76 * (shared / queryTokens.length) : 0;
+    const tokenTypoScore = bestTokenSimilarity >= 0.72 ? 0.7 * bestTokenSimilarity : 0;
+    const maxLength = Math.max(query.length, candidate.length);
+    const similarity = maxLength ? 1 - levenshteinDistance(query, candidate) / maxLength : 0;
+    const typoScore = similarity >= 0.72 ? 0.7 * similarity : 0;
+    return Math.max(tokenScore, tokenTypoScore, typoScore);
+  }
+  function urlMatchScore(query, candidate) {
+    if (!query || !candidate) return 0;
+    if (query === candidate) return 1;
+    const queryHost = query.split("/")[0];
+    const candidateHost = candidate.split("/")[0];
+    if (queryHost && queryHost === candidateHost) return 0.9;
+    if (candidate.indexOf(query) >= 0 || query.indexOf(candidate) >= 0) return 0.84;
+    return 0;
+  }
+  function scoreProjectMatch(project, query) {
+    const nameQuery = normalizeProjectName2(query && query.name);
+    const urlQuery = normalizeProjectUrl(query && query.url);
+    const projectName = normalizeProjectName2(project && project.name);
+    const projectUrl = normalizeProjectUrl(project && project.url);
+    const nameScore = nameMatchScore(nameQuery, projectName);
+    const urlScore = urlMatchScore(urlQuery, projectUrl);
+    let score = Math.max(nameScore, urlScore);
+    if (nameScore >= 0.55 && urlScore >= 0.55) score = Math.min(1, score + 0.03);
+    return {
+      score,
+      exact: nameQuery && nameQuery === projectName || urlQuery && urlQuery === projectUrl,
+      nameScore,
+      urlScore
+    };
+  }
+  function findProjectSuggestions(projects, query, options) {
+    const settings = options || {};
+    const limit = Number(settings.limit) > 0 ? Number(settings.limit) : 5;
+    const excludeId = String(settings.excludeId || "");
+    const nameQuery = normalizeProjectName2(query && query.name);
+    const urlQuery = normalizeProjectUrl(query && query.url);
+    if (nameQuery.length < 2 && !urlQuery) return [];
+    return (Array.isArray(projects) ? projects : []).filter(function(project) {
+      return project && project.status !== "archived" && project.id !== excludeId;
+    }).map(function(project) {
+      const match = scoreProjectMatch(project, query || {});
+      return Object.assign({}, project, {
+        matchScore: match.score,
+        matchExact: match.exact
+      });
+    }).filter(function(project) {
+      return project.matchScore >= 0.55;
+    }).sort(function(left, right) {
+      if (right.matchScore !== left.matchScore) return right.matchScore - left.matchScore;
+      return Number(right.updatedAt || 0) - Number(left.updatedAt || 0);
+    }).slice(0, limit);
+  }
+  function projectsAreEquivalent(left, right) {
+    const leftUrl = normalizeProjectUrl(left && left.url);
+    const rightUrl = normalizeProjectUrl(right && right.url);
+    if (leftUrl && rightUrl && leftUrl === rightUrl) return true;
+    const leftName = normalizeProjectName2(left && left.name);
+    const rightName = normalizeProjectName2(right && right.name);
+    if (!leftName || leftName !== rightName) return false;
+    return !leftUrl || !rightUrl || leftUrl === rightUrl;
+  }
+
   // src/core/projects.js
   function createProjects(ctx) {
-    function findProjectById(id) {
+    function findProjectRecordById(id) {
       const needle = String(id || "").trim();
       if (!needle) return null;
       const library = ctx.getProjectLibrary();
@@ -1288,19 +1437,36 @@
       }
       return null;
     }
+    function findProjectById(id) {
+      const entry = findProjectRecordById(id);
+      return entry && entry.status !== "archived" ? entry : null;
+    }
     function createProjectEntry(name, url) {
       const now = Date.now();
       return sanitizeProjectEntry({
         id: createId("project"),
         name,
         url,
+        status: "active",
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
+        updatedBy: String(ctx.getSettings && ctx.getSettings().sheetsNickname || "")
       });
     }
     function listProjects() {
-      return ctx.getProjectLibrary().map(function(entry) {
+      return ctx.getProjectLibrary().filter(function(entry) {
+        return entry.status !== "archived";
+      }).map(function(entry) {
         return deepClone(entry);
+      });
+    }
+    function getProjectSuggestions(name, url, excludeId) {
+      return findProjectSuggestions(ctx.getProjectLibrary(), {
+        name,
+        url
+      }, {
+        limit: 5,
+        excludeId
       });
     }
     function formatProjectOptionLabel(entry) {
@@ -1315,7 +1481,7 @@
     }
     function getActiveProject() {
       const project = sanitizeProject(ctx.runtime.project || {});
-      if (project.id && findProjectById(project.id)) return project;
+      if (project.id) return findProjectById(project.id) ? project : sanitizeProject({});
       if (project.name) return project;
       return sanitizeProject({});
     }
@@ -1383,6 +1549,7 @@
         name: nameInput ? nameInput.value : "",
         url: urlInput ? urlInput.value : ""
       };
+      ctx.renderSoon();
     }
     function shouldCompactProject() {
       return !ctx.runtime.projectEditorOpen;
@@ -1397,15 +1564,22 @@
         ctx.setProjectLibrary(library);
         active.id = entry.id;
         ctx.saveProjectLibrary();
-      } else if (active.id && !findProjectById(active.id) && active.name) {
-        const match = library.find(function(entry) {
-          return entry.name === active.name && entry.url === active.url;
-        });
-        active.id = match ? match.id : "";
+      } else if (active.id && !findProjectById(active.id)) {
+        const stored = findProjectRecordById(active.id);
+        if (stored && stored.status === "archived") {
+          active.id = "";
+          active.name = "";
+          active.url = "";
+        } else if (active.name) {
+          const match = library.find(function(entry) {
+            return entry.status !== "archived" && entry.name === active.name && entry.url === active.url;
+          });
+          active.id = match ? match.id : "";
+        }
       }
       ctx.runtime.project = active;
       syncProjectDraftFromActive();
-      ctx.runtime.projectEditorOpen = !active.id && !library.length;
+      ctx.runtime.projectEditorOpen = !active.id && !listProjects().length;
       backfillHistoryProjectIds();
       ctx.saveProject();
     }
@@ -1442,6 +1616,7 @@
       library.unshift(entry);
       ctx.setProjectLibrary(sanitizeProjectLibrary(library));
       ctx.saveProjectLibrary();
+      if (typeof ctx.queueProjectUpsert === "function") ctx.queueProjectUpsert(entry);
       ctx.renderSoon();
       return deepClone(entry);
     }
@@ -1452,9 +1627,12 @@
       if (!sanitized.name) return null;
       entry.name = sanitized.name;
       entry.url = sanitized.url;
+      entry.status = "active";
       entry.updatedAt = Date.now();
+      entry.updatedBy = String(ctx.getSettings && ctx.getSettings().sheetsNickname || "").trim();
       ctx.setProjectLibrary(sanitizeProjectLibrary(ctx.getProjectLibrary()));
       ctx.saveProjectLibrary();
+      if (typeof ctx.queueProjectUpsert === "function") ctx.queueProjectUpsert(entry);
       if (ctx.runtime.project && ctx.runtime.project.id === entry.id) {
         ctx.runtime.project = sanitizeProject({
           id: entry.id,
@@ -1470,14 +1648,14 @@
     function deleteProject(id) {
       const needle = String(id || "").trim();
       if (!needle) return false;
-      const library = ctx.getProjectLibrary();
-      const before = library.length;
-      const next = library.filter(function(entry) {
-        return entry.id !== needle;
-      });
-      if (next.length === before) return false;
-      ctx.setProjectLibrary(next);
+      const entry = findProjectById(needle);
+      if (!entry) return false;
+      entry.status = "archived";
+      entry.updatedAt = Date.now();
+      entry.updatedBy = String(ctx.getSettings && ctx.getSettings().sheetsNickname || "").trim();
+      ctx.setProjectLibrary(sanitizeProjectLibrary(ctx.getProjectLibrary()));
       ctx.saveProjectLibrary();
+      if (typeof ctx.queueProjectArchive === "function") ctx.queueProjectArchive(entry);
       if (ctx.runtime.project && ctx.runtime.project.id === needle) {
         ctx.runtime.project = sanitizeProject({});
         syncProjectDraftFromActive();
@@ -1491,9 +1669,6 @@
       if (!entry) {
         return clearProject();
       }
-      entry.updatedAt = Date.now();
-      ctx.setProjectLibrary(sanitizeProjectLibrary(ctx.getProjectLibrary()));
-      ctx.saveProjectLibrary();
       ctx.runtime.project = sanitizeProject({
         id: entry.id,
         name: entry.name,
@@ -1555,6 +1730,10 @@
       if (urlInput) urlInput.value = "";
       if (nameInput) nameInput.focus();
       ctx.renderSoon();
+      if (typeof ctx.syncProjectsFromSheets === "function") {
+        ctx.syncProjectsFromSheets().catch(function() {
+        });
+      }
     }
     function deleteSelectedProject(root) {
       const select = root.querySelector('[data-field="projectSelect"]');
@@ -1563,10 +1742,58 @@
       beginNewProjectForm(root);
       return true;
     }
+    function reconcileProjectIds(idMap) {
+      const mapping = idMap && typeof idMap === "object" ? idMap : {};
+      if (!Object.keys(mapping).length) return;
+      let historyChanged = false;
+      const nextHistory = ctx.getHistory().map(function(event) {
+        const project = sanitizeProject(event && event.project || {});
+        const nextId = mapping[project.id];
+        if (!nextId) return event;
+        historyChanged = true;
+        return Object.assign({}, event, {
+          project: sanitizeProject({ id: nextId, name: project.name, url: project.url })
+        });
+      });
+      if (historyChanged) {
+        ctx.setHistory(nextHistory);
+        ctx.saveHistory();
+      }
+      const active = sanitizeProject(ctx.runtime.project || {});
+      if (mapping[active.id]) {
+        active.id = mapping[active.id];
+        ctx.runtime.project = active;
+        ctx.saveProject();
+      }
+    }
+    function replaceProjectEntry(value) {
+      const entry = sanitizeProjectEntry(value || {});
+      const library = ctx.getProjectLibrary().filter(function(item) {
+        return item.id !== entry.id;
+      });
+      library.push(entry);
+      ctx.setProjectLibrary(sanitizeProjectLibrary(library));
+      ctx.saveProjectLibrary();
+      if (ctx.runtime.project && ctx.runtime.project.id === entry.id) {
+        if (entry.status === "archived") {
+          ctx.runtime.project = sanitizeProject({});
+          ctx.runtime.projectFilterEnabled = false;
+        } else {
+          ctx.runtime.project = sanitizeProject(entry);
+        }
+        syncProjectDraftFromActive();
+        ctx.saveProject();
+        ctx.saveUiState();
+      }
+      ctx.renderSoon();
+      return deepClone(entry);
+    }
     return {
+      findProjectRecordById,
       findProjectById,
       createProjectEntry,
       listProjects,
+      getProjectSuggestions,
       formatProjectOptionLabel,
       getActiveProject,
       hasActiveProject,
@@ -1592,7 +1819,9 @@
       closeProjectEditor,
       saveProjectFromForm,
       beginNewProjectForm,
-      deleteSelectedProject
+      deleteSelectedProject,
+      reconcileProjectIds,
+      replaceProjectEntry
     };
   }
 
@@ -2235,6 +2464,7 @@
         updateProject: ctx.updateProject,
         deleteProject: ctx.deleteProject,
         selectProject: ctx.selectProject,
+        syncProjectsFromSheets: ctx.syncProjectsFromSheets,
         getDebugReport,
         copyDebugReport
       };
@@ -2519,6 +2749,17 @@
         ".projectEditor{display:grid;gap:6px}",
         ".projectBox.compact .projectEditor{display:none}",
         ".projectFields{display:grid;gap:6px}",
+        ".projectSuggestions{display:grid;gap:5px;padding:7px;border:1px solid rgba(242,184,75,.35);border-radius:7px;background:rgba(242,184,75,.08)}",
+        ".projectSuggestions[hidden]{display:none}",
+        ".projectSuggestionsTitle{font-size:10px;line-height:1.35;color:#f2d49b;font-weight:700}",
+        ".projectSuggestionsList{display:grid;gap:4px}",
+        ".projectSuggestion{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;text-align:left;padding:6px 7px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px}",
+        ".projectSuggestion.exact{border-color:rgba(242,184,75,.65);background:rgba(242,184,75,.12)}",
+        ".projectSuggestionMain{min-width:0;display:grid;gap:2px}",
+        ".projectSuggestionName{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+        ".projectSuggestionMeta{font-size:9px;color:#9da6b4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+        ".projectSuggestionAction{font-size:9px;color:#8eb6ff;align-self:center}",
+        ".projectCreateAnyway{font-size:10px;padding:5px 7px;background:transparent;border-color:rgba(255,255,255,.18)}",
         ".projectActionsRow{display:grid;grid-template-columns:1fr auto;gap:6px}",
         ".projectActionsRow button{font-weight:600}",
         ".projectHint{color:#8f98a6;font-size:11px;line-height:1.35}",
@@ -2643,8 +2884,13 @@
         '        <input class="field" data-field="projectName" type="text" placeholder="Task name">',
         '        <input class="field" data-field="projectUrl" type="url" placeholder="Task URL">',
         "      </div>",
+        '      <div class="projectSuggestions" data-field="projectSuggestions" hidden>',
+        '        <div class="projectSuggestionsTitle" data-field="projectSuggestionsTitle"></div>',
+        '        <div class="projectSuggestionsList" data-field="projectSuggestionsList"></div>',
+        '        <button type="button" class="projectCreateAnyway" data-action="createProjectAnyway">\u0412\u0441\u0451 \u0440\u0430\u0432\u043D\u043E \u0441\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u044B\u0439</button>',
+        "      </div>",
         '      <div class="projectActionsRow">',
-        '        <button type="button" data-action="saveProject">Save to list</button>',
+        '        <button type="button" data-action="saveProject" data-field="saveProjectButton">Save to list</button>',
         '        <button type="button" data-action="cancelProjectEdit">Cancel</button>',
         "      </div>",
         '      <div class="projectHint" data-field="projectHint">Select a saved project or create a new one.</div>',
@@ -2746,7 +2992,7 @@
         '        <div class="accBody">',
         '          <label class="settingsCheck">',
         '            <input type="checkbox" data-field="settingSheetsEnabled">',
-        "            <span>Sync spends</span>",
+        "            <span>Sync spends and projects</span>",
         "          </label>",
         '          <div class="settingsCompactRow">',
         '            <span class="settingsLabel">Nickname</span>',
@@ -2829,6 +3075,14 @@
       });
       shadow.querySelector('[data-action="saveProject"]').addEventListener("click", function() {
         ctx.saveProjectFromForm(shadow);
+      });
+      shadow.querySelector('[data-action="createProjectAnyway"]').addEventListener("click", function() {
+        ctx.saveProjectFromForm(shadow);
+      });
+      shadow.querySelector('[data-field="projectSuggestionsList"]').addEventListener("click", function(event) {
+        const button = event.target.closest("[data-project-id]");
+        if (!button) return;
+        ctx.selectProject(button.getAttribute("data-project-id"));
       });
       shadow.querySelector('[data-field="projectSelect"]').addEventListener("change", function(event) {
         const id = event.currentTarget.value;
@@ -2915,7 +3169,7 @@
       });
       shadow.querySelector('[data-action="retrySheetsSync"]').addEventListener("click", function() {
         applySheetsFieldsFromForm(ctx, shadow);
-        ctx.retryFailedSyncs().then(function() {
+        Promise.all([ctx.retryFailedSyncs(), ctx.retryProjectSyncs()]).then(function() {
           ctx.renderSoon();
         });
       });
@@ -2925,7 +3179,7 @@
         const refreshButton = shadow.querySelector('[data-action="refreshSheetsData"]');
         if (statusEl) statusEl.textContent = "Refreshing shared data...";
         if (refreshButton) refreshButton.disabled = true;
-        Promise.resolve(ctx.pullEventsFromSheets()).catch(function() {
+        Promise.resolve(ctx.refreshSheetsData()).catch(function() {
         }).then(function() {
           if (refreshButton) refreshButton.disabled = false;
           ctx.renderSoon();
@@ -3343,12 +3597,16 @@
       const filterRow = root.querySelector('[data-field="projectFilterRow"]');
       const filterToggle = root.querySelector('[data-field="projectFilterToggle"]');
       const miniStat = root.querySelector('[data-field="projectMiniStat"]');
+      const suggestionsBox = root.querySelector('[data-field="projectSuggestions"]');
+      const suggestionsTitle = root.querySelector('[data-field="projectSuggestionsTitle"]');
+      const suggestionsList = root.querySelector('[data-field="projectSuggestionsList"]');
+      const saveButton = root.querySelector('[data-field="saveProjectButton"]');
       const activeProject = ctx.runtime.project || sanitizeProject({});
       const activeId = activeProject.id && ctx.findProjectById(activeProject.id) ? activeProject.id : "";
       const compact = ctx.shouldCompactProject();
       const hasProject = ctx.hasActiveProject();
       const filterOn = ctx.isProjectFilterActive();
-      const projectLibrary = ctx.getProjectLibrary();
+      const projectLibrary = ctx.listProjects();
       if (projectBox) {
         projectBox.classList.toggle("compact", compact);
         projectBox.classList.toggle("filterOn", filterOn);
@@ -3379,6 +3637,43 @@
       }
       if (nameInput && active !== nameInput) nameInput.value = ctx.runtime.projectDraft.name || "";
       if (urlInput && active !== urlInput) urlInput.value = ctx.runtime.projectDraft.url || "";
+      const suggestions = ctx.runtime.projectEditorOpen && !activeId ? ctx.getProjectSuggestions(
+        ctx.runtime.projectDraft.name,
+        ctx.runtime.projectDraft.url,
+        ""
+      ) : [];
+      if (suggestionsBox) suggestionsBox.hidden = suggestions.length === 0;
+      if (saveButton) saveButton.hidden = suggestions.length > 0;
+      if (suggestionsTitle) {
+        suggestionsTitle.textContent = suggestions.some(function(entry) {
+          return entry.matchExact;
+        }) ? "\u0422\u0430\u043A\u043E\u0439 \u043F\u0440\u043E\u0435\u043A\u0442 \u0443\u0436\u0435 \u0435\u0441\u0442\u044C. \u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0435\u0433\u043E \u0438\u043B\u0438 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u0435 \u043D\u043E\u0432\u043E\u0433\u043E." : "\u0412\u043E\u0437\u043C\u043E\u0436\u043D\u043E, \u0442\u0430\u043A\u043E\u0439 \u043F\u0440\u043E\u0435\u043A\u0442 \u0443\u0436\u0435 \u0435\u0441\u0442\u044C:";
+      }
+      if (suggestionsList) {
+        suggestionsList.textContent = "";
+        suggestions.forEach(function(entry) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "projectSuggestion" + (entry.matchExact ? " exact" : "");
+          button.setAttribute("data-project-id", entry.id);
+          const main = document.createElement("span");
+          main.className = "projectSuggestionMain";
+          const name = document.createElement("span");
+          name.className = "projectSuggestionName";
+          name.textContent = entry.name;
+          const meta = document.createElement("span");
+          meta.className = "projectSuggestionMeta";
+          meta.textContent = [entry.url, entry.updatedBy ? "by " + entry.updatedBy : ""].filter(Boolean).join(" \xB7 ");
+          const action = document.createElement("span");
+          action.className = "projectSuggestionAction";
+          action.textContent = "Select";
+          main.appendChild(name);
+          main.appendChild(meta);
+          button.appendChild(main);
+          button.appendChild(action);
+          suggestionsList.appendChild(button);
+        });
+      }
       const selectedId = select ? select.value : "";
       if (deleteButton) {
         deleteButton.disabled = !selectedId;
@@ -3656,7 +3951,7 @@
     if (!id) return "";
     return id.charAt(0).toUpperCase() + id.slice(1);
   }
-  function convertRemoteRowToEvent(row) {
+  function convertRemoteRowToEvent(row, knownProjectIds) {
     if (!row || !row.eventId) return null;
     const parsedTs = row.syncedAt ? Date.parse(row.syncedAt) : NaN;
     const ts = Number.isFinite(parsedTs) ? parsedTs : Date.now();
@@ -3678,7 +3973,11 @@
       pendingId: null,
       detail: "",
       metadata: {},
-      project: { id: "", name: String(row.projectName || ""), url: "" },
+      project: {
+        id: knownProjectIds && knownProjectIds[String(row.projectId || "")] ? String(row.projectId || "") : "",
+        name: String(row.projectName || ""),
+        url: ""
+      },
       estimated: false,
       user: String(row.user || ""),
       remote: true
@@ -3714,6 +4013,99 @@
       projectName,
       user: String(settings.sheetsNickname || "").trim(),
       trackerVersion: VERSION
+    };
+  }
+  function buildProjectPayload(project, settings) {
+    const entry = sanitizeProjectEntry(project || {});
+    const createdAt = Number.isFinite(entry.createdAt) ? entry.createdAt : Date.now();
+    return {
+      projectId: entry.id,
+      name: entry.name,
+      url: entry.url,
+      status: entry.status,
+      createdAt: new Date(createdAt).toISOString(),
+      updatedBy: String(settings && settings.sheetsNickname || "").trim(),
+      trackerVersion: VERSION
+    };
+  }
+  function convertRemoteRowToProject(row) {
+    if (!row || !row.projectId || !row.name) return null;
+    const createdAt = Date.parse(row.createdAt || "");
+    const updatedAt = Date.parse(row.updatedAt || "");
+    return sanitizeProjectEntry({
+      id: String(row.projectId),
+      name: String(row.name),
+      url: String(row.url || ""),
+      status: row.status === "archived" ? "archived" : "active",
+      createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
+      updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now(),
+      updatedBy: String(row.updatedBy || "")
+    });
+  }
+  function loadProjectSyncState() {
+    const raw = readJson(PROJECTS_SYNC_KEY, {});
+    const pending = raw && raw.pending && typeof raw.pending === "object" && !Array.isArray(raw.pending) ? raw.pending : {};
+    return {
+      initialized: raw && raw.initialized === true,
+      pending: Object.assign({}, pending)
+    };
+  }
+  function saveProjectSyncState(state) {
+    writeJson(PROJECTS_SYNC_KEY, {
+      initialized: state && state.initialized === true,
+      pending: Object.assign({}, state && state.pending || {})
+    });
+  }
+  function mergeProjectCatalogs(localProjects, remoteProjects, syncState) {
+    const local = sanitizeProjectLibrary(localProjects);
+    const remote = sanitizeProjectLibrary(remoteProjects);
+    const state = syncState || { initialized: false, pending: {} };
+    const initialMerge = state.initialized !== true;
+    const pending = Object.assign({}, state.pending || {});
+    const remoteById = {};
+    const usedRemote = {};
+    const result = [];
+    const idMap = {};
+    remote.forEach(function(entry) {
+      remoteById[entry.id] = entry;
+    });
+    local.forEach(function(entry) {
+      const sameId = remoteById[entry.id];
+      if (sameId) {
+        usedRemote[sameId.id] = true;
+        result.push(pending[entry.id] ? entry : sameId);
+        return;
+      }
+      let equivalent = null;
+      if (initialMerge) {
+        equivalent = remote.find(function(candidate) {
+          return !usedRemote[candidate.id] && projectsAreEquivalent(entry, candidate);
+        }) || null;
+      }
+      if (equivalent) {
+        usedRemote[equivalent.id] = true;
+        idMap[entry.id] = equivalent.id;
+        delete pending[entry.id];
+        result.push(equivalent);
+        return;
+      }
+      if (initialMerge || pending[entry.id]) {
+        result.push(entry);
+        if (!pending[entry.id]) {
+          pending[entry.id] = entry.status === "archived" ? "archive" : "upsert";
+        }
+      }
+    });
+    remote.forEach(function(entry) {
+      if (!usedRemote[entry.id]) result.push(entry);
+    });
+    return {
+      projects: sanitizeProjectLibrary(result),
+      idMap,
+      state: {
+        initialized: true,
+        pending
+      }
     };
   }
   function loadSyncState() {
@@ -3897,15 +4289,15 @@
     const delay = Number(delayMs);
     ctx.runtime.sheetsSyncTimers[eventId] = window.setTimeout(function() {
       delete ctx.runtime.sheetsSyncTimers[eventId];
-      const stillExists = ctx.getHistory().some(function(item) {
+      const currentEvent = ctx.getHistory().find(function(item) {
         return item && item.id === eventId;
       });
-      if (!stillExists) {
+      if (!currentEvent) {
         clearSyncState(eventId);
         ctx.addDiagnostic("sheets sync canceled before append", eventId);
         return;
       }
-      syncEventToSheets(ctx, event);
+      syncEventToSheets(ctx, currentEvent);
     }, Number.isFinite(delay) && delay >= 0 ? delay : SHEETS_SYNC_DELAY_MS);
     ctx.addDiagnostic("sheets sync scheduled", eventId);
     return event;
@@ -3963,6 +4355,138 @@
   function testSheetsConnection(ctx) {
     return sendSheetsRequest(ctx, "ping", null);
   }
+  function setPendingProjectOperation(projectId, operation) {
+    const id = String(projectId || "");
+    if (!id) return;
+    const state = loadProjectSyncState();
+    state.pending[id] = operation;
+    saveProjectSyncState(state);
+  }
+  function clearPendingProjectOperation(projectId) {
+    const id = String(projectId || "");
+    if (!id) return;
+    const state = loadProjectSyncState();
+    delete state.pending[id];
+    saveProjectSyncState(state);
+  }
+  function queueProjectUpsert(ctx, project) {
+    if (!project || !project.id) return null;
+    setPendingProjectOperation(project.id, "upsert");
+    if (canSyncToSheets(ctx.getSettings())) {
+      const state = loadProjectSyncState();
+      const sync = state.initialized ? flushPendingProjectSyncs(ctx) : syncProjectsFromSheets(ctx);
+      sync.catch(function() {
+      });
+    }
+    return project;
+  }
+  function queueProjectArchive(ctx, project) {
+    if (!project || !project.id) return null;
+    setPendingProjectOperation(project.id, "archive");
+    if (canSyncToSheets(ctx.getSettings())) {
+      const state = loadProjectSyncState();
+      const sync = state.initialized ? flushPendingProjectSyncs(ctx) : syncProjectsFromSheets(ctx);
+      sync.catch(function() {
+      });
+    }
+    return project;
+  }
+  function flushPendingProjectSyncs(ctx) {
+    if (!canSyncToSheets(ctx.getSettings())) {
+      return Promise.resolve({ retried: 0, synced: 0 });
+    }
+    if (ctx.runtime.projectsFlushPromise) return ctx.runtime.projectsFlushPromise;
+    const initialState = loadProjectSyncState();
+    const ids = Object.keys(initialState.pending);
+    let synced = 0;
+    let chain = Promise.resolve();
+    ids.forEach(function(id) {
+      chain = chain.then(function() {
+        const state = loadProjectSyncState();
+        const operation = state.pending[id];
+        const entry = typeof ctx.findProjectRecordById === "function" ? ctx.findProjectRecordById(id) : null;
+        if (!operation || !entry) {
+          clearPendingProjectOperation(id);
+          return null;
+        }
+        const action = operation === "archive" ? "archiveProject" : "upsertProject";
+        return sendSheetsRequest(ctx, action, buildProjectPayload(entry, ctx.getSettings())).then(function(data) {
+          const canonical = convertRemoteRowToProject(data && data.project);
+          if (canonical && typeof ctx.replaceProjectEntry === "function") {
+            ctx.replaceProjectEntry(canonical);
+          }
+          clearPendingProjectOperation(id);
+          synced += 1;
+          ctx.addDiagnostic("project sync ok", id, action);
+          return canonical;
+        }).catch(function(error) {
+          ctx.addDiagnostic("project sync failed", id, error && error.message);
+          return null;
+        });
+      });
+    });
+    ctx.runtime.projectsFlushPromise = chain.then(function() {
+      return { retried: ids.length, synced };
+    }).finally(function() {
+      ctx.runtime.projectsFlushPromise = null;
+    });
+    return ctx.runtime.projectsFlushPromise;
+  }
+  function applyProjectCatalog(ctx, merged) {
+    const library = sanitizeProjectLibrary(merged.projects);
+    ctx.setProjectLibrary(library);
+    ctx.saveProjectLibrary();
+    if (typeof ctx.reconcileProjectIds === "function") {
+      ctx.reconcileProjectIds(merged.idMap);
+    }
+    const active = sanitizeProject(ctx.runtime.project || {});
+    if (active.id) {
+      const canonical = library.find(function(entry) {
+        return entry.id === active.id;
+      });
+      if (!canonical || canonical.status === "archived") {
+        ctx.runtime.project = sanitizeProject({});
+        ctx.runtime.projectFilterEnabled = false;
+      } else {
+        ctx.runtime.project = sanitizeProject(canonical);
+      }
+      if (typeof ctx.syncProjectDraftFromActive === "function") ctx.syncProjectDraftFromActive();
+      ctx.saveProject();
+      ctx.saveUiState();
+    }
+    if (typeof ctx.renderSoon === "function") ctx.renderSoon();
+  }
+  function syncProjectsFromSheets(ctx) {
+    if (!canSyncToSheets(ctx.getSettings())) return Promise.resolve(null);
+    if (ctx.runtime.projectsSyncPromise) return ctx.runtime.projectsSyncPromise;
+    ctx.runtime.projectsSyncPromise = sendSheetsRequest(ctx, "listProjects", null).then(function(data) {
+      if (!data || data.ok !== true || !Array.isArray(data.projects)) {
+        throw new Error("invalid projects response");
+      }
+      const remote = data.projects.map(convertRemoteRowToProject).filter(Boolean);
+      const merged = mergeProjectCatalogs(
+        ctx.getProjectLibrary(),
+        remote,
+        loadProjectSyncState()
+      );
+      saveProjectSyncState(merged.state);
+      applyProjectCatalog(ctx, merged);
+      return flushPendingProjectSyncs(ctx).then(function(result) {
+        ctx.addDiagnostic("projects pull ok", remote.length);
+        return {
+          pulled: remote.length,
+          pushed: result.synced,
+          mergedIds: Object.keys(merged.idMap).length
+        };
+      });
+    }).catch(function(error) {
+      ctx.addDiagnostic("projects pull failed", error && error.message);
+      throw error;
+    }).finally(function() {
+      ctx.runtime.projectsSyncPromise = null;
+    });
+    return ctx.runtime.projectsSyncPromise;
+  }
   function pullEventsFromSheets(ctx) {
     const settings = ctx.getSettings();
     if (!canSyncToSheets(settings)) return Promise.resolve(null);
@@ -3974,7 +4498,13 @@
         updateSheetsStatus(ctx, { sheetsLastError: message });
         throw new Error(message);
       }
-      const remoteEvents = data.events.map(convertRemoteRowToEvent).filter(function(event) {
+      const knownProjectIds = {};
+      ctx.getProjectLibrary().forEach(function(project) {
+        if (project && project.id) knownProjectIds[project.id] = true;
+      });
+      const remoteEvents = data.events.map(function(row) {
+        return convertRemoteRowToEvent(row, knownProjectIds);
+      }).filter(function(event) {
         return event && event.id;
       });
       const remoteIds = {};
@@ -4013,7 +4543,10 @@
     }
     function runPull() {
       if (!canSyncToSheets(ctx.getSettings())) return;
-      pullEventsFromSheets(ctx).catch(function() {
+      Promise.all([
+        pullEventsFromSheets(ctx),
+        syncProjectsFromSheets(ctx)
+      ]).catch(function() {
       });
     }
     runPull();
@@ -4037,11 +4570,29 @@
       retryFailedSyncs: function() {
         return retryFailedSyncs(ctx);
       },
+      retryProjectSyncs: function() {
+        return flushPendingProjectSyncs(ctx);
+      },
       testSheetsConnection: function() {
         return testSheetsConnection(ctx);
       },
       pullEventsFromSheets: function() {
         return pullEventsFromSheets(ctx);
+      },
+      syncProjectsFromSheets: function() {
+        return syncProjectsFromSheets(ctx);
+      },
+      refreshSheetsData: function() {
+        return Promise.all([
+          pullEventsFromSheets(ctx),
+          syncProjectsFromSheets(ctx)
+        ]);
+      },
+      queueProjectUpsert: function(project) {
+        return queueProjectUpsert(ctx, project);
+      },
+      queueProjectArchive: function(project) {
+        return queueProjectArchive(ctx, project);
       },
       startSheetsAutoPull: function() {
         return startSheetsAutoPull(ctx);
