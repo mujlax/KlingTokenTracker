@@ -1,5 +1,7 @@
 import {
     VERSION,
+    SHEETS_SYNC_DELAY_MS,
+    SPEND_UNDO_WINDOW_MS,
     HISTORY_KEY,
     SESSION_KEY,
     META_KEY,
@@ -17,9 +19,11 @@ import {
     sanitizeSession,
     createSession,
     addEventToSession,
+    removeEventFromSession,
     createEventId,
     mergeSources,
-    localDateKey
+    localDateKey,
+    replaceEventProject
 } from './events.js';
 import { sanitizeMetadata, sanitizeProject, sanitizeProjectLibrary } from './project-model.js';
 import { redactUrl } from '../lib/utils.js';
@@ -71,14 +75,20 @@ export function createTracker() {
         uiScanTimer: null,
         uiInterval: null,
         renderTimer: null,
+        undoRenderTimer: null,
+        sheetsPullTimer: null,
         debug: false,
         diagnostics: [],
         lastUiSpend: null,
+        undoSpend: null,
+        sheetsSyncTimers: {},
         activeTab: initialUiState.activeTab,
         projectFilterEnabled: initialUiState.projectFilterEnabled,
         project: sanitizeProject(readJson(PROJECT_KEY, {})),
         projectDraft: { name: '', url: '' },
         projectEditorOpen: false,
+        projectSearchOpen: false,
+        projectSearchQuery: '',
         settings: loadSettings(),
         sheetsNicknameNotified: false
     };
@@ -145,7 +155,7 @@ export function createTracker() {
     };
 
     ctx.resetSettings = function () {
-        if (typeof window !== 'undefined' && !window.confirm('Reset all settings to defaults?')) return;
+        if (typeof window !== 'undefined' && !window.confirm('Сбросить все настройки по умолчанию?')) return;
         runtime.settings = sanitizeSettings(DEFAULT_SETTINGS);
         saveSettings(ctx);
         applyPanelSettings(ctx);
@@ -158,7 +168,7 @@ export function createTracker() {
         runtime.sheetsNicknameNotified = true;
         ctx.addDiagnostic('sheets nickname required — open Settings → Google Sheets');
         if (typeof window !== 'undefined' && typeof window.alert === 'function') {
-            window.alert('AI Token Tracker: укажите nickname в Settings → Google Sheets, чтобы синк работал с вашим именем.');
+            window.alert('AITT: укажите имя в Настройки → Google Sheets, чтобы синхронизация работала с вашим именем.');
         }
         ctx.renderSoon();
     };
@@ -170,6 +180,158 @@ export function createTracker() {
             args: args.map(formatDebugArg)
         });
         runtime.diagnostics = runtime.diagnostics.slice(-120);
+    };
+
+    ctx.showUndoSpend = function (event) {
+        if (!event || !event.id) return;
+        const startedAt = Date.now();
+        runtime.undoSpend = {
+            eventId: event.id,
+            amount: event.amount,
+            serviceName: event.serviceName || event.service || getActiveAdapter().name,
+            projectName: String(event.project && event.project.name || '').trim() || 'Без проекта',
+            startedAt: startedAt,
+            expiresAt: startedAt + SPEND_UNDO_WINDOW_MS,
+            pickerOpen: false,
+            pausedAt: null,
+            remainingMs: SPEND_UNDO_WINDOW_MS
+        };
+        ctx.renderSoon();
+    };
+
+    ctx.openUndoProjectPicker = function () {
+        const undo = runtime.undoSpend;
+        if (!undo || undo.pickerOpen) return false;
+        const now = Date.now();
+        const remainingMs = Math.max(0, Number(undo.expiresAt || 0) - now);
+        if (!remainingMs) {
+            runtime.undoSpend = null;
+            ctx.renderSoon();
+            return false;
+        }
+        const event = history.find(function (item) {
+            return item && item.id === undo.eventId;
+        });
+        if (!event) return false;
+        undo.pickerOpen = true;
+        undo.pausedAt = now;
+        undo.remainingMs = remainingMs;
+        undo.pendingProjectId = String(event.project && event.project.id || '');
+        undo.projectSearchQuery = '';
+        if (typeof ctx.cancelEventSyncToSheets === 'function') {
+            ctx.cancelEventSyncToSheets(undo.eventId);
+        }
+        ctx.renderSoon();
+        return true;
+    };
+
+    ctx.resumeUndoProjectPicker = function () {
+        const undo = runtime.undoSpend;
+        if (!undo || !undo.pickerOpen) return false;
+        const remainingMs = Math.max(1, Number(undo.remainingMs || 0));
+        const now = Date.now();
+        undo.pickerOpen = false;
+        undo.pausedAt = null;
+        undo.expiresAt = now + remainingMs;
+        const event = history.find(function (item) {
+            return item && item.id === undo.eventId;
+        });
+        if (event && typeof ctx.resumeEventSyncAfterUndo === 'function') {
+            ctx.resumeEventSyncAfterUndo(event, remainingMs);
+        }
+        ctx.renderSoon();
+        return true;
+    };
+
+    ctx.applyUndoProject = function (projectId) {
+        const undo = runtime.undoSpend;
+        if (!undo || !undo.pickerOpen) return null;
+        const id = String(projectId || '');
+        const entry = id && typeof ctx.findProjectById === 'function' ? ctx.findProjectById(id) : null;
+        if (id && !entry) return null;
+        const project = entry
+            ? sanitizeProject({ id: entry.id, name: entry.name, url: entry.url })
+            : sanitizeProject({});
+        const changed = replaceEventProject(history, undo.eventId, project, Date.now());
+        if (!changed.event) return null;
+        history = changed.history;
+        ctx.saveHistory();
+        undo.projectName = project.name || 'Без проекта';
+
+        if (entry) ctx.selectProject(entry.id);
+        else ctx.clearProject();
+
+        ctx.addDiagnostic('undo project changed', undo.eventId, project.id || 'none');
+        ctx.resumeUndoProjectPicker();
+        return changed.event;
+    };
+
+    ctx.setUndoProjectSearchQuery = function (value, selectedProjectId) {
+        const undo = runtime.undoSpend;
+        if (!undo || !undo.pickerOpen) return;
+        undo.projectSearchQuery = String(value || '');
+        if (selectedProjectId != null) undo.pendingProjectId = String(selectedProjectId || '');
+        ctx.renderSoon();
+    };
+
+    ctx.setUndoPendingProject = function (projectId) {
+        const undo = runtime.undoSpend;
+        if (!undo || !undo.pickerOpen) return;
+        undo.pendingProjectId = String(projectId || '');
+    };
+
+    ctx.hideUndoSpend = function () {
+        if (runtime.undoSpend && runtime.undoSpend.pickerOpen) {
+            ctx.resumeUndoProjectPicker();
+        }
+        runtime.undoSpend = null;
+        ctx.renderSoon();
+    };
+
+    ctx.deleteSpendEvent = function (eventId, options) {
+        const id = String(eventId || '');
+        if (!id) return null;
+        const event = history.find(function (item) {
+            return item && item.id === id;
+        });
+        if (!event) return null;
+
+        if (typeof ctx.cancelEventSyncToSheets === 'function') {
+            ctx.cancelEventSyncToSheets(id);
+        }
+
+        history = history.filter(function (item) {
+            return item && item.id !== id;
+        });
+        session = removeEventFromSession(session, event);
+        runtime.lastUiSpend = null;
+        if (runtime.undoSpend && runtime.undoSpend.eventId === id) {
+            runtime.undoSpend = null;
+        }
+
+        ctx.saveHistory();
+        ctx.saveSession();
+        ctx.addDiagnostic('deleted spend', id);
+
+        if (!options || options.deleteSheets !== false) {
+            if (typeof ctx.deleteEventFromSheets === 'function') {
+                ctx.deleteEventFromSheets(event);
+            }
+        }
+
+        ctx.renderSoon();
+        return event;
+    };
+
+    ctx.undoLastSpend = function () {
+        const undo = runtime.undoSpend;
+        const expired = !undo || (!undo.pickerOpen && undo.expiresAt <= Date.now());
+        if (expired) {
+            runtime.undoSpend = null;
+            ctx.renderSoon();
+            return null;
+        }
+        return ctx.deleteSpendEvent(undo.eventId);
     };
 
     ctx.recordSpend = function (input, now) {
@@ -212,7 +374,8 @@ export function createTracker() {
             detail: input.detail || '',
             metadata: sanitizeMetadata(input.metadata || {}),
             project: sanitizeProject(input.project || runtime.project),
-            estimated: input.estimated === true
+            estimated: input.estimated === true,
+            user: String((runtime.settings && runtime.settings.sheetsNickname) || '').trim()
         };
 
         history.unshift(event);
@@ -221,8 +384,9 @@ export function createTracker() {
         ctx.saveHistory();
         ctx.saveSession();
         ctx.addDiagnostic('recorded spend', event);
+        ctx.showUndoSpend(event);
         if (runtime.settings.sheetsEnabled) {
-            ctx.syncEventToSheets(event);
+            ctx.scheduleEventSyncToSheets(event, SHEETS_SYNC_DELAY_MS);
             ctx.retryFailedSyncs();
         }
         return event;
@@ -257,6 +421,10 @@ export function createTracker() {
     network.patchFetch();
     network.patchXMLHttpRequest();
     panel.bootWhenBodyExists();
+
+    if (runtime.settings.sheetsEnabled && typeof ctx.startSheetsAutoPull === 'function') {
+        ctx.startSheetsAutoPull();
+    }
 
     return {
         version: VERSION,

@@ -1,13 +1,11 @@
-import { createKlingAdapter } from './kling.js';
-import { createHiggsfieldAdapter } from './higgsfield.js';
+import { ADAPTER_FACTORIES } from './index.js';
 
 export let ADAPTERS = [];
 
 export function initAdapters(helpers) {
-    ADAPTERS = [
-        createKlingAdapter(helpers),
-        createHiggsfieldAdapter(helpers)
-    ];
+    ADAPTERS = ADAPTER_FACTORIES.map(function (createAdapter) {
+        return createAdapter(helpers);
+    });
     return ADAPTERS;
 }
 

@@ -217,6 +217,60 @@ export function buildHiggsfieldDetail(directText, amount) {
     return normalized ? normalized.slice(0, 100) : '';
 }
 
+export function findFormLikeContainer(start, requiredLabels, panelHost, maxDepth) {
+    if (!start) return null;
+    const labels = Array.isArray(requiredLabels) ? requiredLabels : [];
+    let element = start;
+    const limit = Number(maxDepth) > 0 ? Number(maxDepth) : 8;
+
+    for (let depth = 0; element && depth < limit; depth += 1) {
+        if (panelHost && panelHost.contains(element) && element !== start) break;
+        const text = compactText(element.innerText || element.textContent || '');
+        if (text && labels.every(function (label) {
+            return new RegExp('\\b' + String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(text);
+        })) {
+            return element;
+        }
+        element = element.parentElement;
+    }
+
+    return null;
+}
+
+export function readValueAfterLabel(text, label, nextLabels) {
+    const normalized = compactText(text);
+    if (!normalized) return '';
+
+    const labelPattern = String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const following = (Array.isArray(nextLabels) ? nextLabels : []).map(function (item) {
+        return String(item).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    });
+    const endPattern = following.length ? '(?=\\s+(?:' + following.join('|') + ')\\b|$)' : '(?=$)';
+    const match = normalized.match(new RegExp('\\b' + labelPattern + '\\b\\s+(.+?)' + endPattern, 'i'));
+    return match ? compactText(match[1]) : '';
+}
+
+export function readSelectedValuesFromLabels(container, labels) {
+    const text = compactText((container && (container.innerText || container.textContent)) || '');
+    const result = {};
+    const list = Array.isArray(labels) ? labels : [];
+
+    list.forEach(function (label, index) {
+        result[label] = readValueAfterLabel(text, label, list.slice(index + 1));
+    });
+
+    return result;
+}
+
+export function buildCalculatedSpendDetail(name, settings, amount) {
+    const parts = [name || 'Generate'];
+    if (settings && settings.resolution) parts.push(settings.resolution);
+    if (settings && settings.mode) parts.push(settings.mode);
+    if (settings && settings.duration) parts.push(settings.duration);
+    if (isFiniteCredit(amount)) parts.push(String(normalizeCredit(amount)) + ' credits');
+    return compactText(parts.join(' · ')).slice(0, 140);
+}
+
 export function collectDomContextText(clickable, panelHost, maxDepth) {
     const parts = [];
     const seen = new Set();

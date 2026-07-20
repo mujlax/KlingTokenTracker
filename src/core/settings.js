@@ -1,4 +1,4 @@
-import { SETTINGS_KEY, DEFAULT_SHEETS_WEB_APP_URL, DEFAULT_SHEETS_SECRET_TOKEN } from './constants.js';
+import { SETTINGS_KEY, DEFAULT_SHEETS_WEB_APP_URL, DEFAULT_SHEETS_SECRET_TOKEN, LEGACY_SHEETS_WEB_APP_URLS } from './constants.js';
 import { readJson, writeJson } from './storage.js';
 import { clamp } from '../lib/utils.js';
 
@@ -89,17 +89,28 @@ export function needsSheetsNickname(settings) {
     return value.sheetsEnabled !== false && !String(value.sheetsNickname || '').trim();
 }
 
+function isLegacySheetsWebAppUrl(url) {
+    const value = String(url || '').trim().replace(/\/dev$/i, '/exec');
+    return LEGACY_SHEETS_WEB_APP_URLS.indexOf(value) >= 0;
+}
+
 export function loadSettings() {
     const raw = readJson(SETTINGS_KEY, {});
     const settings = sanitizeSettings(raw);
-    if (!String(raw.sheetsWebAppUrl || '').trim()) {
+    const storedUrl = String(raw.sheetsWebAppUrl || '').trim();
+    let migrated = false;
+    if (!storedUrl || isLegacySheetsWebAppUrl(storedUrl)) {
         settings.sheetsWebAppUrl = DEFAULT_SHEETS_WEB_APP_URL;
+        migrated = migrated || (storedUrl !== '' && storedUrl !== DEFAULT_SHEETS_WEB_APP_URL);
     }
     if (!String(raw.sheetsSecretToken || '').trim()) {
         settings.sheetsSecretToken = DEFAULT_SHEETS_SECRET_TOKEN;
     }
     if (raw.sheetsEnabled !== false) {
         settings.sheetsEnabled = true;
+    }
+    if (migrated) {
+        writeJson(SETTINGS_KEY, settings);
     }
     return settings;
 }

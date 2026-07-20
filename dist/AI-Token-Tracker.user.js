@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         AI Token Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.8.2
-// @description  Tracks AI credits/tokens spending from Generate UI across supported platforms.
+// @version      0.9.4
+// @description  Отслеживает расход кредитов/токенов AI при генерации на поддерживаемых платформах.
 // @match        *://kling.ai/*
 // @match        *://*.kling.ai/*
 // @match        *://higgsfield.ai/*
 // @match        *://*.higgsfield.ai/*
+// @match        *://sjinn.ai/*
+// @match        *://*.sjinn.ai/*
 // @run-at       document-start
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -18,8 +20,102 @@
 
 (() => {
   // src/core/constants.js
-  var VERSION = "0.8.2";
+  var VERSION = "0.9.3";
+  var VERSION_HISTORY = [
+    {
+      version: "0.9.3",
+      date: "2026-07-20",
+      changes: [
+        "\u0414\u043E\u0431\u0430\u0432\u043B\u0435\u043D \u043F\u043E\u0438\u0441\u043A \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432 \u043F\u043E \u0438\u043C\u0435\u043D\u0438 \u0432 \u043E\u0442\u043C\u0435\u043D\u0435",
+        "\u0421\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u043A\u0430 \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432 \u0432 \u043E\u0442\u043C\u0435\u043D\u0435 \u043F\u043E \u0434\u0430\u0442\u0435 \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u044F (\u043D\u043E\u0432\u044B\u0435 \u043F\u0435\u0440\u0432\u044B\u043C\u0438)",
+        "\u0411\u044B\u0441\u0442\u0440\u044B\u0439 \u043F\u043E\u0438\u0441\u043A \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432 \u0432 \u043A\u043E\u043C\u043F\u0430\u043A\u0442\u043D\u043E\u0439 \u043F\u0430\u043D\u0435\u043B\u0438"
+      ]
+    },
+    {
+      version: "0.9.2",
+      date: "2026-07-20",
+      changes: [
+        "\u0421\u043C\u0435\u043D\u0430 \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \u043F\u0440\u0438 \u043E\u0442\u043C\u0435\u043D\u0435 \u0442\u0440\u0430\u0442\u044B",
+        "\u041F\u0430\u0443\u0437\u0430 \u0442\u0430\u0439\u043C\u0435\u0440\u043E\u0432 \u043E\u0442\u043C\u0435\u043D\u044B \u0438 Sheets \u043F\u0440\u0438 \u0432\u044B\u0431\u043E\u0440\u0435 \u043F\u0440\u043E\u0435\u043A\u0442\u0430",
+        "\u041E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0445 \u0441\u043E\u0431\u044B\u0442\u0438\u0439"
+      ]
+    },
+    {
+      version: "0.9.1",
+      date: "2026-07-17",
+      changes: [
+        "\u041E\u0431\u043D\u043E\u0432\u043B\u0451\u043D URL \u0432\u0435\u0431-\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F Google Sheets \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E",
+        "\u0410\u0432\u0442\u043E\u043C\u0438\u0433\u0440\u0430\u0446\u0438\u044F \u0443\u0441\u0442\u0430\u0440\u0435\u0432\u0448\u0438\u0445 URL \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u0438 \u0438\u0437 \u043A\u044D\u0448\u0430"
+      ]
+    },
+    {
+      version: "0.9.0",
+      date: "2026-07-17",
+      changes: [
+        "\u041E\u0431\u0449\u0438\u0439 \u043A\u0430\u0442\u0430\u043B\u043E\u0433 \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432 \u0432 Google Sheets",
+        "\u0423\u043C\u043D\u044B\u0435 \u043F\u043E\u0434\u0441\u043A\u0430\u0437\u043A\u0438 \u0434\u0443\u0431\u043B\u0438\u043A\u0430\u0442\u043E\u0432 \u043F\u0440\u0438 \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u0438 \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432",
+        "\u0411\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u043E\u0435 \u0430\u0440\u0445\u0438\u0432\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435 \u043E\u0431\u0449\u0438\u0445 \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432"
+      ]
+    },
+    {
+      version: "0.8.8",
+      date: "2026-07-06",
+      changes: [
+        "\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F pull \u0438\u0437 Google Sheets",
+        "\u0423\u043F\u0440\u043E\u0449\u0435\u043D\u044B \u0441\u0442\u043E\u043B\u0431\u0446\u044B Sheets \u0434\u043E \u043D\u0435\u043E\u0431\u0445\u043E\u0434\u0438\u043C\u043E\u0433\u043E \u043C\u0438\u043D\u0438\u043C\u0443\u043C\u0430",
+        "\u0410\u0432\u0442\u043E\u0440 \u0442\u0440\u0430\u0442\u044B \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0430\u0435\u0442\u0441\u044F \u0432 \u0438\u0441\u0442\u043E\u0440\u0438\u0438"
+      ]
+    },
+    {
+      version: "0.8.7",
+      date: "2026-07-06",
+      changes: [
+        "\u0423\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0435 \u043E\u0431 \u043E\u0442\u043C\u0435\u043D\u0435 \u0432 \u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043A\u0435 \u043F\u0430\u043D\u0435\u043B\u0438",
+        "\u0417\u0430\u043C\u0435\u043D\u0430 \u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043A\u0430 \u043F\u0440\u0438 \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0439 \u043E\u0442\u043C\u0435\u043D\u0435",
+        "\u041F\u043E\u0434\u0441\u0432\u0435\u0442\u043A\u0430 \u0432\u0440\u0435\u043C\u0435\u043D\u0438 \u0442\u0440\u0430\u0442"
+      ]
+    },
+    {
+      version: "0.8.6",
+      date: "2026-07-06",
+      changes: [
+        "\u0418\u0441\u043F\u0440\u0430\u0432\u043B\u0435\u043D \u043C\u0430\u0441\u0448\u0442\u0430\u0431 \u0431\u0430\u043B\u0430\u043D\u0441\u0430 Kling",
+        "\u041D\u043E\u0440\u043C\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u044F \u043A\u0440\u0435\u0434\u0438\u0442\u043E\u0432 point/ticket",
+        "\u0414\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u043E \u0440\u0435\u0433\u0440\u0435\u0441\u0441\u0438\u043E\u043D\u043D\u043E\u0435 \u043F\u043E\u043A\u0440\u044B\u0442\u0438\u0435"
+      ]
+    },
+    {
+      version: "0.8.5",
+      date: "2026-07-06",
+      changes: [
+        "\u0423\u0434\u0430\u043B\u0435\u043D\u0438\u0435 \u0442\u0440\u0430\u0442 \u0438\u0437 \u0438\u0441\u0442\u043E\u0440\u0438\u0438",
+        "10-\u0441\u0435\u043A\u0443\u043D\u0434\u043D\u0430\u044F \u043E\u0442\u043C\u0435\u043D\u0430 \u043D\u0435\u0434\u0430\u0432\u043D\u0438\u0445 \u0442\u0440\u0430\u0442",
+        "\u041E\u0442\u043B\u043E\u0436\u0435\u043D\u043D\u0430\u044F \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F Sheets \u0441 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u043E\u0439 \u0443\u0434\u0430\u043B\u0435\u043D\u0438\u044F"
+      ]
+    },
+    {
+      version: "0.8.4",
+      date: "2026-07-06",
+      changes: [
+        "\u0421\u043E\u043A\u0440\u0430\u0449\u0451\u043D \u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A \u043F\u0430\u043D\u0435\u043B\u0438 \u0434\u043E AITT",
+        "\u041A\u043B\u0438\u043A\u0430\u0431\u0435\u043B\u044C\u043D\u044B\u0439 \u0437\u043D\u0430\u0447\u043E\u043A \u0432\u0435\u0440\u0441\u0438\u0438",
+        "Changelog \u0432 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0430\u0445"
+      ]
+    },
+    {
+      version: "0.8.3",
+      date: "2026-07-06",
+      changes: [
+        "\u041F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430 SJinn Seedance",
+        "\u0420\u0430\u0441\u0447\u0451\u0442 \u0442\u0440\u0430\u0442 Seedance \u043F\u043E \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u044B\u043C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0430\u043C",
+        "\u0410\u0434\u0430\u043F\u0442\u0435\u0440\u044B \u043F\u0435\u0440\u0435\u043D\u0435\u0441\u0435\u043D\u044B \u0432 \u0444\u0430\u0431\u0440\u0438\u0447\u043D\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A"
+      ]
+    }
+  ];
   var UI_CLICK_DEDUP_MS = 3e3;
+  var SPEND_UNDO_WINDOW_MS = 1e4;
+  var SHEETS_SYNC_DELAY_MS = 1e4;
+  var SHEETS_PULL_INTERVAL_MS = 6e4;
   var SPEND_MERGE_MS = 8e3;
   var STORAGE_PREFIX = "klingTokenTracker.";
   var HISTORY_KEY = STORAGE_PREFIX + "history.v1";
@@ -30,7 +126,15 @@
   var UI_KEY = STORAGE_PREFIX + "ui.v1";
   var SETTINGS_KEY = STORAGE_PREFIX + "settings.v1";
   var SHEETS_SYNC_KEY = STORAGE_PREFIX + "sheetsSync.v1";
-  var DEFAULT_SHEETS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyBKgzw0oZmfdaOSHU4iBdsRY6l-tXupdUNjcRbMDNw7-glxMuw9kC2rJCljgJquDZORA/exec";
+  var PROJECTS_SYNC_KEY = STORAGE_PREFIX + "projectsSync.v1";
+  var DEFAULT_SHEETS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz9bp6ZWtJD5jJYdYPi-rjLkJO71L2dMJL8hxmayfuKtImtd_qbnVfTP25saOL0hlCj_Q/exec";
+  var LEGACY_SHEETS_WEB_APP_URLS = [
+    "https://script.google.com/macros/s/AKfycbyBKgzw0oZmfdaOSHU4iBdsRY6l-tXupdUNjcRbMDNw7-glxMuw9kC2rJCljgJquDZORA/exec",
+    "https://script.google.com/macros/s/AKfycbxi3YrJYesMvttSYoFVA-_E_RxIeSHXIOjmGvFVc4HVmOp0QDka_rUo2Oxw82fTP2HXmg/exec",
+    "https://script.google.com/macros/s/AKfycbwZ4SqCwMEvByu8L1MNO1OdRz30Q96HDGabFl5nj_ZvoT2Lw1Z9iWLH5vvswalTwV90kg/exec",
+    "https://script.google.com/macros/s/AKfycbwG2o3NIhF6zUURKV_0G0YBRm3nYIPHfbnLKIf4kuOQb2NuGljoqAD8AbG5blBRUAXc5g/exec",
+    "https://script.google.com/macros/s/AKfycbzYAcB-tOiiNjUs9_wNM2VbIYqobqn9BMGJSuQzXTzZgwsp9-gRNYOdlpTF8JhabtTPfg/exec"
+  ];
   var DEFAULT_SHEETS_SECRET_TOKEN = "token";
   var PROJECT_KEY = STORAGE_PREFIX + "project.v1";
   var PROJECTS_LIBRARY_KEY = STORAGE_PREFIX + "projects.v1";
@@ -323,6 +427,31 @@
     }
     return normalized ? normalized.slice(0, 100) : "";
   }
+  function findFormLikeContainer(start, requiredLabels, panelHost, maxDepth) {
+    if (!start) return null;
+    const labels = Array.isArray(requiredLabels) ? requiredLabels : [];
+    let element = start;
+    const limit = Number(maxDepth) > 0 ? Number(maxDepth) : 8;
+    for (let depth = 0; element && depth < limit; depth += 1) {
+      if (panelHost && panelHost.contains(element) && element !== start) break;
+      const text = compactText(element.innerText || element.textContent || "");
+      if (text && labels.every(function(label) {
+        return new RegExp("\\b" + String(label).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(text);
+      })) {
+        return element;
+      }
+      element = element.parentElement;
+    }
+    return null;
+  }
+  function buildCalculatedSpendDetail(name, settings, amount) {
+    const parts = [name || "Generate"];
+    if (settings && settings.resolution) parts.push(settings.resolution);
+    if (settings && settings.mode) parts.push(settings.mode);
+    if (settings && settings.duration) parts.push(settings.duration);
+    if (isFiniteCredit(amount)) parts.push(String(normalizeCredit(amount)) + " credits");
+    return compactText(parts.join(" \xB7 ")).slice(0, 140);
+  }
 
   // src/adapters/metadata.js
   var HIGGSFIELD_IGNORE_RE = /your browser does not support|enhance\s*off|does not support the video/i;
@@ -442,13 +571,16 @@
     if (/expire|expiry|deadline|timestamp|time|date/.test(path)) score -= 6;
     return score;
   }
+  function normalizeKlingPointAndTicketCredit(value) {
+    return normalizeCredit(value / 100);
+  }
   function extractKlingPointAndTicketBalance(payload) {
     const data = payload && payload.data;
     if (!data || typeof data !== "object") return null;
     const total = normalizeJsonNumber(data.total);
     if (isFiniteCredit(total)) {
       return {
-        value: normalizeCredit(total),
+        value: normalizeKlingPointAndTicketCredit(total),
         path: "data.total",
         score: 30
       };
@@ -464,7 +596,7 @@
       });
       if (hasAny) {
         return {
-          value: normalizeCredit(sum),
+          value: normalizeKlingPointAndTicketCredit(sum),
           path: "data.points[].balance(sum)",
           score: 28
         };
@@ -475,7 +607,7 @@
     );
     if (isFiniteCredit(remain)) {
       return {
-        value: normalizeCredit(remain),
+        value: normalizeKlingPointAndTicketCredit(remain),
         path: data.remainPoints != null ? "data.remainPoints" : "data.remain_points",
         score: 26
       };
@@ -620,13 +752,204 @@
     };
   }
 
+  // src/adapters/seedance.js
+  var SEEDANCE_RATES = {
+    "480P": { Pro: 143, Fast: 100, Mini: 72 },
+    "720P": { Pro: 240, Fast: 168, Mini: 120 },
+    "1080P": { Pro: 600, Fast: 420, Mini: 300 },
+    "4K": { Pro: 1200, Fast: 840, Mini: 600 }
+  };
+  var SEEDANCE_LABELS = ["Aspect Ratio", "Duration", "Mode", "Resolution"];
+  function normalizeResolution(value) {
+    const text = compactText(value).toUpperCase();
+    if (/^4\s*K$/.test(text)) return "4K";
+    const match = text.match(/\b(480P|720P|1080P|4K)\b/i);
+    return match ? match[1].toUpperCase() : "";
+  }
+  function normalizeMode(value) {
+    const match = compactText(value).match(/\b(Pro|Fast|Mini)\b/i);
+    if (!match) return "";
+    return match[1].slice(0, 1).toUpperCase() + match[1].slice(1).toLowerCase();
+  }
+  function normalizeDuration(value) {
+    const match = compactText(value).match(/(\d+(?:[.,]\d+)?)\s*s\b/i);
+    if (!match) return { label: "", seconds: NaN };
+    const seconds = parseLooseNumber(match[1]);
+    return {
+      label: isFiniteCredit(seconds) ? normalizeCredit(seconds) + "s" : "",
+      seconds
+    };
+  }
+  function normalizeAspectRatio(value) {
+    const match = compactText(value).match(/\b(\d{1,2}:\d{1,2})\b/);
+    return match ? match[1] : "";
+  }
+  function extractPrompt(container) {
+    if (!container || typeof container.querySelectorAll !== "function") return "";
+    const fields = container.querySelectorAll('textarea, [contenteditable="true"], input[type="text"], input:not([type])');
+    for (let i = 0; i < fields.length; i += 1) {
+      const field = fields[i];
+      const text = compactText(field.value || field.textContent || "");
+      if (text && !/^generate$/i.test(text)) return text.slice(0, 200);
+    }
+    return "";
+  }
+  function getElementText(element) {
+    if (!element) return "";
+    return compactText([
+      element.innerText || "",
+      element.textContent || "",
+      element.value || "",
+      element.getAttribute ? element.getAttribute("aria-label") || "" : "",
+      element.getAttribute ? element.getAttribute("title") || "" : ""
+    ].join(" "));
+  }
+  function isUsefulSelectValue(text, label) {
+    const normalized = compactText(text);
+    if (!normalized || normalized.length > 40) return false;
+    if (label && normalized.toLowerCase() === String(label).toLowerCase()) return false;
+    if (/upload|generate|prompt|collection|guide/i.test(normalized)) return false;
+    return true;
+  }
+  function readSeedanceComboboxValues(container) {
+    if (!container || typeof container.querySelectorAll !== "function") return null;
+    const controls = Array.from(container.querySelectorAll('button[role="combobox"], [role="combobox"], select')).filter(function(element) {
+      return isUsefulSelectValue(getElementText(element), "");
+    });
+    if (controls.length < SEEDANCE_LABELS.length) return null;
+    const selected = controls.slice(-SEEDANCE_LABELS.length);
+    return {
+      aspectRatio: getElementText(selected[0]),
+      duration: getElementText(selected[1]),
+      mode: getElementText(selected[2]),
+      resolution: getElementText(selected[3])
+    };
+  }
+  function calculateSeedanceCost(settings) {
+    const resolution = normalizeResolution(settings && settings.resolution);
+    const mode = normalizeMode(settings && settings.mode);
+    const duration = normalizeDuration(settings && settings.duration);
+    const rate = resolution && mode && SEEDANCE_RATES[resolution] && SEEDANCE_RATES[resolution][mode];
+    if (!isFiniteCredit(duration.seconds) || duration.seconds <= 0 || !isFiniteCredit(rate) || rate <= 0) {
+      return NaN;
+    }
+    return normalizeCredit(duration.seconds * rate);
+  }
+  function parseSeedanceSettingsFromText(text) {
+    const values = {};
+    SEEDANCE_LABELS.forEach(function(label, index) {
+      values[label] = "";
+      const nextLabels = SEEDANCE_LABELS.slice(index + 1).map(function(item) {
+        return String(item).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      });
+      const endPattern = nextLabels.length ? "(?=\\s+(?:" + nextLabels.join("|") + ")\\b|$)" : "(?=$)";
+      const match = compactText(text).match(new RegExp("\\b" + label + "\\b\\s+(.+?)" + endPattern, "i"));
+      if (match) values[label] = compactText(match[1]);
+    });
+    return normalizeSeedanceSettings({
+      aspectRatio: values["Aspect Ratio"],
+      duration: values.Duration,
+      mode: values.Mode,
+      resolution: values.Resolution
+    });
+  }
+  function normalizeSeedanceSettings(input) {
+    const duration = normalizeDuration(input && input.duration);
+    return {
+      aspectRatio: normalizeAspectRatio(input && input.aspectRatio),
+      duration: duration.label,
+      durationSeconds: duration.seconds,
+      mode: normalizeMode(input && input.mode),
+      resolution: normalizeResolution(input && input.resolution),
+      prompt: compactText(input && input.prompt || "").slice(0, 200)
+    };
+  }
+  function getSeedanceSettings(container) {
+    const comboValues = readSeedanceComboboxValues(container);
+    if (comboValues) {
+      return normalizeSeedanceSettings({
+        aspectRatio: comboValues.aspectRatio,
+        duration: comboValues.duration,
+        mode: comboValues.mode,
+        resolution: comboValues.resolution,
+        prompt: extractPrompt(container)
+      });
+    }
+    const values = parseSeedanceSettingsFromText(container && (container.innerText || container.textContent) || "");
+    return normalizeSeedanceSettings({
+      aspectRatio: values.aspectRatio,
+      duration: values.duration,
+      mode: values.mode,
+      resolution: values.resolution,
+      prompt: extractPrompt(container)
+    });
+  }
+  function createSeedanceAdapter(h) {
+    return {
+      id: "seedance",
+      name: "Seedance",
+      networkEnabled: false,
+      uiBalanceEnabled: false,
+      matchesLocation: function(url) {
+        return /^https?:\/\/(?:[\w-]+\.)*sjinn\.ai\/tools\/seedance20-video(?:[/?#]|$)/i.test(String(url || ""));
+      },
+      parseGenerateClick: function(clickable, event) {
+        const directText = getDirectClickableText(clickable);
+        if (!/^generate$/i.test(directText)) return null;
+        const container = findFormLikeContainer(clickable, SEEDANCE_LABELS, h.getPanelHost(), 10);
+        if (!container) {
+          h.addDiagnostic("ignored seedance generate without form context", directText, getElementRectSummary(clickable));
+          return null;
+        }
+        if (event && clickable && typeof clickable.getBoundingClientRect === "function") {
+          const rect = clickable.getBoundingClientRect();
+          if (rect && Number.isFinite(rect.left) && Number.isFinite(event.clientX)) {
+            const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+            if (!inside) return null;
+          }
+        }
+        const settings = getSeedanceSettings(container);
+        const amount = calculateSeedanceCost(settings);
+        if (!isFiniteCredit(amount) || amount <= 0) {
+          h.addDiagnostic("seedance generate click without calculable cost", settings);
+          return null;
+        }
+        return {
+          amount,
+          detail: buildCalculatedSpendDetail("Seedance Generate", settings, amount),
+          metadata: {
+            resolution: settings.resolution,
+            duration: settings.duration,
+            mode: settings.mode,
+            aspectRatio: settings.aspectRatio,
+            model: "Seedance 2.0",
+            prompt: settings.prompt
+          },
+          estimated: true
+        };
+      },
+      extractBalance: function() {
+        return null;
+      },
+      isRelevantDebugUrl: function() {
+        return false;
+      }
+    };
+  }
+
+  // src/adapters/index.js
+  var ADAPTER_FACTORIES = [
+    createKlingAdapter,
+    createHiggsfieldAdapter,
+    createSeedanceAdapter
+  ];
+
   // src/adapters/registry.js
   var ADAPTERS = [];
   function initAdapters(helpers) {
-    ADAPTERS = [
-      createKlingAdapter(helpers),
-      createHiggsfieldAdapter(helpers)
-    ];
+    ADAPTERS = ADAPTER_FACTORIES.map(function(createAdapter) {
+      return createAdapter(helpers);
+    });
     return ADAPTERS;
   }
   function getActiveAdapter() {
@@ -637,7 +960,7 @@
   }
 
   // src/core/storage.js
-  var SHARED_KEYS = /* @__PURE__ */ new Set([HISTORY_KEY, PROJECT_KEY, PROJECTS_LIBRARY_KEY]);
+  var SHARED_KEYS = /* @__PURE__ */ new Set([HISTORY_KEY, PROJECT_KEY, PROJECTS_LIBRARY_KEY, PROJECTS_SYNC_KEY]);
   function gmAvailable() {
     return typeof GM_getValue === "function" && typeof GM_setValue === "function";
   }
@@ -775,12 +1098,15 @@
   }
   function sanitizeProjectEntry(value) {
     const project = sanitizeProject(value || {});
+    const status = value && value.status === "archived" ? "archived" : "active";
     return {
       id: project.id || createId("project"),
       name: project.name,
       url: project.url,
+      status,
       createdAt: Number(value && value.createdAt || Date.now()),
-      updatedAt: Number(value && value.updatedAt || Date.now())
+      updatedAt: Number(value && value.updatedAt || Date.now()),
+      updatedBy: String(value && value.updatedBy || "").trim().slice(0, 80)
     };
   }
   function sanitizeProjectLibrary(value) {
@@ -905,6 +1231,8 @@
         metadata: sanitizeMetadata(event.metadata || {}),
         project: sanitizeProject(event.project || {}),
         estimated: event.estimated === true,
+        user: String(event.user || ""),
+        remote: event.remote === true,
         updatedAt: event.updatedAt ? Number(event.updatedAt) : void 0
       };
     }).sort(function(a, b) {
@@ -918,17 +1246,28 @@
     session.total = normalizeCredit(Number(session.total || 0) + Number(event.amount || 0));
     return session;
   }
+  function removeEventFromSession(session, event) {
+    if (!session || !Array.isArray(session.eventIds)) session = createSession();
+    if (!event || !event.id) return session;
+    if (session.eventIds.indexOf(event.id) < 0) return session;
+    session.eventIds = session.eventIds.filter(function(id) {
+      return id !== event.id;
+    });
+    session.total = normalizeCredit(Math.max(0, Number(session.total || 0) - Number(event.amount || 0)));
+    return session;
+  }
   function eventMatchesService(event, serviceId) {
     return String(event && event.service || "kling") === serviceId;
+  }
+  function normalizeProjectName(name) {
+    return String(name || "").trim().toLowerCase();
   }
   function eventMatchesProject(event, project) {
     if (!project || !project.name) return false;
     const eventProject = sanitizeProject(event && event.project || {});
     if (!eventProject.name) return false;
     if (project.id && eventProject.id) return eventProject.id === project.id;
-    if (eventProject.name !== project.name) return false;
-    if (project.url && eventProject.url && project.url !== eventProject.url) return false;
-    return true;
+    return normalizeProjectName(eventProject.name) === normalizeProjectName(project.name);
   }
   function getFilteredHistory(history, project) {
     if (!project || !project.name) return history.slice();
@@ -970,6 +1309,23 @@
       return a.serviceName.localeCompare(b.serviceName);
     });
   }
+  function replaceEventProject(history, eventId, project, now) {
+    const id = String(eventId || "");
+    const nextProject = sanitizeProject(project || {});
+    let updatedEvent = null;
+    const nextHistory = (Array.isArray(history) ? history : []).map(function(event) {
+      if (!event || event.id !== id) return event;
+      updatedEvent = Object.assign({}, event, {
+        project: nextProject,
+        updatedAt: Number(now || Date.now())
+      });
+      return updatedEvent;
+    });
+    return {
+      history: nextHistory,
+      event: updatedEvent
+    };
+  }
   function getTodayTotal(history, serviceId) {
     const today = localDateKey(Date.now());
     return normalizeCredit(history.reduce(function(sum, event) {
@@ -979,9 +1335,163 @@
     }, 0));
   }
 
+  // src/core/project-search.js
+  function normalizeUnicode(value) {
+    const raw = String(value || "");
+    try {
+      return raw.normalize("NFKC");
+    } catch (_) {
+      return raw;
+    }
+  }
+  function normalizeProjectName2(value) {
+    return normalizeUnicode(value).toLowerCase().replace(/ё/g, "\u0435").replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
+  }
+  function normalizeProjectUrl(value) {
+    const raw = normalizeUnicode(value).trim();
+    if (!raw) return "";
+    const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : "https://" + raw;
+    try {
+      const parsed = new URL(candidate);
+      const host = parsed.hostname.toLowerCase().replace(/^www\./i, "");
+      let path = parsed.pathname || "";
+      try {
+        path = decodeURIComponent(path);
+      } catch (_) {
+      }
+      path = path.toLowerCase().replace(/\/+$/, "");
+      return host + path;
+    } catch (_) {
+      return raw.toLowerCase().replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/[?#].*$/, "").replace(/\/+$/, "");
+    }
+  }
+  function levenshteinDistance(left, right) {
+    if (left === right) return 0;
+    if (!left) return right.length;
+    if (!right) return left.length;
+    let previous = Array.from({ length: right.length + 1 }, function(_, index) {
+      return index;
+    });
+    for (let i = 1; i <= left.length; i += 1) {
+      const current = [i];
+      for (let j = 1; j <= right.length; j += 1) {
+        const cost = left.charAt(i - 1) === right.charAt(j - 1) ? 0 : 1;
+        current[j] = Math.min(
+          current[j - 1] + 1,
+          previous[j] + 1,
+          previous[j - 1] + cost
+        );
+      }
+      previous = current;
+    }
+    return previous[right.length];
+  }
+  function nameMatchScore(query, candidate) {
+    if (!query || !candidate) return 0;
+    if (query === candidate) return 0.98;
+    if (candidate.indexOf(query) === 0 || query.indexOf(candidate) === 0) return 0.86;
+    if (candidate.indexOf(query) >= 0 || query.indexOf(candidate) >= 0) return 0.8;
+    if (query.length < 4 || candidate.length < 4) return 0;
+    const queryTokens = query.split(" ").filter(Boolean);
+    const candidateTokens = candidate.split(" ").filter(Boolean);
+    let shared = 0;
+    let bestTokenSimilarity = 0;
+    queryTokens.forEach(function(token) {
+      if (candidateTokens.indexOf(token) >= 0) shared += 1;
+      if (token.length < 4) return;
+      candidateTokens.forEach(function(candidateToken) {
+        if (candidateToken.length < 4) return;
+        const tokenLength = Math.max(token.length, candidateToken.length);
+        const tokenSimilarity = 1 - levenshteinDistance(token, candidateToken) / tokenLength;
+        if (tokenSimilarity > bestTokenSimilarity) bestTokenSimilarity = tokenSimilarity;
+      });
+    });
+    const tokenScore = queryTokens.length ? 0.76 * (shared / queryTokens.length) : 0;
+    const tokenTypoScore = bestTokenSimilarity >= 0.72 ? 0.7 * bestTokenSimilarity : 0;
+    const maxLength = Math.max(query.length, candidate.length);
+    const similarity = maxLength ? 1 - levenshteinDistance(query, candidate) / maxLength : 0;
+    const typoScore = similarity >= 0.72 ? 0.7 * similarity : 0;
+    return Math.max(tokenScore, tokenTypoScore, typoScore);
+  }
+  function urlMatchScore(query, candidate) {
+    if (!query || !candidate) return 0;
+    if (query === candidate) return 1;
+    const queryHost = query.split("/")[0];
+    const candidateHost = candidate.split("/")[0];
+    if (queryHost && queryHost === candidateHost) return 0.9;
+    if (candidate.indexOf(query) >= 0 || query.indexOf(candidate) >= 0) return 0.84;
+    return 0;
+  }
+  function scoreProjectMatch(project, query) {
+    const nameQuery = normalizeProjectName2(query && query.name);
+    const urlQuery = normalizeProjectUrl(query && query.url);
+    const projectName = normalizeProjectName2(project && project.name);
+    const projectUrl = normalizeProjectUrl(project && project.url);
+    const nameScore = nameMatchScore(nameQuery, projectName);
+    const urlScore = urlMatchScore(urlQuery, projectUrl);
+    let score = Math.max(nameScore, urlScore);
+    if (nameScore >= 0.55 && urlScore >= 0.55) score = Math.min(1, score + 0.03);
+    return {
+      score,
+      exact: nameQuery && nameQuery === projectName || urlQuery && urlQuery === projectUrl,
+      nameScore,
+      urlScore
+    };
+  }
+  function findProjectSuggestions(projects, query, options) {
+    const settings = options || {};
+    const limit = Number(settings.limit) > 0 ? Number(settings.limit) : 5;
+    const excludeId = String(settings.excludeId || "");
+    const nameQuery = normalizeProjectName2(query && query.name);
+    const urlQuery = normalizeProjectUrl(query && query.url);
+    if (nameQuery.length < 2 && !urlQuery) return [];
+    return (Array.isArray(projects) ? projects : []).filter(function(project) {
+      return project && project.status !== "archived" && project.id !== excludeId;
+    }).map(function(project) {
+      const match = scoreProjectMatch(project, query || {});
+      return Object.assign({}, project, {
+        matchScore: match.score,
+        matchExact: match.exact
+      });
+    }).filter(function(project) {
+      return project.matchScore >= 0.55;
+    }).sort(function(left, right) {
+      if (right.matchScore !== left.matchScore) return right.matchScore - left.matchScore;
+      return Number(right.updatedAt || 0) - Number(left.updatedAt || 0);
+    }).slice(0, limit);
+  }
+  function sortProjectsByCreatedAt(projects) {
+    return (Array.isArray(projects) ? projects : []).filter(function(project) {
+      return project && project.status !== "archived";
+    }).slice().sort(function(left, right) {
+      const createdDiff = Number(right.createdAt || 0) - Number(left.createdAt || 0);
+      if (createdDiff) return createdDiff;
+      return String(left.name || "").localeCompare(String(right.name || ""));
+    });
+  }
+  function searchProjectsByName(projects, query, options) {
+    const settings = options || {};
+    const limit = Number(settings.limit) > 0 ? Number(settings.limit) : Infinity;
+    const needle = normalizeProjectName2(query);
+    const sorted = sortProjectsByCreatedAt(projects);
+    const matches = needle ? sorted.filter(function(project) {
+      return nameMatchScore(needle, normalizeProjectName2(project.name)) >= 0.55;
+    }) : sorted;
+    return matches.slice(0, limit);
+  }
+  function projectsAreEquivalent(left, right) {
+    const leftUrl = normalizeProjectUrl(left && left.url);
+    const rightUrl = normalizeProjectUrl(right && right.url);
+    if (leftUrl && rightUrl && leftUrl === rightUrl) return true;
+    const leftName = normalizeProjectName2(left && left.name);
+    const rightName = normalizeProjectName2(right && right.name);
+    if (!leftName || leftName !== rightName) return false;
+    return !leftUrl || !rightUrl || leftUrl === rightUrl;
+  }
+
   // src/core/projects.js
   function createProjects(ctx) {
-    function findProjectById(id) {
+    function findProjectRecordById(id) {
       const needle = String(id || "").trim();
       if (!needle) return null;
       const library = ctx.getProjectLibrary();
@@ -990,23 +1500,68 @@
       }
       return null;
     }
+    function findProjectById(id) {
+      const entry = findProjectRecordById(id);
+      return entry && entry.status !== "archived" ? entry : null;
+    }
     function createProjectEntry(name, url) {
       const now = Date.now();
       return sanitizeProjectEntry({
         id: createId("project"),
         name,
         url,
+        status: "active",
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
+        updatedBy: String(ctx.getSettings && ctx.getSettings().sheetsNickname || "")
       });
     }
     function listProjects() {
-      return ctx.getProjectLibrary().map(function(entry) {
+      return ctx.getProjectLibrary().filter(function(entry) {
+        return entry.status !== "archived";
+      }).map(function(entry) {
         return deepClone(entry);
       });
     }
+    function getProjectSuggestions(name, url, excludeId) {
+      return findProjectSuggestions(ctx.getProjectLibrary(), {
+        name,
+        url
+      }, {
+        limit: 5,
+        excludeId
+      });
+    }
+    function getProjectsByCreatedAt() {
+      return sortProjectsByCreatedAt(ctx.getProjectLibrary()).map(function(entry) {
+        return deepClone(entry);
+      });
+    }
+    function searchProjects(name, limit) {
+      return searchProjectsByName(ctx.getProjectLibrary(), name, { limit }).map(function(entry) {
+        return deepClone(entry);
+      });
+    }
+    function closeProjectSearch() {
+      ctx.runtime.projectSearchOpen = false;
+      ctx.runtime.projectSearchQuery = "";
+    }
+    function toggleProjectSearch() {
+      ctx.runtime.projectSearchOpen = !ctx.runtime.projectSearchOpen;
+      ctx.runtime.projectSearchQuery = "";
+      ctx.renderSoon();
+      return ctx.runtime.projectSearchOpen;
+    }
+    function setProjectSearchQuery(value) {
+      ctx.runtime.projectSearchQuery = String(value || "");
+      ctx.renderSoon();
+    }
+    function selectProjectSearchResult(id) {
+      closeProjectSearch();
+      return selectProject(id);
+    }
     function formatProjectOptionLabel(entry) {
-      const name = entry.name || "Untitled";
+      const name = entry.name || "\u0411\u0435\u0437 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u044F";
       if (!entry.url) return name;
       try {
         const parsed = new URL(entry.url);
@@ -1017,7 +1572,7 @@
     }
     function getActiveProject() {
       const project = sanitizeProject(ctx.runtime.project || {});
-      if (project.id && findProjectById(project.id)) return project;
+      if (project.id) return findProjectById(project.id) ? project : sanitizeProject({});
       if (project.name) return project;
       return sanitizeProject({});
     }
@@ -1085,6 +1640,7 @@
         name: nameInput ? nameInput.value : "",
         url: urlInput ? urlInput.value : ""
       };
+      ctx.renderSoon();
     }
     function shouldCompactProject() {
       return !ctx.runtime.projectEditorOpen;
@@ -1099,15 +1655,22 @@
         ctx.setProjectLibrary(library);
         active.id = entry.id;
         ctx.saveProjectLibrary();
-      } else if (active.id && !findProjectById(active.id) && active.name) {
-        const match = library.find(function(entry) {
-          return entry.name === active.name && entry.url === active.url;
-        });
-        active.id = match ? match.id : "";
+      } else if (active.id && !findProjectById(active.id)) {
+        const stored = findProjectRecordById(active.id);
+        if (stored && stored.status === "archived") {
+          active.id = "";
+          active.name = "";
+          active.url = "";
+        } else if (active.name) {
+          const match = library.find(function(entry) {
+            return entry.status !== "archived" && entry.name === active.name && entry.url === active.url;
+          });
+          active.id = match ? match.id : "";
+        }
       }
       ctx.runtime.project = active;
       syncProjectDraftFromActive();
-      ctx.runtime.projectEditorOpen = !active.id && !library.length;
+      ctx.runtime.projectEditorOpen = !active.id && !listProjects().length;
       backfillHistoryProjectIds();
       ctx.saveProject();
     }
@@ -1123,6 +1686,7 @@
       return ctx.getState();
     }
     function clearProject() {
+      closeProjectSearch();
       ctx.runtime.project = sanitizeProject({});
       ctx.runtime.projectEditorOpen = false;
       ctx.runtime.projectFilterEnabled = false;
@@ -1144,6 +1708,7 @@
       library.unshift(entry);
       ctx.setProjectLibrary(sanitizeProjectLibrary(library));
       ctx.saveProjectLibrary();
+      if (typeof ctx.queueProjectUpsert === "function") ctx.queueProjectUpsert(entry);
       ctx.renderSoon();
       return deepClone(entry);
     }
@@ -1154,9 +1719,12 @@
       if (!sanitized.name) return null;
       entry.name = sanitized.name;
       entry.url = sanitized.url;
+      entry.status = "active";
       entry.updatedAt = Date.now();
+      entry.updatedBy = String(ctx.getSettings && ctx.getSettings().sheetsNickname || "").trim();
       ctx.setProjectLibrary(sanitizeProjectLibrary(ctx.getProjectLibrary()));
       ctx.saveProjectLibrary();
+      if (typeof ctx.queueProjectUpsert === "function") ctx.queueProjectUpsert(entry);
       if (ctx.runtime.project && ctx.runtime.project.id === entry.id) {
         ctx.runtime.project = sanitizeProject({
           id: entry.id,
@@ -1172,14 +1740,14 @@
     function deleteProject(id) {
       const needle = String(id || "").trim();
       if (!needle) return false;
-      const library = ctx.getProjectLibrary();
-      const before = library.length;
-      const next = library.filter(function(entry) {
-        return entry.id !== needle;
-      });
-      if (next.length === before) return false;
-      ctx.setProjectLibrary(next);
+      const entry = findProjectById(needle);
+      if (!entry) return false;
+      entry.status = "archived";
+      entry.updatedAt = Date.now();
+      entry.updatedBy = String(ctx.getSettings && ctx.getSettings().sheetsNickname || "").trim();
+      ctx.setProjectLibrary(sanitizeProjectLibrary(ctx.getProjectLibrary()));
       ctx.saveProjectLibrary();
+      if (typeof ctx.queueProjectArchive === "function") ctx.queueProjectArchive(entry);
       if (ctx.runtime.project && ctx.runtime.project.id === needle) {
         ctx.runtime.project = sanitizeProject({});
         syncProjectDraftFromActive();
@@ -1193,14 +1761,12 @@
       if (!entry) {
         return clearProject();
       }
-      entry.updatedAt = Date.now();
-      ctx.setProjectLibrary(sanitizeProjectLibrary(ctx.getProjectLibrary()));
-      ctx.saveProjectLibrary();
       ctx.runtime.project = sanitizeProject({
         id: entry.id,
         name: entry.name,
         url: entry.url
       });
+      closeProjectSearch();
       syncProjectDraftFromActive();
       ctx.runtime.projectEditorOpen = false;
       ctx.saveProject();
@@ -1208,6 +1774,7 @@
       return ctx.getState();
     }
     function openProjectEditor() {
+      closeProjectSearch();
       syncProjectDraftFromActive();
       ctx.runtime.projectEditorOpen = true;
       ctx.renderSoon();
@@ -1245,6 +1812,7 @@
       return entry;
     }
     function beginNewProjectForm(root) {
+      closeProjectSearch();
       ctx.runtime.project = sanitizeProject({});
       ctx.runtime.projectDraft = { name: "", url: "" };
       ctx.runtime.projectEditorOpen = true;
@@ -1257,6 +1825,10 @@
       if (urlInput) urlInput.value = "";
       if (nameInput) nameInput.focus();
       ctx.renderSoon();
+      if (typeof ctx.syncProjectsFromSheets === "function") {
+        ctx.syncProjectsFromSheets().catch(function() {
+        });
+      }
     }
     function deleteSelectedProject(root) {
       const select = root.querySelector('[data-field="projectSelect"]');
@@ -1265,10 +1837,64 @@
       beginNewProjectForm(root);
       return true;
     }
+    function reconcileProjectIds(idMap) {
+      const mapping = idMap && typeof idMap === "object" ? idMap : {};
+      if (!Object.keys(mapping).length) return;
+      let historyChanged = false;
+      const nextHistory = ctx.getHistory().map(function(event) {
+        const project = sanitizeProject(event && event.project || {});
+        const nextId = mapping[project.id];
+        if (!nextId) return event;
+        historyChanged = true;
+        return Object.assign({}, event, {
+          project: sanitizeProject({ id: nextId, name: project.name, url: project.url })
+        });
+      });
+      if (historyChanged) {
+        ctx.setHistory(nextHistory);
+        ctx.saveHistory();
+      }
+      const active = sanitizeProject(ctx.runtime.project || {});
+      if (mapping[active.id]) {
+        active.id = mapping[active.id];
+        ctx.runtime.project = active;
+        ctx.saveProject();
+      }
+    }
+    function replaceProjectEntry(value) {
+      const entry = sanitizeProjectEntry(value || {});
+      const library = ctx.getProjectLibrary().filter(function(item) {
+        return item.id !== entry.id;
+      });
+      library.push(entry);
+      ctx.setProjectLibrary(sanitizeProjectLibrary(library));
+      ctx.saveProjectLibrary();
+      if (ctx.runtime.project && ctx.runtime.project.id === entry.id) {
+        if (entry.status === "archived") {
+          ctx.runtime.project = sanitizeProject({});
+          ctx.runtime.projectFilterEnabled = false;
+        } else {
+          ctx.runtime.project = sanitizeProject(entry);
+        }
+        syncProjectDraftFromActive();
+        ctx.saveProject();
+        ctx.saveUiState();
+      }
+      ctx.renderSoon();
+      return deepClone(entry);
+    }
     return {
+      findProjectRecordById,
       findProjectById,
       createProjectEntry,
       listProjects,
+      getProjectSuggestions,
+      getProjectsByCreatedAt,
+      searchProjects,
+      toggleProjectSearch,
+      closeProjectSearch,
+      setProjectSearchQuery,
+      selectProjectSearchResult,
       formatProjectOptionLabel,
       getActiveProject,
       hasActiveProject,
@@ -1294,7 +1920,9 @@
       closeProjectEditor,
       saveProjectFromForm,
       beginNewProjectForm,
-      deleteSelectedProject
+      deleteSelectedProject,
+      reconcileProjectIds,
+      replaceProjectEntry
     };
   }
 
@@ -1875,6 +2503,8 @@
       ctx.setProjectLibrary([]);
       ctx.runtime.projectDraft = { name: "", url: "" };
       ctx.runtime.projectEditorOpen = false;
+      ctx.runtime.projectSearchOpen = false;
+      ctx.runtime.projectSearchQuery = "";
       ctx.runtime.projectFilterEnabled = false;
       ctx.runtime.balance = null;
       ctx.runtime.balanceSource = "none";
@@ -1928,6 +2558,8 @@
         clearHistory,
         forgetBalance,
         resetAll,
+        deleteSpendEvent: ctx.deleteSpendEvent,
+        undoLastSpend: ctx.undoLastSpend,
         setProject: ctx.setProject,
         clearProject: ctx.clearProject,
         listProjects: ctx.listProjects,
@@ -1935,6 +2567,7 @@
         updateProject: ctx.updateProject,
         deleteProject: ctx.deleteProject,
         selectProject: ctx.selectProject,
+        syncProjectsFromSheets: ctx.syncProjectsFromSheets,
         getDebugReport,
         copyDebugReport
       };
@@ -1954,6 +2587,8 @@
       forgetBalance,
       resetAll,
       setDebug,
+      deleteSpendEvent: ctx.deleteSpendEvent,
+      undoLastSpend: ctx.undoLastSpend,
       downloadExport
     };
   }
@@ -2013,6 +2648,10 @@
       pencil: [
         '<path d="M12 20h9"/>',
         '<path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>'
+      ],
+      search: [
+        '<circle cx="11" cy="11" r="7"/>',
+        '<path d="M20 20l-4-4"/>'
       ],
       "chevron-down": [
         '<path d="M6 9l6 6 6-6"/>'
@@ -2099,17 +2738,27 @@
     const value = settings || {};
     return value.sheetsEnabled !== false && !String(value.sheetsNickname || "").trim();
   }
+  function isLegacySheetsWebAppUrl(url) {
+    const value = String(url || "").trim().replace(/\/dev$/i, "/exec");
+    return LEGACY_SHEETS_WEB_APP_URLS.indexOf(value) >= 0;
+  }
   function loadSettings() {
     const raw = readJson(SETTINGS_KEY, {});
     const settings = sanitizeSettings(raw);
-    if (!String(raw.sheetsWebAppUrl || "").trim()) {
+    const storedUrl = String(raw.sheetsWebAppUrl || "").trim();
+    let migrated = false;
+    if (!storedUrl || isLegacySheetsWebAppUrl(storedUrl)) {
       settings.sheetsWebAppUrl = DEFAULT_SHEETS_WEB_APP_URL;
+      migrated = migrated || storedUrl !== "" && storedUrl !== DEFAULT_SHEETS_WEB_APP_URL;
     }
     if (!String(raw.sheetsSecretToken || "").trim()) {
       settings.sheetsSecretToken = DEFAULT_SHEETS_SECRET_TOKEN;
     }
     if (raw.sheetsEnabled !== false) {
       settings.sheetsEnabled = true;
+    }
+    if (migrated) {
+      writeJson(SETTINGS_KEY, settings);
     }
     return settings;
   }
@@ -2158,15 +2807,24 @@
       const shadow = host.attachShadow({ mode: "open" });
       shadow.innerHTML = [
         "<style>",
-        ":host{display:block;--ktt-idle-opacity:.2;opacity:var(--ktt-idle-opacity);transition:opacity .2s ease}",
-        ":host(:hover){opacity:1}",
-        ".panel{width:286px;color:#f6f7f8;background:rgba(18,20,24,.92);border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 30px rgba(0,0,0,.26);border-radius:8px;overflow:hidden;font:13px/1.35 Arial,sans-serif;backdrop-filter:blur(8px)}",
+        ":host{display:block;position:relative;--ktt-idle-opacity:.2}",
+        ":host(:hover) .panel,.panel.undo-active{opacity:1}",
+        ".panel{position:relative;width:286px;color:#f6f7f8;background:rgba(18,20,24,.92);border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 30px rgba(0,0,0,.26);border-radius:8px;overflow:hidden;font:13px/1.35 Arial,sans-serif;backdrop-filter:blur(8px);opacity:var(--ktt-idle-opacity);transition:opacity .2s ease}",
         ".panel.collapsed .panelContent{display:none}",
-        ".header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:rgba(255,255,255,.06);user-select:none}",
+        ".panelContent{position:relative}",
+        ".header{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:rgba(255,255,255,.06);user-select:none;min-height:28px;cursor:move}",
+        ".headerDefault{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;flex:1}",
+        ".panel.undo-active .header{background:rgba(45,108,223,.14)}",
+        "@keyframes undoFlash{0%,100%{background:rgba(45,108,223,.14);box-shadow:inset 0 0 0 0 rgba(110,164,255,0)}50%{background:rgba(45,108,223,.48);box-shadow:inset 0 0 18px rgba(110,164,255,.3)}}",
+        ".panel.undo-fresh .header{animation:undoFlash .5s ease-in-out 4}",
+        ".panel.undo-active .headerDefault{display:none}",
         ".headerDrag{display:flex;align-items:center;gap:8px;min-width:0;flex:1;cursor:move}",
+        ".headerControls{display:flex;align-items:center;gap:6px;flex-shrink:0}",
         ".headerBtn{width:28px;height:28px;flex-shrink:0;cursor:pointer}",
         ".headerBtn svg{width:15px;height:15px}",
         ".title{font-weight:700;letter-spacing:0}",
+        ".versionBtn{appearance:none;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);color:#d8dde6;border-radius:999px;padding:2px 7px;font:11px Arial,sans-serif;cursor:pointer;white-space:nowrap}",
+        ".versionBtn:hover{background:rgba(255,255,255,.14);color:#fff}",
         ".badge{font-size:11px;border-radius:999px;padding:2px 7px;background:#2d6cdf;color:#fff;text-transform:uppercase}",
         ".body{padding:10px 12px 12px}",
         ".tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 10px 0}",
@@ -2183,6 +2841,12 @@
         ".history{margin-top:10px;display:flex;flex-direction:column;gap:8px;max-height:320px;overflow:auto}",
         ".histItem{border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:8px;background:rgba(255,255,255,.04)}",
         ".histTop{display:flex;justify-content:space-between;gap:8px;color:#fff;font-weight:700;font-size:12px}",
+        ".histSpendMain{min-width:0;flex:1;display:flex;align-items:center;gap:6px;flex-wrap:wrap}",
+        ".histTime{display:inline-flex;align-items:center;border:1px solid rgba(142,182,255,.28);background:rgba(45,108,223,.18);color:#d6e4ff;border-radius:999px;padding:1px 6px;font-size:11px;line-height:1.35;font-weight:700}",
+        ".histAmount{color:#fff;font-weight:800}",
+        ".histSpendService{color:#d8dde6;white-space:nowrap}",
+        ".histDelete{width:24px;height:24px;flex-shrink:0;opacity:.72}",
+        ".histDelete:hover{opacity:1}",
         ".histMeta{margin-top:5px;color:#bfc6d1;font-size:11px;display:flex;flex-wrap:wrap;gap:5px}",
         ".pill{border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:1px 6px;background:rgba(255,255,255,.05)}",
         ".raw{margin-top:5px;color:#8f98a6;font-size:11px;word-break:break-word}",
@@ -2191,9 +2855,31 @@
         ".projectCompactTools{display:flex;gap:2px;align-items:center;flex-shrink:0}",
         ".projectCompactRow .select.field{padding:5px 22px 5px 8px;font-size:11px;min-height:28px}",
         ".projectCompactTools .miniBtn{width:24px;height:24px;flex-shrink:0}",
+        ".projectSearchPanel{display:grid;gap:5px}",
+        ".projectSearchPanel[hidden]{display:none}",
+        ".projectSearchInputRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px}",
+        ".projectSearchInputRow .field{padding:5px 7px;font-size:11px;min-height:28px}",
+        ".projectSearchClose{width:28px;height:28px}",
+        ".projectSearchResults{display:grid;gap:3px;max-height:150px;overflow:auto}",
+        ".projectSearchResult{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;padding:5px 7px;text-align:left;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:6px}",
+        ".projectSearchResult:hover{background:rgba(45,108,223,.13);border-color:rgba(45,108,223,.4)}",
+        ".projectSearchResultName{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+        ".projectSearchResultMeta{color:#8f98a6;font-size:9px;white-space:nowrap}",
+        ".projectSearchEmpty{padding:4px 2px;color:#8f98a6;font-size:10px}",
         ".projectEditor{display:grid;gap:6px}",
         ".projectBox.compact .projectEditor{display:none}",
         ".projectFields{display:grid;gap:6px}",
+        ".projectSuggestions{display:grid;gap:5px;padding:7px;border:1px solid rgba(242,184,75,.35);border-radius:7px;background:rgba(242,184,75,.08)}",
+        ".projectSuggestions[hidden]{display:none}",
+        ".projectSuggestionsTitle{font-size:10px;line-height:1.35;color:#f2d49b;font-weight:700}",
+        ".projectSuggestionsList{display:grid;gap:4px}",
+        ".projectSuggestion{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;text-align:left;padding:6px 7px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px}",
+        ".projectSuggestion.exact{border-color:rgba(242,184,75,.65);background:rgba(242,184,75,.12)}",
+        ".projectSuggestionMain{min-width:0;display:grid;gap:2px}",
+        ".projectSuggestionName{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+        ".projectSuggestionMeta{font-size:9px;color:#9da6b4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+        ".projectSuggestionAction{font-size:9px;color:#8eb6ff;align-self:center}",
+        ".projectCreateAnyway{font-size:10px;padding:5px 7px;background:transparent;border-color:rgba(255,255,255,.18)}",
         ".projectActionsRow{display:grid;grid-template-columns:1fr auto;gap:6px}",
         ".projectActionsRow button{font-weight:600}",
         ".projectHint{color:#8f98a6;font-size:11px;line-height:1.35}",
@@ -2254,64 +2940,122 @@
         ".settingsCheck{display:inline-flex;align-items:center;gap:5px;color:#d8dde6;font-size:10px;cursor:pointer;user-select:none;grid-column:1/-1}",
         ".settingsCheck input{width:12px;height:12px;margin:0;cursor:pointer}",
         ".settingsStatus{color:#9aa3b2;font-size:10px;line-height:1.3;word-break:break-word;grid-column:1/-1}",
-        ".settingsActions{display:grid;grid-template-columns:1fr 1fr;gap:4px;grid-column:1/-1}",
+        ".settingsActions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;grid-column:1/-1}",
         ".settingsActions button,.settingsReset{padding:4px 6px;font-size:10px}",
         ".settingsReset{margin-top:2px}",
+        ".versionList{display:grid;gap:7px}",
+        ".versionItem{display:grid;gap:3px;border-top:1px solid rgba(255,255,255,.08);padding-top:7px}",
+        ".versionItem:first-child{border-top:none;padding-top:0}",
+        ".versionTop{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#fff;font-weight:700;font-size:11px}",
+        ".versionDate{color:#8f98a6;font-weight:400}",
+        ".versionChanges{margin:0;padding-left:14px;color:#bfc6d1;font-size:10px;line-height:1.35}",
+        ".undoToast{display:none;width:100%;grid-template-columns:auto minmax(0,1fr) auto auto;gap:6px;align-items:center}",
+        ".panel.undo-active .undoToast{display:grid}",
+        ".undoIcon{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(45,108,223,.32);color:#fff}",
+        ".undoIcon svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}",
+        ".undoText{display:grid;gap:0;min-width:0;color:#d8dde6;font-size:10px;line-height:1.2}",
+        ".undoText strong{color:#fff;font-size:11px;line-height:1.15}",
+        ".undoProjectButton{appearance:none;border:0;background:transparent;color:#fff;padding:0;min-width:0;max-width:100%;font:700 11px/1.15 Arial,sans-serif;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}",
+        ".undoProjectButton:hover{color:#9fc0ff;text-decoration:underline}",
+        ".undoMeta{color:#bfc6d1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+        ".undoAction{padding:4px 8px;font-size:11px;font-weight:700;border-radius:999px;background:#2d6cdf;border-color:#2d6cdf}",
+        ".undoClose{width:22px;height:22px;border-radius:999px}",
+        ".undoProgressTrack{display:none;position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.12);overflow:hidden}",
+        ".panel.undo-active .undoProgressTrack{display:block}",
+        ".undoProgressBar{display:block;width:100%;height:100%;background:linear-gradient(90deg,#6ea4ff,#2d6cdf);transform-origin:left center;transition:transform .1s linear;box-shadow:0 0 7px rgba(110,164,255,.75)}",
+        ".undoProjectPicker{display:none;width:100%;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;align-items:center}",
+        ".panel.undo-picking .undoToast{display:none}",
+        ".panel.undo-picking .undoProjectPicker{display:grid}",
+        ".undoProjectPicker .field{min-height:26px;padding:4px 22px 4px 7px;font-size:10px}",
+        ".undoProjectSearch{grid-column:1/-1;padding-right:7px!important}",
+        ".undoPickerAction{padding:4px 7px;font-size:10px;font-weight:700}",
+        ".undoPickerCancel{padding:4px 7px;font-size:10px;background:rgba(255,255,255,.06)}",
         ".sheetsNicknameWarn{padding:5px 10px;background:rgba(242,184,75,.14);border-bottom:1px solid rgba(242,184,75,.28);color:#f2d49b;font-size:10px;line-height:1.35;cursor:pointer}",
         ".sheetsNicknameWarn[hidden]{display:none}",
         '.tabPanel[data-panel="settings"]{max-height:260px;overflow:auto;padding-top:2px}',
         "</style>",
         '<div class="panel' + (ctx.runtime.panelCollapsed ? " collapsed" : "") + '">',
-        '  <div class="header">',
-        '    <div class="headerDrag" data-drag-handle>',
-        '      <div class="title">AI Token Tracker</div>',
-        '      <div class="badge" data-field="serviceName">none</div>',
+        '  <div class="header" data-drag-handle>',
+        '    <div class="headerDefault" data-field="headerDefault">',
+        '      <div class="headerDrag">',
+        '        <div class="title">AITT</div>',
+        '        <div class="badge" data-field="serviceName">none</div>',
+        "      </div>",
+        '      <div class="headerControls">',
+        '        <button type="button" class="versionBtn" data-action="showVersions" data-field="versionBadge" aria-label="\u0418\u0441\u0442\u043E\u0440\u0438\u044F \u0432\u0435\u0440\u0441\u0438\u0439">v-</button>',
+        '        <button type="button" class="iconBtn headerBtn" data-action="toggleCollapse" data-tooltip="\u0421\u0432\u0435\u0440\u043D\u0443\u0442\u044C \u043F\u0430\u043D\u0435\u043B\u044C" aria-label="\u0421\u0432\u0435\u0440\u043D\u0443\u0442\u044C \u043F\u0430\u043D\u0435\u043B\u044C">' + iconSvg(ctx.runtime.panelCollapsed ? "chevron-up" : "chevron-down") + "</button>",
+        "      </div>",
         "    </div>",
-        '    <button type="button" class="iconBtn headerBtn" data-action="toggleCollapse" data-tooltip="Collapse panel" aria-label="Collapse panel">' + iconSvg(ctx.runtime.panelCollapsed ? "chevron-up" : "chevron-down") + "</button>",
+        '    <div class="undoToast" data-field="undoToast" aria-hidden="true">',
+        '      <span class="undoIcon">' + iconSvg("rotate-ccw") + "</span>",
+        '      <span class="undoText"><button type="button" class="undoProjectButton" data-action="openUndoProjectPicker" data-field="undoProjectName" aria-label="\u0421\u043C\u0435\u043D\u0438\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442">\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \u25BE</button><span class="undoMeta" data-field="undoMeta"></span></span>',
+        '      <button type="button" class="undoAction" data-action="undoSpend">\u041E\u0442\u043C\u0435\u043D\u0438\u0442\u044C</button>',
+        '      <button type="button" class="iconBtn undoClose" data-action="closeUndoToast" data-tooltip="\u0417\u0430\u043A\u0440\u044B\u0442\u044C" aria-label="\u0417\u0430\u043A\u0440\u044B\u0442\u044C \u043E\u0442\u043C\u0435\u043D\u0443">' + iconSvg("x") + "</button>",
+        "    </div>",
+        '    <div class="undoProjectPicker" data-field="undoProjectPicker">',
+        '      <input class="field undoProjectSearch" data-field="undoProjectSearch" type="search" placeholder="\u041F\u043E\u0438\u0441\u043A \u043F\u0440\u043E\u0435\u043A\u0442\u0430">',
+        '      <select class="field select" data-field="undoProjectSelect" aria-label="\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442"></select>',
+        '      <button type="button" class="undoPickerAction" data-action="applyUndoProject">\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C</button>',
+        '      <button type="button" class="undoPickerCancel" data-action="cancelUndoProject">\u041E\u0442\u043C\u0435\u043D\u0430</button>',
+        "    </div>",
+        '    <span class="undoProgressTrack" aria-hidden="true"><span class="undoProgressBar" data-field="undoProgressBar"></span></span>',
         "  </div>",
         '  <div class="panelContent">',
         '  <div class="projectBox compact" data-field="projectBox">',
         '    <div class="projectCompactRow">',
-        '      <select class="field select" data-field="projectSelect" aria-label="Select project"></select>',
+        '      <select class="field select" data-field="projectSelect" aria-label="\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442"></select>',
         '      <div class="projectCompactTools">',
-        '        <button type="button" class="iconBtn miniBtn" data-action="editProject" data-tooltip="Edit project" aria-label="Edit project">' + iconSvg("pencil") + "</button>",
-        '        <button type="button" class="iconBtn miniBtn" data-action="newProject" data-tooltip="New project" aria-label="New project">' + iconSvg("plus") + "</button>",
-        '        <button type="button" class="iconBtn miniBtn" data-action="deleteProject" data-tooltip="Delete project" aria-label="Delete project">' + iconSvg("trash-2") + "</button>",
-        '        <button type="button" class="iconBtn miniBtn" data-action="clearProject" data-tooltip="Clear active project" aria-label="Clear active project">' + iconSvg("x") + "</button>",
+        '        <button type="button" class="iconBtn miniBtn" data-action="toggleProjectSearch" data-tooltip="\u041F\u043E\u0438\u0441\u043A \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432" aria-label="\u041F\u043E\u0438\u0441\u043A \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432">' + iconSvg("search") + "</button>",
+        '        <button type="button" class="iconBtn miniBtn" data-action="editProject" data-tooltip="\u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442" aria-label="\u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442">' + iconSvg("pencil") + "</button>",
+        '        <button type="button" class="iconBtn miniBtn" data-action="newProject" data-tooltip="\u041D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442" aria-label="\u041D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442">' + iconSvg("plus") + "</button>",
+        '        <button type="button" class="iconBtn miniBtn" data-action="deleteProject" data-tooltip="\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442" aria-label="\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442">' + iconSvg("trash-2") + "</button>",
+        '        <button type="button" class="iconBtn miniBtn" data-action="clearProject" data-tooltip="\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442" aria-label="\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442">' + iconSvg("x") + "</button>",
         "      </div>",
+        "    </div>",
+        '    <div class="projectSearchPanel" data-field="projectSearchPanel" hidden>',
+        '      <div class="projectSearchInputRow">',
+        '        <input class="field" data-field="projectSearchInput" type="search" placeholder="\u041F\u043E\u0438\u0441\u043A \u043F\u043E \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u044E">',
+        '        <button type="button" class="iconBtn projectSearchClose" data-action="closeProjectSearch" data-tooltip="\u0417\u0430\u043A\u0440\u044B\u0442\u044C \u043F\u043E\u0438\u0441\u043A" aria-label="\u0417\u0430\u043A\u0440\u044B\u0442\u044C \u043F\u043E\u0438\u0441\u043A">' + iconSvg("x") + "</button>",
+        "      </div>",
+        '      <div class="projectSearchResults" data-field="projectSearchResults"></div>',
         "    </div>",
         '    <div class="projectFilterRow" data-field="projectFilterRow">',
         '      <label class="projectFilter">',
         '        <input type="checkbox" data-field="projectFilterToggle">',
-        "        <span>Only this project</span>",
+        "        <span>\u0422\u043E\u043B\u044C\u043A\u043E \u044D\u0442\u043E\u0442 \u043F\u0440\u043E\u0435\u043A\u0442</span>",
         "      </label>",
         '      <span class="projectMiniStat" data-field="projectMiniStat"></span>',
         "    </div>",
         '    <div class="projectEditor" data-field="projectEditor">',
         '      <div class="projectFields">',
-        '        <input class="field" data-field="projectName" type="text" placeholder="Task name">',
-        '        <input class="field" data-field="projectUrl" type="url" placeholder="Task URL">',
+        '        <input class="field" data-field="projectName" type="text" placeholder="\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0437\u0430\u0434\u0430\u0447\u0438">',
+        '        <input class="field" data-field="projectUrl" type="url" placeholder="URL \u0437\u0430\u0434\u0430\u0447\u0438">',
+        "      </div>",
+        '      <div class="projectSuggestions" data-field="projectSuggestions" hidden>',
+        '        <div class="projectSuggestionsTitle" data-field="projectSuggestionsTitle"></div>',
+        '        <div class="projectSuggestionsList" data-field="projectSuggestionsList"></div>',
+        '        <button type="button" class="projectCreateAnyway" data-action="createProjectAnyway">\u0412\u0441\u0451 \u0440\u0430\u0432\u043D\u043E \u0441\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u044B\u0439</button>',
         "      </div>",
         '      <div class="projectActionsRow">',
-        '        <button type="button" data-action="saveProject">Save to list</button>',
-        '        <button type="button" data-action="cancelProjectEdit">Cancel</button>',
+        '        <button type="button" data-action="saveProject" data-field="saveProjectButton">\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u0432 \u0441\u043F\u0438\u0441\u043E\u043A</button>',
+        '        <button type="button" data-action="cancelProjectEdit">\u041E\u0442\u043C\u0435\u043D\u0430</button>',
         "      </div>",
-        '      <div class="projectHint" data-field="projectHint">Select a saved project or create a new one.</div>',
+        '      <div class="projectHint" data-field="projectHint">\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D\u043D\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442 \u0438\u043B\u0438 \u0441\u043E\u0437\u0434\u0430\u0439\u0442\u0435 \u043D\u043E\u0432\u044B\u0439.</div>',
         "    </div>",
         "  </div>",
-        '  <div class="sheetsNicknameWarn" data-field="sheetsNicknameWarn" hidden>\u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 nickname \u0432 Settings \u2192 Google Sheets</div>',
+        '  <div class="sheetsNicknameWarn" data-field="sheetsNicknameWarn" hidden>\u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \u0438\u043C\u044F \u0432 \u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u2192 Google Sheets</div>',
         '  <div class="tabs">',
-        '    <button type="button" class="tab" data-tab="summary">Summary</button>',
-        '    <button type="button" class="tab" data-tab="history">History</button>',
-        '    <button type="button" class="tab" data-tab="settings">Settings</button>',
+        '    <button type="button" class="tab" data-tab="summary">\u0421\u0432\u043E\u0434\u043A\u0430</button>',
+        '    <button type="button" class="tab" data-tab="history">\u0418\u0441\u0442\u043E\u0440\u0438\u044F</button>',
+        '    <button type="button" class="tab" data-tab="settings">\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438</button>',
         "  </div>",
         '  <div class="body">',
         '   <div class="tabPanel" data-panel="summary">',
         '    <div class="grid">',
-        '      <div class="label">Balance</div><div class="value" data-field="balance">-</div>',
+        '      <div class="label">\u0411\u0430\u043B\u0430\u043D\u0441</div><div class="value" data-field="balance">-</div>',
         "    </div>",
         '    <div class="projectGrid grid" data-field="projectGrid" hidden>',
-        '      <div class="label">Project total</div><div class="value" data-field="projectTotal">0</div>',
+        '      <div class="label">\u0418\u0442\u043E\u0433\u043E \u043F\u043E \u043F\u0440\u043E\u0435\u043A\u0442\u0443</div><div class="value" data-field="projectTotal">0</div>',
         '      <div class="projectBreakdown" data-field="projectBreakdown"></div>',
         "    </div>",
         '    <div class="events" data-field="events"></div>',
@@ -2324,20 +3068,20 @@
         '    <div class="settingsForm">',
         '      <div class="acc open" data-acc="panel">',
         '        <button type="button" class="accHead" data-action="toggleSettingsAcc">',
-        '          <span class="accTitle">Panel</span>',
+        '          <span class="accTitle">\u041F\u0430\u043D\u0435\u043B\u044C</span>',
         '          <span class="accMeta" data-field="settingAccMetaPanel">20% \xB7 286px</span>',
         '          <span class="accChevron">' + iconSvg("chevron-down") + "</span>",
         "        </button>",
         '        <div class="accBody">',
         '          <div class="settingsCompactRow">',
-        '            <span class="settingsLabel">Opacity</span>',
+        '            <span class="settingsLabel">\u041F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u043E\u0441\u0442\u044C</span>',
         '            <div class="settingsInline">',
         '              <input class="field" data-field="settingIdleOpacity" type="range" min="10" max="80" step="5">',
         '              <span class="settingsValue" data-field="settingIdleOpacityValue">20%</span>',
         "            </div>",
         "          </div>",
         '          <div class="settingsCompactRow">',
-        '            <span class="settingsLabel">Width</span>',
+        '            <span class="settingsLabel">\u0428\u0438\u0440\u0438\u043D\u0430</span>',
         '            <select class="field select" data-field="settingPanelWidth">',
         '              <option value="260">260 px</option>',
         '              <option value="286">286 px</option>',
@@ -2346,19 +3090,19 @@
         "          </div>",
         '          <label class="settingsCheck">',
         '            <input type="checkbox" data-field="settingRememberPosition">',
-        "            <span>Remember position</span>",
+        "            <span>\u0417\u0430\u043F\u043E\u043C\u0438\u043D\u0430\u0442\u044C \u043F\u043E\u0437\u0438\u0446\u0438\u044E</span>",
         "          </label>",
         "        </div>",
         "      </div>",
         '      <div class="acc" data-acc="display">',
         '        <button type="button" class="accHead" data-action="toggleSettingsAcc">',
-        '          <span class="accTitle">Display</span>',
+        '          <span class="accTitle">\u041E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435</span>',
         '          <span class="accMeta" data-field="settingAccMetaDisplay">3 \xB7 50</span>',
         '          <span class="accChevron">' + iconSvg("chevron-down") + "</span>",
         "        </button>",
         '        <div class="accBody">',
         '          <div class="settingsCompactRow">',
-        '            <span class="settingsLabel">Summary</span>',
+        '            <span class="settingsLabel">\u0421\u0432\u043E\u0434\u043A\u0430</span>',
         '            <select class="field select" data-field="settingSummaryEvents">',
         '              <option value="1">1</option>',
         '              <option value="3">3</option>',
@@ -2367,13 +3111,23 @@
         "            </select>",
         "          </div>",
         '          <div class="settingsCompactRow">',
-        '            <span class="settingsLabel">History</span>',
+        '            <span class="settingsLabel">\u0418\u0441\u0442\u043E\u0440\u0438\u044F</span>',
         '            <select class="field select" data-field="settingHistoryLimit">',
         '              <option value="25">25</option>',
         '              <option value="50">50</option>',
         '              <option value="100">100</option>',
         "            </select>",
         "          </div>",
+        "        </div>",
+        "      </div>",
+        '      <div class="acc" data-acc="versions">',
+        '        <button type="button" class="accHead" data-action="toggleSettingsAcc">',
+        '          <span class="accTitle">\u0412\u0435\u0440\u0441\u0438\u0438</span>',
+        '          <span class="accMeta" data-field="settingAccMetaVersions">v-</span>',
+        '          <span class="accChevron">' + iconSvg("chevron-down") + "</span>",
+        "        </button>",
+        '        <div class="accBody">',
+        '          <div class="versionList" data-field="versionHistory"></div>',
         "        </div>",
         "      </div>",
         '      <div class="acc' + (needsSheetsNickname(ctx.runtime.settings) ? " open" : "") + '" data-acc="sheets">',
@@ -2385,38 +3139,38 @@
         '        <div class="accBody">',
         '          <label class="settingsCheck">',
         '            <input type="checkbox" data-field="settingSheetsEnabled">',
-        "            <span>Sync spends</span>",
+        "            <span>\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F \u0442\u0440\u0430\u0442 \u0438 \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432</span>",
         "          </label>",
         '          <div class="settingsCompactRow">',
-        '            <span class="settingsLabel">Nickname</span>',
-        '            <input class="field" data-field="settingSheetsNickname" type="text" placeholder="Team name">',
+        '            <span class="settingsLabel">\u0418\u043C\u044F</span>',
+        '            <input class="field" data-field="settingSheetsNickname" type="text" placeholder="\u0418\u043C\u044F \u0432 \u043A\u043E\u043C\u0430\u043D\u0434\u0435">',
         "          </div>",
         '          <div class="settingsCompactRow">',
-        '            <span class="settingsLabel">Token</span>',
-        '            <input class="field" data-field="settingSheetsSecretToken" type="password" placeholder="Secret">',
+        '            <span class="settingsLabel">\u0422\u043E\u043A\u0435\u043D</span>',
+        '            <input class="field" data-field="settingSheetsSecretToken" type="password" placeholder="\u0421\u0435\u043A\u0440\u0435\u0442">',
         "          </div>",
         '          <div class="settingsCompactRow">',
         '            <span class="settingsLabel">URL</span>',
         '            <input class="field" data-field="settingSheetsWebAppUrl" type="url" placeholder=".../exec">',
         "          </div>",
-        '          <div class="settingsStatus" data-field="settingSheetsStatus">Sheets sync is off.</div>',
+        '          <div class="settingsStatus" data-field="settingSheetsStatus">\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F \u0441 Sheets \u0432\u044B\u043A\u043B\u044E\u0447\u0435\u043D\u0430.</div>',
         '          <div class="settingsActions">',
-        '            <button type="button" data-action="testSheetsConnection">Test</button>',
-        '            <button type="button" data-action="retrySheetsSync">Retry</button>',
+        '            <button type="button" data-action="testSheetsConnection">\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C</button>',
+        '            <button type="button" data-action="retrySheetsSync">\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C</button>',
+        '            <button type="button" data-action="refreshSheetsData">\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C</button>',
         "          </div>",
         "        </div>",
         "      </div>",
-        '      <button type="button" class="settingsReset" data-action="resetSettings">Reset defaults</button>',
+        '      <button type="button" class="settingsReset" data-action="resetSettings">\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438</button>',
         "    </div>",
         "   </div>",
         '    <div class="actions">',
-        '      <button type="button" class="iconBtn" data-action="resetAll" data-tooltip="Reset all" aria-label="Reset all">' + iconSvg("trash-2") + "</button>",
-        '      <button type="button" class="iconBtn" data-action="copyReport" data-tooltip="Copy report" aria-label="Copy report">' + iconSvg("clipboard-copy") + "</button>",
-        '      <button type="button" class="iconBtn" data-action="reset" data-tooltip="Reset session" aria-label="Reset session">' + iconSvg("rotate-ccw") + "</button>",
-        '      <button type="button" class="iconBtn" data-action="export" data-tooltip="Export JSON" aria-label="Export JSON">' + iconSvg("download") + "</button>",
-        '      <button type="button" class="iconBtn" data-action="debug" data-tooltip="Collect debug report" aria-label="Collect debug report">' + iconSvg("bug") + "</button>",
+        '      <button type="button" class="iconBtn" data-action="resetAll" data-tooltip="\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0432\u0441\u0451" aria-label="\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0432\u0441\u0451">' + iconSvg("trash-2") + "</button>",
+        '      <button type="button" class="iconBtn" data-action="copyReport" data-tooltip="\u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043E\u0442\u0447\u0451\u0442" aria-label="\u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043E\u0442\u0447\u0451\u0442">' + iconSvg("clipboard-copy") + "</button>",
+        '      <button type="button" class="iconBtn" data-action="reset" data-tooltip="\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0441\u0435\u0441\u0441\u0438\u044E" aria-label="\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0441\u0435\u0441\u0441\u0438\u044E">' + iconSvg("rotate-ccw") + "</button>",
+        '      <button type="button" class="iconBtn" data-action="export" data-tooltip="\u042D\u043A\u0441\u043F\u043E\u0440\u0442 JSON" aria-label="\u042D\u043A\u0441\u043F\u043E\u0440\u0442 JSON">' + iconSvg("download") + "</button>",
+        '      <button type="button" class="iconBtn" data-action="debug" data-tooltip="\u0421\u043E\u0431\u0440\u0430\u0442\u044C \u043E\u0442\u0447\u0451\u0442 \u043E\u0442\u043B\u0430\u0434\u043A\u0438" aria-label="\u0421\u043E\u0431\u0440\u0430\u0442\u044C \u043E\u0442\u0447\u0451\u0442 \u043E\u0442\u043B\u0430\u0434\u043A\u0438">' + iconSvg("bug") + "</button>",
         "    </div>",
-        "  </div>",
         "  </div>",
         "</div>"
       ].join("");
@@ -2435,8 +3189,72 @@
       shadow.querySelector('[data-action="debug"]').addEventListener("click", function() {
         ctx.setDebug(!ctx.runtime.debug);
       });
+      shadow.querySelector('[data-action="undoSpend"]').addEventListener("click", function() {
+        ctx.undoLastSpend();
+      });
+      shadow.querySelector('[data-action="openUndoProjectPicker"]').addEventListener("click", function(event) {
+        event.stopPropagation();
+        if (ctx.openUndoProjectPicker()) {
+          window.setTimeout(function() {
+            const input = shadow.querySelector('[data-field="undoProjectSearch"]');
+            if (input) input.focus();
+          }, 0);
+        }
+      });
+      shadow.querySelector('[data-action="applyUndoProject"]').addEventListener("click", function() {
+        const select = shadow.querySelector('[data-field="undoProjectSelect"]');
+        ctx.applyUndoProject(select ? select.value : "");
+      });
+      shadow.querySelector('[data-action="cancelUndoProject"]').addEventListener("click", function() {
+        ctx.resumeUndoProjectPicker();
+      });
+      shadow.querySelector('[data-field="undoProjectSearch"]').addEventListener("input", function(event) {
+        const select = shadow.querySelector('[data-field="undoProjectSelect"]');
+        ctx.setUndoProjectSearchQuery(event.currentTarget.value, select ? select.value : "");
+      });
+      shadow.querySelector('[data-field="undoProjectSelect"]').addEventListener("change", function(event) {
+        ctx.setUndoPendingProject(event.currentTarget.value);
+      });
+      shadow.querySelector('[data-action="closeUndoToast"]').addEventListener("click", function() {
+        ctx.hideUndoSpend();
+      });
+      shadow.querySelector('[data-action="showVersions"]').addEventListener("click", function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        ctx.setActiveTab("settings");
+        window.setTimeout(function() {
+          const versionsAcc = shadow.querySelector('[data-acc="versions"]');
+          if (versionsAcc) versionsAcc.classList.add("open");
+        }, 60);
+      });
       shadow.querySelector('[data-action="clearProject"]').addEventListener("click", function() {
         ctx.clearProject();
+      });
+      shadow.querySelector('[data-action="toggleProjectSearch"]').addEventListener("click", function() {
+        const opened = ctx.toggleProjectSearch();
+        if (opened) {
+          window.setTimeout(function() {
+            const input = shadow.querySelector('[data-field="projectSearchInput"]');
+            if (input) input.focus();
+          }, 0);
+        }
+      });
+      shadow.querySelector('[data-action="closeProjectSearch"]').addEventListener("click", function() {
+        ctx.closeProjectSearch();
+        ctx.renderSoon();
+      });
+      shadow.querySelector('[data-field="projectSearchInput"]').addEventListener("input", function(event) {
+        ctx.setProjectSearchQuery(event.currentTarget.value);
+      });
+      shadow.querySelector('[data-field="projectSearchInput"]').addEventListener("keydown", function(event) {
+        if (event.key !== "Escape") return;
+        ctx.closeProjectSearch();
+        ctx.renderSoon();
+      });
+      shadow.querySelector('[data-field="projectSearchResults"]').addEventListener("click", function(event) {
+        const button = event.target.closest("[data-project-search-id]");
+        if (!button) return;
+        ctx.selectProjectSearchResult(button.getAttribute("data-project-search-id"));
       });
       shadow.querySelector('[data-action="editProject"]').addEventListener("click", function() {
         ctx.openProjectEditor();
@@ -2453,6 +3271,14 @@
       });
       shadow.querySelector('[data-action="saveProject"]').addEventListener("click", function() {
         ctx.saveProjectFromForm(shadow);
+      });
+      shadow.querySelector('[data-action="createProjectAnyway"]').addEventListener("click", function() {
+        ctx.saveProjectFromForm(shadow);
+      });
+      shadow.querySelector('[data-field="projectSuggestionsList"]').addEventListener("click", function(event) {
+        const button = event.target.closest("[data-project-id]");
+        if (!button) return;
+        ctx.selectProject(button.getAttribute("data-project-id"));
       });
       shadow.querySelector('[data-field="projectSelect"]').addEventListener("change", function(event) {
         const id = event.currentTarget.value;
@@ -2526,11 +3352,11 @@
         applySheetsFieldsFromForm(ctx, shadow);
         const statusEl = shadow.querySelector('[data-field="settingSheetsStatus"]');
         const testButton = shadow.querySelector('[data-action="testSheetsConnection"]');
-        if (statusEl) statusEl.textContent = "Testing connection...";
+        if (statusEl) statusEl.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F\u2026";
         if (testButton) testButton.disabled = true;
         const runTest = typeof ctx.testSheetsConnection === "function" ? ctx.testSheetsConnection() : Promise.reject(new Error("sheets module not ready"));
         runTest.then(function() {
-          if (statusEl) statusEl.textContent = "Connection OK";
+          if (statusEl) statusEl.textContent = "\u0421\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435 OK";
         }).catch(function() {
         }).finally(function() {
           if (testButton) testButton.disabled = false;
@@ -2539,14 +3365,26 @@
       });
       shadow.querySelector('[data-action="retrySheetsSync"]').addEventListener("click", function() {
         applySheetsFieldsFromForm(ctx, shadow);
-        ctx.retryFailedSyncs().then(function() {
+        Promise.all([ctx.retryFailedSyncs(), ctx.retryProjectSyncs()]).then(function() {
+          ctx.renderSoon();
+        });
+      });
+      shadow.querySelector('[data-action="refreshSheetsData"]').addEventListener("click", function() {
+        applySheetsFieldsFromForm(ctx, shadow);
+        const statusEl = shadow.querySelector('[data-field="settingSheetsStatus"]');
+        const refreshButton = shadow.querySelector('[data-action="refreshSheetsData"]');
+        if (statusEl) statusEl.textContent = "\u041E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 \u0434\u0430\u043D\u043D\u044B\u0445\u2026";
+        if (refreshButton) refreshButton.disabled = true;
+        Promise.resolve(ctx.refreshSheetsData()).catch(function() {
+        }).then(function() {
+          if (refreshButton) refreshButton.disabled = false;
           ctx.renderSoon();
         });
       });
       shadow.querySelector('[data-action="resetSettings"]').addEventListener("click", function() {
         ctx.resetSettings();
       });
-      installPanelDrag(host, shadow.querySelector("[data-drag-handle]"));
+      installPanelDrag(host, shadow.querySelector(".header"));
       mount.appendChild(host);
       ctx.runtime.panelHost = host;
       ctx.runtime.shadowRoot = shadow;
@@ -2560,7 +3398,7 @@
       if (panel) panel.classList.toggle("collapsed", ctx.runtime.panelCollapsed);
       if (button) {
         button.innerHTML = iconSvg(ctx.runtime.panelCollapsed ? "chevron-up" : "chevron-down");
-        const label = ctx.runtime.panelCollapsed ? "Expand panel" : "Collapse panel";
+        const label = ctx.runtime.panelCollapsed ? "\u0420\u0430\u0437\u0432\u0435\u0440\u043D\u0443\u0442\u044C \u043F\u0430\u043D\u0435\u043B\u044C" : "\u0421\u0432\u0435\u0440\u043D\u0443\u0442\u044C \u043F\u0430\u043D\u0435\u043B\u044C";
         button.setAttribute("data-tooltip", label);
         button.setAttribute("aria-label", label);
       }
@@ -2587,6 +3425,9 @@
       let startRight = 0;
       let startBottom = 0;
       handle.addEventListener("pointerdown", function(event) {
+        if (event.target && event.target.closest && event.target.closest('button, input, select, textarea, a, [role="button"]')) {
+          return;
+        }
         dragging = true;
         startX = event.clientX;
         startY = event.clientY;
@@ -2710,6 +3551,20 @@
       return "";
     }
   }
+  function getUndoVisualState(undo, now) {
+    const current = Number(now || Date.now());
+    const expiresAt = Number(undo && undo.expiresAt || 0);
+    const startedAt = Number(undo && undo.startedAt || expiresAt - SPEND_UNDO_WINDOW_MS);
+    const paused = undo && undo.pickerOpen === true;
+    const remainingMs = paused ? Math.max(0, Number(undo.remainingMs || 0)) : Math.max(0, expiresAt - current);
+    return {
+      visible: remainingMs > 0,
+      seconds: Math.max(0, Math.ceil(remainingMs / 1e3)),
+      progress: Math.max(0, Math.min(1, remainingMs / SPEND_UNDO_WINDOW_MS)),
+      fresh: !paused && remainingMs > 0 && current - startedAt < 2200,
+      paused
+    };
+  }
   function createRender(ctx) {
     function getDisplaySource() {
       if (ctx.runtime.sourceSeen.network && ctx.runtime.sourceSeen.ui) return "mixed";
@@ -2751,6 +3606,7 @@
       const pills = [
         event.source || "unknown"
       ];
+      if (event.user) pills.push("by " + event.user);
       if (event.estimated) pills.push("estimated");
       if (!options.hideProjectPill && event.project && event.project.name) {
         pills.push("project: " + event.project.name);
@@ -2780,11 +3636,32 @@
       const top = document.createElement("div");
       top.className = "histTop";
       const left = document.createElement("div");
-      left.textContent = formatTime(event.ts) + "  -" + formatCredit(event.amount) + (event.estimated ? " est." : "");
+      left.className = "histSpendMain";
+      const time = document.createElement("span");
+      time.className = "histTime";
+      time.textContent = formatTime(event.ts);
+      const amount = document.createElement("span");
+      amount.className = "histAmount";
+      amount.textContent = "-" + formatCredit(event.amount) + (event.estimated ? " est." : "");
+      left.appendChild(time);
+      left.appendChild(amount);
       const right = document.createElement("div");
+      right.className = "histSpendService";
       right.textContent = event.serviceName || event.service || ctx.getActiveAdapter().name;
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "iconBtn miniBtn histDelete";
+      deleteButton.setAttribute("aria-label", "\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0442\u0440\u0430\u0442\u0443");
+      deleteButton.setAttribute("data-tooltip", "\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0442\u0440\u0430\u0442\u0443");
+      deleteButton.innerHTML = iconSvg("trash-2");
+      deleteButton.addEventListener("click", function(clickEvent) {
+        clickEvent.preventDefault();
+        clickEvent.stopPropagation();
+        ctx.deleteSpendEvent(event.id);
+      });
       top.appendChild(left);
       top.appendChild(right);
+      top.appendChild(deleteButton);
       const meta = document.createElement("div");
       meta.className = "histMeta";
       getHistoryPills(event, { hideProjectPill: context.filterOn === true }).forEach(function(text) {
@@ -2832,7 +3709,7 @@
       if (!totals.length) {
         const empty = document.createElement("div");
         empty.className = "projectBreakdownEmpty";
-        empty.textContent = "No project spend by platform yet";
+        empty.textContent = "\u041F\u043E\u043A\u0430 \u043D\u0435\u0442 \u0442\u0440\u0430\u0442 \u043F\u043E \u043F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u0430\u043C";
         breakdownEl.appendChild(empty);
         return;
       }
@@ -2870,29 +3747,29 @@
           const projectTotal = ctx.getProjectAllTimeTotal(activeProject);
           const projectCount = ctx.getProjectEventCount(activeProject);
           if (filterOn) {
-            headerText.innerHTML = "Showing project only \xB7 <strong>" + projectCount + " events</strong> \xB7 -" + formatCredit(projectTotal);
+            headerText.innerHTML = "\u0422\u043E\u043B\u044C\u043A\u043E \u043F\u0440\u043E\u0435\u043A\u0442 \xB7 <strong>" + projectCount + " \u0441\u043E\u0431\u044B\u0442\u0438\u0439</strong> \xB7 -" + formatCredit(projectTotal);
           } else {
-            headerText.innerHTML = "All history \xB7 Project: <strong>" + escapeHtml(activeProject.name) + "</strong> \xB7 -" + formatCredit(projectTotal);
+            headerText.innerHTML = "\u0412\u0441\u044F \u0438\u0441\u0442\u043E\u0440\u0438\u044F \xB7 \u041F\u0440\u043E\u0435\u043A\u0442: <strong>" + escapeHtml(activeProject.name) + "</strong> \xB7 -" + formatCredit(projectTotal);
           }
         } else {
-          headerText.textContent = "All history";
+          headerText.textContent = "\u0412\u0441\u044F \u0438\u0441\u0442\u043E\u0440\u0438\u044F";
         }
         historyHeader.appendChild(headerText);
         const stats = document.createElement("span");
         stats.className = "histStats";
         const sessionStat = document.createElement("span");
         sessionStat.className = "histStat";
-        sessionStat.textContent = "Session: " + formatCredit(ctx.getSession().total || 0);
+        sessionStat.textContent = "\u0421\u0435\u0441\u0441\u0438\u044F: " + formatCredit(ctx.getSession().total || 0);
         const todayStat = document.createElement("span");
         todayStat.className = "histStat";
-        todayStat.textContent = "Today: " + formatCredit(getTodayTotal2());
+        todayStat.textContent = "\u0421\u0435\u0433\u043E\u0434\u043D\u044F: " + formatCredit(getTodayTotal2());
         stats.appendChild(sessionStat);
         stats.appendChild(todayStat);
         if (hasProject && filterOn) {
           const showAll = document.createElement("button");
           showAll.type = "button";
           showAll.className = "histShowAll";
-          showAll.textContent = "Show all";
+          showAll.textContent = "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0432\u0441\u0451";
           showAll.addEventListener("click", function() {
             ctx.setProjectFilterEnabled(false);
           });
@@ -2906,7 +3783,7 @@
       if (!displayEvents.length) {
         const empty = document.createElement("div");
         empty.className = "empty";
-        empty.textContent = filterOn ? "No spend events for this project yet" : "No history yet";
+        empty.textContent = filterOn ? "\u041D\u0435\u0442 \u0442\u0440\u0430\u0442 \u043F\u043E \u044D\u0442\u043E\u043C\u0443 \u043F\u0440\u043E\u0435\u043A\u0442\u0443" : "\u0418\u0441\u0442\u043E\u0440\u0438\u044F \u043F\u0443\u0441\u0442\u0430";
         historyEl.appendChild(empty);
         return;
       }
@@ -2930,12 +3807,20 @@
       const filterRow = root.querySelector('[data-field="projectFilterRow"]');
       const filterToggle = root.querySelector('[data-field="projectFilterToggle"]');
       const miniStat = root.querySelector('[data-field="projectMiniStat"]');
+      const suggestionsBox = root.querySelector('[data-field="projectSuggestions"]');
+      const suggestionsTitle = root.querySelector('[data-field="projectSuggestionsTitle"]');
+      const suggestionsList = root.querySelector('[data-field="projectSuggestionsList"]');
+      const saveButton = root.querySelector('[data-field="saveProjectButton"]');
+      const searchPanel = root.querySelector('[data-field="projectSearchPanel"]');
+      const searchInput = root.querySelector('[data-field="projectSearchInput"]');
+      const searchResults = root.querySelector('[data-field="projectSearchResults"]');
+      const searchButton = root.querySelector('[data-action="toggleProjectSearch"]');
       const activeProject = ctx.runtime.project || sanitizeProject({});
       const activeId = activeProject.id && ctx.findProjectById(activeProject.id) ? activeProject.id : "";
       const compact = ctx.shouldCompactProject();
       const hasProject = ctx.hasActiveProject();
       const filterOn = ctx.isProjectFilterActive();
-      const projectLibrary = ctx.getProjectLibrary();
+      const projectLibrary = ctx.listProjects();
       if (projectBox) {
         projectBox.classList.toggle("compact", compact);
         projectBox.classList.toggle("filterOn", filterOn);
@@ -2948,13 +3833,13 @@
         filterToggle.disabled = !hasProject;
       }
       if (miniStat) {
-        miniStat.textContent = hasProject ? "-" + formatCredit(ctx.getProjectAllTimeTotal(activeProject)) + " total" : "";
+        miniStat.textContent = hasProject ? "-" + formatCredit(ctx.getProjectAllTimeTotal(activeProject)) + " \u0432\u0441\u0435\u0433\u043E" : "";
       }
       if (select && active !== select) {
         select.textContent = "";
         const emptyOption = document.createElement("option");
         emptyOption.value = "";
-        emptyOption.textContent = "\u2014 No active project \u2014";
+        emptyOption.textContent = "\u2014 \u041D\u0435\u0442 \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0433\u043E \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \u2014";
         select.appendChild(emptyOption);
         projectLibrary.forEach(function(entry) {
           const option = document.createElement("option");
@@ -2966,6 +3851,80 @@
       }
       if (nameInput && active !== nameInput) nameInput.value = ctx.runtime.projectDraft.name || "";
       if (urlInput && active !== urlInput) urlInput.value = ctx.runtime.projectDraft.url || "";
+      const searchOpen = ctx.runtime.projectSearchOpen === true;
+      if (searchPanel) searchPanel.hidden = !searchOpen;
+      if (searchButton) searchButton.style.background = searchOpen ? "rgba(45,108,223,.35)" : "";
+      if (searchInput && active !== searchInput) {
+        searchInput.value = ctx.runtime.projectSearchQuery || "";
+      }
+      if (searchResults) {
+        searchResults.textContent = "";
+        if (searchOpen) {
+          const results = ctx.searchProjects(ctx.runtime.projectSearchQuery, 5);
+          if (!results.length) {
+            const empty = document.createElement("div");
+            empty.className = "projectSearchEmpty";
+            empty.textContent = "\u041F\u0440\u043E\u0435\u043A\u0442\u044B \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B";
+            searchResults.appendChild(empty);
+          }
+          results.forEach(function(entry) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "projectSearchResult";
+            button.setAttribute("data-project-search-id", entry.id);
+            const name = document.createElement("span");
+            name.className = "projectSearchResultName";
+            name.textContent = entry.name;
+            const meta = document.createElement("span");
+            meta.className = "projectSearchResultMeta";
+            try {
+              meta.textContent = new Date(entry.createdAt).toLocaleDateString();
+            } catch (_) {
+              meta.textContent = "";
+            }
+            button.appendChild(name);
+            button.appendChild(meta);
+            searchResults.appendChild(button);
+          });
+        }
+      }
+      const suggestions = ctx.runtime.projectEditorOpen && !activeId ? ctx.getProjectSuggestions(
+        ctx.runtime.projectDraft.name,
+        ctx.runtime.projectDraft.url,
+        ""
+      ) : [];
+      if (suggestionsBox) suggestionsBox.hidden = suggestions.length === 0;
+      if (saveButton) saveButton.hidden = suggestions.length > 0;
+      if (suggestionsTitle) {
+        suggestionsTitle.textContent = suggestions.some(function(entry) {
+          return entry.matchExact;
+        }) ? "\u0422\u0430\u043A\u043E\u0439 \u043F\u0440\u043E\u0435\u043A\u0442 \u0443\u0436\u0435 \u0435\u0441\u0442\u044C. \u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0435\u0433\u043E \u0438\u043B\u0438 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u0435 \u043D\u043E\u0432\u043E\u0433\u043E." : "\u0412\u043E\u0437\u043C\u043E\u0436\u043D\u043E, \u0442\u0430\u043A\u043E\u0439 \u043F\u0440\u043E\u0435\u043A\u0442 \u0443\u0436\u0435 \u0435\u0441\u0442\u044C:";
+      }
+      if (suggestionsList) {
+        suggestionsList.textContent = "";
+        suggestions.forEach(function(entry) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "projectSuggestion" + (entry.matchExact ? " exact" : "");
+          button.setAttribute("data-project-id", entry.id);
+          const main = document.createElement("span");
+          main.className = "projectSuggestionMain";
+          const name = document.createElement("span");
+          name.className = "projectSuggestionName";
+          name.textContent = entry.name;
+          const meta = document.createElement("span");
+          meta.className = "projectSuggestionMeta";
+          meta.textContent = [entry.url, entry.updatedBy ? "by " + entry.updatedBy : ""].filter(Boolean).join(" \xB7 ");
+          const action = document.createElement("span");
+          action.className = "projectSuggestionAction";
+          action.textContent = "\u0412\u044B\u0431\u0440\u0430\u0442\u044C";
+          main.appendChild(name);
+          main.appendChild(meta);
+          button.appendChild(main);
+          button.appendChild(action);
+          suggestionsList.appendChild(button);
+        });
+      }
       const selectedId = select ? select.value : "";
       if (deleteButton) {
         deleteButton.disabled = !selectedId;
@@ -2979,11 +3938,11 @@
       }
       if (hint) {
         if (activeId && activeProject.name) {
-          hint.textContent = "Active: " + activeProject.name;
+          hint.textContent = "\u0410\u043A\u0442\u0438\u0432\u043D\u044B\u0439: " + activeProject.name;
         } else if (projectLibrary.length) {
-          hint.textContent = "Select a saved project or save a new one.";
+          hint.textContent = "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D\u043D\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442 \u0438\u043B\u0438 \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u0435 \u043D\u043E\u0432\u044B\u0439.";
         } else {
-          hint.textContent = "Create your first project and save it to the list.";
+          hint.textContent = "\u0421\u043E\u0437\u0434\u0430\u0439\u0442\u0435 \u043F\u0435\u0440\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442 \u0438 \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u0435 \u0435\u0433\u043E \u0432 \u0441\u043F\u0438\u0441\u043E\u043A.";
         }
       }
     }
@@ -3026,15 +3985,20 @@
       const sheetsMeta = root.querySelector('[data-field="settingAccMetaSheets"]');
       if (sheetsMeta) {
         if (settings.sheetsLastError) {
-          sheetsMeta.textContent = "error";
+          sheetsMeta.textContent = "\u043E\u0448\u0438\u0431\u043A\u0430";
         } else if (needsSheetsNickname(settings)) {
-          sheetsMeta.textContent = "need name";
+          sheetsMeta.textContent = "\u043D\u0443\u0436\u043D\u043E \u0438\u043C\u044F";
         } else if (settings.sheetsEnabled) {
-          sheetsMeta.textContent = settings.sheetsNickname || "on";
+          sheetsMeta.textContent = settings.sheetsNickname || "\u0432\u043A\u043B";
         } else {
-          sheetsMeta.textContent = "off";
+          sheetsMeta.textContent = "\u0432\u044B\u043A\u043B";
         }
       }
+      const versionsMeta = root.querySelector('[data-field="settingAccMetaVersions"]');
+      if (versionsMeta) {
+        versionsMeta.textContent = "v" + VERSION;
+      }
+      renderVersionHistory(root);
       const sheetsEnabled = root.querySelector('[data-field="settingSheetsEnabled"]');
       const sheetsNickname = root.querySelector('[data-field="settingSheetsNickname"]');
       const sheetsUrl = root.querySelector('[data-field="settingSheetsWebAppUrl"]');
@@ -3060,14 +4024,114 @@
         } else if (settings.sheetsLastSyncAt) {
           sheetsStatus.textContent = "OK \xB7 " + formatTime(settings.sheetsLastSyncAt);
         } else if (!settings.sheetsEnabled) {
-          sheetsStatus.textContent = "Sync off";
+          sheetsStatus.textContent = "\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F \u0432\u044B\u043A\u043B";
         } else if (!String(settings.sheetsSecretToken || "").trim()) {
-          sheetsStatus.textContent = "Enter token \u2192 Test";
+          sheetsStatus.textContent = "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0442\u043E\u043A\u0435\u043D \u2192 \u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C";
         } else if (!String(settings.sheetsNickname || "").trim()) {
-          sheetsStatus.textContent = "Enter nickname";
+          sheetsStatus.textContent = "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0438\u043C\u044F";
         } else {
-          sheetsStatus.textContent = "Ready";
+          sheetsStatus.textContent = "\u0413\u043E\u0442\u043E\u0432\u043E";
         }
+      }
+    }
+    function renderVersionHistory(root) {
+      const versionBadge = root.querySelector('[data-field="versionBadge"]');
+      if (versionBadge) {
+        versionBadge.textContent = "v" + VERSION;
+      }
+      const list = root.querySelector('[data-field="versionHistory"]');
+      if (!list || list.getAttribute("data-rendered-version") === VERSION) return;
+      list.textContent = "";
+      VERSION_HISTORY.forEach(function(entry) {
+        const item = document.createElement("div");
+        item.className = "versionItem";
+        const top = document.createElement("div");
+        top.className = "versionTop";
+        const version = document.createElement("span");
+        version.textContent = "v" + entry.version;
+        const date = document.createElement("span");
+        date.className = "versionDate";
+        date.textContent = entry.date || "";
+        top.appendChild(version);
+        top.appendChild(date);
+        const changes = document.createElement("ul");
+        changes.className = "versionChanges";
+        (entry.changes || []).slice(0, 3).forEach(function(change) {
+          const li = document.createElement("li");
+          li.textContent = change;
+          changes.appendChild(li);
+        });
+        item.appendChild(top);
+        item.appendChild(changes);
+        list.appendChild(item);
+      });
+      list.setAttribute("data-rendered-version", VERSION);
+    }
+    function renderUndoToast(root) {
+      const toast = root.querySelector('[data-field="undoToast"]');
+      const panel = root.querySelector(".panel");
+      if (!toast || !panel) return;
+      const undo = ctx.runtime.undoSpend;
+      const now = Date.now();
+      const visual = getUndoVisualState(undo, now);
+      const visible = !!(undo && visual.visible);
+      if (!visible) {
+        ctx.runtime.undoSpend = null;
+      }
+      panel.classList.toggle("undo-active", visible);
+      panel.classList.toggle("undo-fresh", visible && visual.fresh);
+      panel.classList.toggle("undo-picking", visible && visual.paused);
+      if (!visible) {
+        toast.setAttribute("aria-hidden", "true");
+        return;
+      }
+      const projectName = root.querySelector('[data-field="undoProjectName"]');
+      if (projectName) projectName.textContent = (undo.projectName || "\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430") + " \u25BE";
+      const meta = root.querySelector('[data-field="undoMeta"]');
+      if (meta) {
+        meta.textContent = "-" + formatCredit(undo.amount) + " \xB7 " + (undo.serviceName || "spend") + " \xB7 " + visual.seconds + "s";
+      }
+      const progressBar = root.querySelector('[data-field="undoProgressBar"]');
+      if (progressBar) progressBar.style.transform = "scaleX(" + visual.progress.toFixed(3) + ")";
+      const projectSelect = root.querySelector('[data-field="undoProjectSelect"]');
+      const undoSearch = root.querySelector('[data-field="undoProjectSearch"]');
+      if (undoSearch && root.activeElement !== undoSearch) {
+        undoSearch.value = String(undo.projectSearchQuery || "");
+      }
+      if (projectSelect && visual.paused && root.activeElement !== projectSelect) {
+        projectSelect.textContent = "";
+        const noProject = document.createElement("option");
+        noProject.value = "";
+        noProject.textContent = "\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430";
+        projectSelect.appendChild(noProject);
+        const filteredProjects = ctx.searchProjects(undo.projectSearchQuery || "");
+        const selectedId = String(undo.pendingProjectId || "");
+        const selectedVisible = filteredProjects.some(function(project) {
+          return project.id === selectedId;
+        });
+        if (selectedId && !selectedVisible) {
+          const current = ctx.findProjectById(selectedId);
+          if (current) {
+            const currentOption = document.createElement("option");
+            currentOption.value = current.id;
+            currentOption.textContent = "\u0422\u0435\u043A\u0443\u0449\u0438\u0439: " + ctx.formatProjectOptionLabel(current);
+            projectSelect.appendChild(currentOption);
+          }
+        }
+        filteredProjects.forEach(function(project) {
+          const option = document.createElement("option");
+          option.value = project.id;
+          option.textContent = ctx.formatProjectOptionLabel(project);
+          projectSelect.appendChild(option);
+        });
+        projectSelect.value = selectedId;
+      }
+      toast.setAttribute("aria-hidden", "false");
+      if (!visual.paused && !ctx.runtime.undoRenderTimer) {
+        ctx.runtime.undoRenderTimer = window.setTimeout(function() {
+          ctx.runtime.undoRenderTimer = null;
+          renderSoon();
+        }, 100);
       }
     }
     function renderPanel() {
@@ -3080,12 +4144,14 @@
       const filterOn = ctx.isProjectFilterActive();
       const recentEvents = filterOn ? ctx.getFilteredHistory(activeProject) : history;
       setText(root, "serviceName", ctx.getActiveAdapter().name || "none");
+      setText(root, "versionBadge", "v" + VERSION);
       setText(root, "source", source);
       setText(root, "balance", ctx.runtime.balance == null ? "-" : formatCredit(ctx.runtime.balance));
       renderProjectFields(root);
       renderProjectSummary(root, activeProject, hasProject, filterOn);
       renderTabs(root);
       renderSettingsTab(root);
+      renderUndoToast(root);
       const nicknameWarn = root.querySelector('[data-field="sheetsNicknameWarn"]');
       if (nicknameWarn) {
         nicknameWarn.hidden = !needsSheetsNickname(ctx.getSettings());
@@ -3093,8 +4159,8 @@
       const debugButton = root.querySelector('[data-action="debug"]');
       if (debugButton) {
         debugButton.classList.toggle("active", ctx.runtime.debug);
-        debugButton.setAttribute("data-tooltip", ctx.runtime.debug ? "Collecting debug report" : "Collect debug report");
-        debugButton.setAttribute("aria-label", ctx.runtime.debug ? "Collecting debug report" : "Collect debug report");
+        debugButton.setAttribute("data-tooltip", ctx.runtime.debug ? "\u0421\u0431\u043E\u0440 \u043E\u0442\u0447\u0451\u0442\u0430 \u043E\u0442\u043B\u0430\u0434\u043A\u0438\u2026" : "\u0421\u043E\u0431\u0440\u0430\u0442\u044C \u043E\u0442\u0447\u0451\u0442 \u043E\u0442\u043B\u0430\u0434\u043A\u0438");
+        debugButton.setAttribute("aria-label", ctx.runtime.debug ? "\u0421\u0431\u043E\u0440 \u043E\u0442\u0447\u0451\u0442\u0430 \u043E\u0442\u043B\u0430\u0434\u043A\u0438\u2026" : "\u0421\u043E\u0431\u0440\u0430\u0442\u044C \u043E\u0442\u0447\u0451\u0442 \u043E\u0442\u043B\u0430\u0434\u043A\u0438");
       }
       const eventsEl = root.querySelector('[data-field="events"]');
       if (!eventsEl) return;
@@ -3102,7 +4168,7 @@
       if (!recentEvents.length) {
         const empty = document.createElement("div");
         empty.className = "empty";
-        empty.textContent = filterOn ? "No spend events for this project yet" : "No spend events yet";
+        empty.textContent = filterOn ? "\u041D\u0435\u0442 \u0442\u0440\u0430\u0442 \u043F\u043E \u044D\u0442\u043E\u043C\u0443 \u043F\u0440\u043E\u0435\u043A\u0442\u0443" : "\u041F\u043E\u043A\u0430 \u043D\u0435\u0442 \u0442\u0440\u0430\u0442";
         eventsEl.appendChild(empty);
         renderHistory(root, activeProject, hasProject, filterOn);
         return;
@@ -3116,7 +4182,15 @@
         if (event.source === "mixed") dot.style.background = "#28b67a";
         if (event.source === "network") dot.style.background = "#2d6cdf";
         const label = document.createElement("div");
-        label.textContent = formatTime(event.ts) + "  -" + formatCredit(event.amount) + (event.estimated ? " est." : "");
+        label.className = "histSpendMain";
+        const time = document.createElement("span");
+        time.className = "histTime";
+        time.textContent = formatTime(event.ts);
+        const amount = document.createElement("span");
+        amount.className = "histAmount";
+        amount.textContent = "-" + formatCredit(event.amount) + (event.estimated ? " est." : "");
+        label.appendChild(time);
+        label.appendChild(amount);
         const src = document.createElement("div");
         src.className = "source";
         src.textContent = (event.serviceName || event.service || ctx.getActiveAdapter().name) + " \xB7 " + (event.source || "unknown");
@@ -3143,6 +4217,8 @@
       renderProjectSummary,
       renderTabs,
       renderSettingsTab,
+      renderVersionHistory,
+      renderUndoToast,
       setActiveTab,
       setText,
       getDisplaySource,
@@ -3157,8 +4233,45 @@
 
   // src/core/sheets.js
   var SHEETS_POST_HEADERS = { "Content-Type": "text/plain;charset=utf-8" };
-  function buildProjectKey(name) {
-    return String(name || "").trim().toLowerCase();
+  function serviceNameForId(service) {
+    const id = String(service || "");
+    for (let i = 0; i < ADAPTERS.length; i += 1) {
+      if (ADAPTERS[i] && ADAPTERS[i].id === id) return ADAPTERS[i].name;
+    }
+    if (!id) return "";
+    return id.charAt(0).toUpperCase() + id.slice(1);
+  }
+  function convertRemoteRowToEvent(row, knownProjectIds) {
+    if (!row || !row.eventId) return null;
+    const parsedTs = row.syncedAt ? Date.parse(row.syncedAt) : NaN;
+    const ts = Number.isFinite(parsedTs) ? parsedTs : Date.now();
+    return {
+      id: String(row.eventId),
+      ts,
+      localDate: localDateKey(ts),
+      amount: Number(row.amount || 0),
+      before: 0,
+      after: 0,
+      source: "remote",
+      service: String(row.service || ""),
+      serviceName: serviceNameForId(row.service),
+      taskId: null,
+      url: "",
+      method: "",
+      path: "",
+      score: null,
+      pendingId: null,
+      detail: "",
+      metadata: {},
+      project: {
+        id: knownProjectIds && knownProjectIds[String(row.projectId || "")] ? String(row.projectId || "") : "",
+        name: String(row.projectName || ""),
+        url: ""
+      },
+      estimated: false,
+      user: String(row.user || ""),
+      remote: true
+    };
   }
   function sanitizeSheetsWebAppUrl(value) {
     const url = String(value || "").trim();
@@ -3184,18 +4297,113 @@
     const projectName = String(project.name || "").trim();
     return {
       eventId: String(event.id || ""),
-      ts: new Date(event.ts || Date.now()).toISOString(),
-      localDate: String(event.localDate || ""),
       amount: event.amount,
       service: String(event.service || ""),
-      serviceName: String(event.serviceName || event.service || ""),
       projectId: String(project.id || ""),
       projectName,
-      projectKey: buildProjectKey(projectName),
       user: String(settings.sheetsNickname || "").trim(),
-      source: String(event.source || "unknown"),
-      estimated: event.estimated === true,
       trackerVersion: VERSION
+    };
+  }
+  function buildEventProjectPayload(event) {
+    const project = event && event.project || {};
+    return {
+      eventId: String(event && event.id || ""),
+      projectId: String(project.id || ""),
+      projectName: String(project.name || "").trim()
+    };
+  }
+  function buildProjectPayload(project, settings) {
+    const entry = sanitizeProjectEntry(project || {});
+    const createdAt = Number.isFinite(entry.createdAt) ? entry.createdAt : Date.now();
+    return {
+      projectId: entry.id,
+      name: entry.name,
+      url: entry.url,
+      status: entry.status,
+      createdAt: new Date(createdAt).toISOString(),
+      updatedBy: String(settings && settings.sheetsNickname || "").trim(),
+      trackerVersion: VERSION
+    };
+  }
+  function convertRemoteRowToProject(row) {
+    if (!row || !row.projectId || !row.name) return null;
+    const createdAt = Date.parse(row.createdAt || "");
+    const updatedAt = Date.parse(row.updatedAt || "");
+    return sanitizeProjectEntry({
+      id: String(row.projectId),
+      name: String(row.name),
+      url: String(row.url || ""),
+      status: row.status === "archived" ? "archived" : "active",
+      createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
+      updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now(),
+      updatedBy: String(row.updatedBy || "")
+    });
+  }
+  function loadProjectSyncState() {
+    const raw = readJson(PROJECTS_SYNC_KEY, {});
+    const pending = raw && raw.pending && typeof raw.pending === "object" && !Array.isArray(raw.pending) ? raw.pending : {};
+    return {
+      initialized: raw && raw.initialized === true,
+      pending: Object.assign({}, pending)
+    };
+  }
+  function saveProjectSyncState(state) {
+    writeJson(PROJECTS_SYNC_KEY, {
+      initialized: state && state.initialized === true,
+      pending: Object.assign({}, state && state.pending || {})
+    });
+  }
+  function mergeProjectCatalogs(localProjects, remoteProjects, syncState) {
+    const local = sanitizeProjectLibrary(localProjects);
+    const remote = sanitizeProjectLibrary(remoteProjects);
+    const state = syncState || { initialized: false, pending: {} };
+    const initialMerge = state.initialized !== true;
+    const pending = Object.assign({}, state.pending || {});
+    const remoteById = {};
+    const usedRemote = {};
+    const result = [];
+    const idMap = {};
+    remote.forEach(function(entry) {
+      remoteById[entry.id] = entry;
+    });
+    local.forEach(function(entry) {
+      const sameId = remoteById[entry.id];
+      if (sameId) {
+        usedRemote[sameId.id] = true;
+        result.push(pending[entry.id] ? entry : sameId);
+        return;
+      }
+      let equivalent = null;
+      if (initialMerge) {
+        equivalent = remote.find(function(candidate) {
+          return !usedRemote[candidate.id] && projectsAreEquivalent(entry, candidate);
+        }) || null;
+      }
+      if (equivalent) {
+        usedRemote[equivalent.id] = true;
+        idMap[entry.id] = equivalent.id;
+        delete pending[entry.id];
+        result.push(equivalent);
+        return;
+      }
+      if (initialMerge || pending[entry.id]) {
+        result.push(entry);
+        if (!pending[entry.id]) {
+          pending[entry.id] = entry.status === "archived" ? "archive" : "upsert";
+        }
+      }
+    });
+    remote.forEach(function(entry) {
+      if (!usedRemote[entry.id]) result.push(entry);
+    });
+    return {
+      projects: sanitizeProjectLibrary(result),
+      idMap,
+      state: {
+        initialized: true,
+        pending
+      }
     };
   }
   function loadSyncState() {
@@ -3222,6 +4430,12 @@
     if (!eventId) return;
     const state = loadSyncState();
     state[String(eventId)] = status;
+    saveSyncState(state);
+  }
+  function clearSyncState(eventId) {
+    if (!eventId) return;
+    const state = loadSyncState();
+    delete state[String(eventId)];
     saveSyncState(state);
   }
   function updateSheetsStatus(ctx, patch) {
@@ -3252,7 +4466,7 @@
             });
           },
           onerror: function(error) {
-            reject(error || new Error("network error"));
+            reject(error || new Error("\u0441\u0435\u0442\u0435\u0432\u0430\u044F \u043E\u0448\u0438\u0431\u043A\u0430"));
           },
           ontimeout: function() {
             reject(new Error("timeout"));
@@ -3299,29 +4513,29 @@
     const body = parsed.body || "";
     const data = parsed.data;
     if (data && data.error) return String(data.error);
-    if (parsed.status === 401 || data && data.error === "unauthorized") return "unauthorized \u2014 check secret token";
+    if (parsed.status === 401 || data && data.error === "unauthorized") return "\u043D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u2014 \u043F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0441\u0435\u043A\u0440\u0435\u0442\u043D\u044B\u0439 \u0442\u043E\u043A\u0435\u043D";
     if (parsed.status === 404 || /Страница не найдена|не удалось открыть файл|Page Not Found/i.test(body)) {
-      return "web app 404 \u2014 redeploy Apps Script (Execute as Me, Anyone access)";
+      return "\u0432\u0435\u0431-\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435 404 \u2014 \u043F\u0435\u0440\u0435\u0440\u0430\u0437\u0432\u0435\u0440\u043D\u0438\u0442\u0435 Apps Script (Execute as Me, Anyone access)";
     }
     if (parsed.status === 405) {
-      return "method not allowed \u2014 redeploy Web App deployment";
+      return "\u043C\u0435\u0442\u043E\u0434 \u043D\u0435 \u0440\u0430\u0437\u0440\u0435\u0448\u0451\u043D \u2014 \u043F\u0435\u0440\u0435\u0440\u0430\u0437\u0432\u0435\u0440\u043D\u0438\u0442\u0435 \u0432\u0435\u0431-\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435";
     }
     if (!data && body && body.charAt(0) === "<") {
-      return "invalid web app response \u2014 check /exec URL and deployment";
+      return "\u043D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0439 \u043E\u0442\u0432\u0435\u0442 \u0432\u0435\u0431-\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u2014 \u043F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 URL /exec \u0438 \u0440\u0430\u0437\u0432\u0451\u0440\u0442\u044B\u0432\u0430\u043D\u0438\u0435";
     }
-    if (parsed.status) return "sync failed (" + parsed.status + ")";
-    return "sync failed";
+    if (parsed.status) return "\u043E\u0448\u0438\u0431\u043A\u0430 \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u0438 (" + parsed.status + ")";
+    return "\u043E\u0448\u0438\u0431\u043A\u0430 \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u0438";
   }
   function sendSheetsRequest(ctx, action, payload) {
     const settings = ctx.getSettings();
     if (!canSyncToSheets(settings) && action !== "ping") {
-      return Promise.reject(new Error("sheets not configured"));
+      return Promise.reject(new Error("sheets \u043D\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043D"));
     }
     if (action === "ping" && !sanitizeSheetsWebAppUrl(settings.sheetsWebAppUrl)) {
-      return Promise.reject(new Error("invalid web app url \u2014 use .../macros/s/.../exec"));
+      return Promise.reject(new Error("\u043D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0439 URL \u0432\u0435\u0431-\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u2014 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 .../macros/s/.../exec"));
     }
     if (action === "ping" && !String(settings.sheetsSecretToken || "").trim()) {
-      return Promise.reject(new Error("missing secret token"));
+      return Promise.reject(new Error("\u043E\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442 \u0441\u0435\u043A\u0440\u0435\u0442\u043D\u044B\u0439 \u0442\u043E\u043A\u0435\u043D"));
     }
     return postJsonToSheets(settings, {
       action,
@@ -3339,7 +4553,7 @@
       updateSheetsStatus(ctx, { sheetsLastError: message });
       throw new Error(message);
     }).catch(function(error) {
-      const message = error && error.message ? error.message : "network error";
+      const message = error && error.message ? error.message : "\u0441\u0435\u0442\u0435\u0432\u0430\u044F \u043E\u0448\u0438\u0431\u043A\u0430";
       updateSheetsStatus(ctx, { sheetsLastError: message });
       throw error;
     });
@@ -3359,19 +4573,107 @@
       return null;
     });
   }
+  function updateEventProjectInSheets(ctx, event) {
+    if (!event || !event.id) return Promise.resolve(null);
+    if (!canSyncToSheets(ctx.getSettings())) return Promise.resolve(null);
+    return sendSheetsRequest(ctx, "updateEventProject", buildEventProjectPayload(event)).then(function(data) {
+      if (data && data.updated === false) return data;
+      markSyncState(event.id, "synced");
+      ctx.addDiagnostic("sheets event project update ok", event.id);
+      return data || { ok: true, updated: true };
+    }).catch(function(error) {
+      markSyncState(event.id, "projectUpdateFailed");
+      ctx.addDiagnostic("sheets event project update failed", event.id, error && error.message);
+      return null;
+    });
+  }
+  function resumeEventSyncAfterUndo(ctx, event, delayMs) {
+    if (!event || !event.id) return Promise.resolve(null);
+    if (!canSyncToSheets(ctx.getSettings())) return Promise.resolve(null);
+    if (getSyncState(event.id) !== "synced") {
+      scheduleEventSyncToSheets(ctx, event, delayMs);
+      return Promise.resolve({ scheduled: true });
+    }
+    return updateEventProjectInSheets(ctx, event).then(function(data) {
+      if (data && data.updated === false) {
+        clearSyncState(event.id);
+        scheduleEventSyncToSheets(ctx, event, delayMs);
+        return { scheduled: true, missingRemote: true };
+      }
+      return data;
+    });
+  }
+  function scheduleEventSyncToSheets(ctx, event, delayMs) {
+    if (!event || !event.id) return null;
+    if (!canSyncToSheets(ctx.getSettings())) return null;
+    const eventId = event.id;
+    const current = getSyncState(eventId);
+    if (current === "synced") return null;
+    ctx.runtime.sheetsSyncTimers = ctx.runtime.sheetsSyncTimers || {};
+    if (ctx.runtime.sheetsSyncTimers[eventId]) {
+      window.clearTimeout(ctx.runtime.sheetsSyncTimers[eventId]);
+    }
+    markSyncState(eventId, "pending");
+    const delay = Number(delayMs);
+    ctx.runtime.sheetsSyncTimers[eventId] = window.setTimeout(function() {
+      delete ctx.runtime.sheetsSyncTimers[eventId];
+      const currentEvent = ctx.getHistory().find(function(item) {
+        return item && item.id === eventId;
+      });
+      if (!currentEvent) {
+        clearSyncState(eventId);
+        ctx.addDiagnostic("sheets sync canceled before append", eventId);
+        return;
+      }
+      syncEventToSheets(ctx, currentEvent);
+    }, Number.isFinite(delay) && delay >= 0 ? delay : SHEETS_SYNC_DELAY_MS);
+    ctx.addDiagnostic("sheets sync scheduled", eventId);
+    return event;
+  }
+  function cancelEventSyncToSheets(ctx, eventId) {
+    if (!eventId) return;
+    ctx.runtime.sheetsSyncTimers = ctx.runtime.sheetsSyncTimers || {};
+    if (ctx.runtime.sheetsSyncTimers[eventId]) {
+      window.clearTimeout(ctx.runtime.sheetsSyncTimers[eventId]);
+      delete ctx.runtime.sheetsSyncTimers[eventId];
+    }
+    if (getSyncState(eventId) === "pending") {
+      clearSyncState(eventId);
+    }
+  }
+  function deleteEventFromSheets(ctx, event) {
+    if (!event || !event.id) return Promise.resolve(null);
+    cancelEventSyncToSheets(ctx, event.id);
+    if (!canSyncToSheets(ctx.getSettings())) return Promise.resolve(null);
+    if (getSyncState(event.id) !== "synced") {
+      clearSyncState(event.id);
+      return Promise.resolve(null);
+    }
+    return sendSheetsRequest(ctx, "deleteEvent", { eventId: event.id }).then(function() {
+      markSyncState(event.id, "deleted");
+      ctx.addDiagnostic("sheets delete ok", event.id);
+      return event;
+    }).catch(function(error) {
+      markSyncState(event.id, "deleteFailed");
+      ctx.addDiagnostic("sheets delete failed", event.id, error && error.message);
+      return null;
+    });
+  }
   function retryFailedSyncs(ctx) {
     if (!canSyncToSheets(ctx.getSettings())) {
       return Promise.resolve({ retried: 0, synced: 0 });
     }
     const history = ctx.getHistory();
     const failed = history.filter(function(event) {
-      return event && getSyncState(event.id) === "failed";
+      const status = event && getSyncState(event.id);
+      return status === "failed" || status === "projectUpdateFailed";
     });
     let synced = 0;
     let chain = Promise.resolve();
     failed.forEach(function(event) {
       chain = chain.then(function() {
-        return syncEventToSheets(ctx, event).then(function(result) {
+        const retry = getSyncState(event.id) === "projectUpdateFailed" ? updateEventProjectInSheets(ctx, event) : syncEventToSheets(ctx, event);
+        return retry.then(function(result) {
           if (result) synced += 1;
         });
       });
@@ -3383,16 +4685,253 @@
   function testSheetsConnection(ctx) {
     return sendSheetsRequest(ctx, "ping", null);
   }
+  function setPendingProjectOperation(projectId, operation) {
+    const id = String(projectId || "");
+    if (!id) return;
+    const state = loadProjectSyncState();
+    state.pending[id] = operation;
+    saveProjectSyncState(state);
+  }
+  function clearPendingProjectOperation(projectId) {
+    const id = String(projectId || "");
+    if (!id) return;
+    const state = loadProjectSyncState();
+    delete state.pending[id];
+    saveProjectSyncState(state);
+  }
+  function queueProjectUpsert(ctx, project) {
+    if (!project || !project.id) return null;
+    setPendingProjectOperation(project.id, "upsert");
+    if (canSyncToSheets(ctx.getSettings())) {
+      const state = loadProjectSyncState();
+      const sync = state.initialized ? flushPendingProjectSyncs(ctx) : syncProjectsFromSheets(ctx);
+      sync.catch(function() {
+      });
+    }
+    return project;
+  }
+  function queueProjectArchive(ctx, project) {
+    if (!project || !project.id) return null;
+    setPendingProjectOperation(project.id, "archive");
+    if (canSyncToSheets(ctx.getSettings())) {
+      const state = loadProjectSyncState();
+      const sync = state.initialized ? flushPendingProjectSyncs(ctx) : syncProjectsFromSheets(ctx);
+      sync.catch(function() {
+      });
+    }
+    return project;
+  }
+  function flushPendingProjectSyncs(ctx) {
+    if (!canSyncToSheets(ctx.getSettings())) {
+      return Promise.resolve({ retried: 0, synced: 0 });
+    }
+    if (ctx.runtime.projectsFlushPromise) return ctx.runtime.projectsFlushPromise;
+    const initialState = loadProjectSyncState();
+    const ids = Object.keys(initialState.pending);
+    let synced = 0;
+    let chain = Promise.resolve();
+    ids.forEach(function(id) {
+      chain = chain.then(function() {
+        const state = loadProjectSyncState();
+        const operation = state.pending[id];
+        const entry = typeof ctx.findProjectRecordById === "function" ? ctx.findProjectRecordById(id) : null;
+        if (!operation || !entry) {
+          clearPendingProjectOperation(id);
+          return null;
+        }
+        const action = operation === "archive" ? "archiveProject" : "upsertProject";
+        return sendSheetsRequest(ctx, action, buildProjectPayload(entry, ctx.getSettings())).then(function(data) {
+          const canonical = convertRemoteRowToProject(data && data.project);
+          if (canonical && typeof ctx.replaceProjectEntry === "function") {
+            ctx.replaceProjectEntry(canonical);
+          }
+          clearPendingProjectOperation(id);
+          synced += 1;
+          ctx.addDiagnostic("project sync ok", id, action);
+          return canonical;
+        }).catch(function(error) {
+          ctx.addDiagnostic("project sync failed", id, error && error.message);
+          return null;
+        });
+      });
+    });
+    ctx.runtime.projectsFlushPromise = chain.then(function() {
+      return { retried: ids.length, synced };
+    }).finally(function() {
+      ctx.runtime.projectsFlushPromise = null;
+    });
+    return ctx.runtime.projectsFlushPromise;
+  }
+  function applyProjectCatalog(ctx, merged) {
+    const library = sanitizeProjectLibrary(merged.projects);
+    ctx.setProjectLibrary(library);
+    ctx.saveProjectLibrary();
+    if (typeof ctx.reconcileProjectIds === "function") {
+      ctx.reconcileProjectIds(merged.idMap);
+    }
+    const active = sanitizeProject(ctx.runtime.project || {});
+    if (active.id) {
+      const canonical = library.find(function(entry) {
+        return entry.id === active.id;
+      });
+      if (!canonical || canonical.status === "archived") {
+        ctx.runtime.project = sanitizeProject({});
+        ctx.runtime.projectFilterEnabled = false;
+      } else {
+        ctx.runtime.project = sanitizeProject(canonical);
+      }
+      if (typeof ctx.syncProjectDraftFromActive === "function") ctx.syncProjectDraftFromActive();
+      ctx.saveProject();
+      ctx.saveUiState();
+    }
+    if (typeof ctx.renderSoon === "function") ctx.renderSoon();
+  }
+  function syncProjectsFromSheets(ctx) {
+    if (!canSyncToSheets(ctx.getSettings())) return Promise.resolve(null);
+    if (ctx.runtime.projectsSyncPromise) return ctx.runtime.projectsSyncPromise;
+    ctx.runtime.projectsSyncPromise = sendSheetsRequest(ctx, "listProjects", null).then(function(data) {
+      if (!data || data.ok !== true || !Array.isArray(data.projects)) {
+        throw new Error("invalid projects response");
+      }
+      const remote = data.projects.map(convertRemoteRowToProject).filter(Boolean);
+      const merged = mergeProjectCatalogs(
+        ctx.getProjectLibrary(),
+        remote,
+        loadProjectSyncState()
+      );
+      saveProjectSyncState(merged.state);
+      applyProjectCatalog(ctx, merged);
+      return flushPendingProjectSyncs(ctx).then(function(result) {
+        ctx.addDiagnostic("projects pull ok", remote.length);
+        return {
+          pulled: remote.length,
+          pushed: result.synced,
+          mergedIds: Object.keys(merged.idMap).length
+        };
+      });
+    }).catch(function(error) {
+      ctx.addDiagnostic("projects pull failed", error && error.message);
+      throw error;
+    }).finally(function() {
+      ctx.runtime.projectsSyncPromise = null;
+    });
+    return ctx.runtime.projectsSyncPromise;
+  }
+  function pullEventsFromSheets(ctx) {
+    const settings = ctx.getSettings();
+    if (!canSyncToSheets(settings)) return Promise.resolve(null);
+    return postJsonToSheets(settings, { action: "listEvents", payload: null }).then(function(response) {
+      const parsed = parseSheetsResponse(response);
+      const data = parsed.data;
+      if (!data || data.ok !== true || !Array.isArray(data.events)) {
+        const message = getSheetsErrorMessage(parsed);
+        updateSheetsStatus(ctx, { sheetsLastError: message });
+        throw new Error(message);
+      }
+      const knownProjectIds = {};
+      ctx.getProjectLibrary().forEach(function(project) {
+        if (project && project.id) knownProjectIds[project.id] = true;
+      });
+      const remoteEvents = data.events.map(function(row) {
+        return convertRemoteRowToEvent(row, knownProjectIds);
+      }).filter(function(event) {
+        return event && event.id;
+      });
+      const remoteIds = {};
+      remoteEvents.forEach(function(event) {
+        remoteIds[event.id] = true;
+      });
+      const localOnly = ctx.getHistory().filter(function(event) {
+        if (!event || !event.id) return false;
+        if (remoteIds[event.id]) return false;
+        return getSyncState(event.id) !== "synced";
+      });
+      const merged = mergeEventHistories(remoteEvents, localOnly, MAX_EVENTS);
+      ctx.setHistory(sanitizeEvents(merged));
+      ctx.saveHistory();
+      remoteEvents.forEach(function(event) {
+        markSyncState(event.id, "synced");
+      });
+      updateSheetsStatus(ctx, {
+        sheetsLastSyncAt: Date.now(),
+        sheetsLastError: ""
+      });
+      ctx.addDiagnostic("sheets pull ok", remoteEvents.length);
+      if (typeof ctx.renderSoon === "function") ctx.renderSoon();
+      return { pulled: remoteEvents.length };
+    }).catch(function(error) {
+      const message = error && error.message ? error.message : "\u0441\u0435\u0442\u0435\u0432\u0430\u044F \u043E\u0448\u0438\u0431\u043A\u0430";
+      updateSheetsStatus(ctx, { sheetsLastError: message });
+      ctx.addDiagnostic("sheets pull failed", message);
+      throw error;
+    });
+  }
+  function startSheetsAutoPull(ctx) {
+    if (ctx.runtime.sheetsPullTimer) {
+      window.clearInterval(ctx.runtime.sheetsPullTimer);
+      ctx.runtime.sheetsPullTimer = null;
+    }
+    function runPull() {
+      if (!canSyncToSheets(ctx.getSettings())) return;
+      Promise.all([
+        pullEventsFromSheets(ctx),
+        syncProjectsFromSheets(ctx)
+      ]).catch(function() {
+      });
+    }
+    runPull();
+    ctx.runtime.sheetsPullTimer = window.setInterval(runPull, SHEETS_PULL_INTERVAL_MS);
+    return ctx.runtime.sheetsPullTimer;
+  }
   function createSheets(ctx) {
     return {
       syncEventToSheets: function(event) {
         return syncEventToSheets(ctx, event);
       },
+      scheduleEventSyncToSheets: function(event, delayMs) {
+        return scheduleEventSyncToSheets(ctx, event, delayMs);
+      },
+      cancelEventSyncToSheets: function(eventId) {
+        return cancelEventSyncToSheets(ctx, eventId);
+      },
+      resumeEventSyncAfterUndo: function(event, delayMs) {
+        return resumeEventSyncAfterUndo(ctx, event, delayMs);
+      },
+      updateEventProjectInSheets: function(event) {
+        return updateEventProjectInSheets(ctx, event);
+      },
+      deleteEventFromSheets: function(event) {
+        return deleteEventFromSheets(ctx, event);
+      },
       retryFailedSyncs: function() {
         return retryFailedSyncs(ctx);
       },
+      retryProjectSyncs: function() {
+        return flushPendingProjectSyncs(ctx);
+      },
       testSheetsConnection: function() {
         return testSheetsConnection(ctx);
+      },
+      pullEventsFromSheets: function() {
+        return pullEventsFromSheets(ctx);
+      },
+      syncProjectsFromSheets: function() {
+        return syncProjectsFromSheets(ctx);
+      },
+      refreshSheetsData: function() {
+        return Promise.all([
+          pullEventsFromSheets(ctx),
+          syncProjectsFromSheets(ctx)
+        ]);
+      },
+      queueProjectUpsert: function(project) {
+        return queueProjectUpsert(ctx, project);
+      },
+      queueProjectArchive: function(project) {
+        return queueProjectArchive(ctx, project);
+      },
+      startSheetsAutoPull: function() {
+        return startSheetsAutoPull(ctx);
       },
       buildSheetsPayload: function(event) {
         return buildSheetsPayload(event, ctx.getSettings());
@@ -3433,14 +4972,20 @@
       uiScanTimer: null,
       uiInterval: null,
       renderTimer: null,
+      undoRenderTimer: null,
+      sheetsPullTimer: null,
       debug: false,
       diagnostics: [],
       lastUiSpend: null,
+      undoSpend: null,
+      sheetsSyncTimers: {},
       activeTab: initialUiState.activeTab,
       projectFilterEnabled: initialUiState.projectFilterEnabled,
       project: sanitizeProject(readJson(PROJECT_KEY, {})),
       projectDraft: { name: "", url: "" },
       projectEditorOpen: false,
+      projectSearchOpen: false,
+      projectSearchQuery: "",
       settings: loadSettings(),
       sheetsNicknameNotified: false
     };
@@ -3503,7 +5048,7 @@
       ctx.renderSoon();
     };
     ctx.resetSettings = function() {
-      if (typeof window !== "undefined" && !window.confirm("Reset all settings to defaults?")) return;
+      if (typeof window !== "undefined" && !window.confirm("\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0432\u0441\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E?")) return;
       runtime.settings = sanitizeSettings(DEFAULT_SETTINGS);
       saveSettings(ctx);
       applyPanelSettings(ctx);
@@ -3515,7 +5060,7 @@
       runtime.sheetsNicknameNotified = true;
       ctx.addDiagnostic("sheets nickname required \u2014 open Settings \u2192 Google Sheets");
       if (typeof window !== "undefined" && typeof window.alert === "function") {
-        window.alert("AI Token Tracker: \u0443\u043A\u0430\u0436\u0438\u0442\u0435 nickname \u0432 Settings \u2192 Google Sheets, \u0447\u0442\u043E\u0431\u044B \u0441\u0438\u043D\u043A \u0440\u0430\u0431\u043E\u0442\u0430\u043B \u0441 \u0432\u0430\u0448\u0438\u043C \u0438\u043C\u0435\u043D\u0435\u043C.");
+        window.alert("AITT: \u0443\u043A\u0430\u0436\u0438\u0442\u0435 \u0438\u043C\u044F \u0432 \u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u2192 Google Sheets, \u0447\u0442\u043E\u0431\u044B \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F \u0440\u0430\u0431\u043E\u0442\u0430\u043B\u0430 \u0441 \u0432\u0430\u0448\u0438\u043C \u0438\u043C\u0435\u043D\u0435\u043C.");
       }
       ctx.renderSoon();
     };
@@ -3526,6 +5071,140 @@
         args: args.map(formatDebugArg)
       });
       runtime.diagnostics = runtime.diagnostics.slice(-120);
+    };
+    ctx.showUndoSpend = function(event) {
+      if (!event || !event.id) return;
+      const startedAt = Date.now();
+      runtime.undoSpend = {
+        eventId: event.id,
+        amount: event.amount,
+        serviceName: event.serviceName || event.service || getActiveAdapter().name,
+        projectName: String(event.project && event.project.name || "").trim() || "\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430",
+        startedAt,
+        expiresAt: startedAt + SPEND_UNDO_WINDOW_MS,
+        pickerOpen: false,
+        pausedAt: null,
+        remainingMs: SPEND_UNDO_WINDOW_MS
+      };
+      ctx.renderSoon();
+    };
+    ctx.openUndoProjectPicker = function() {
+      const undo = runtime.undoSpend;
+      if (!undo || undo.pickerOpen) return false;
+      const now = Date.now();
+      const remainingMs = Math.max(0, Number(undo.expiresAt || 0) - now);
+      if (!remainingMs) {
+        runtime.undoSpend = null;
+        ctx.renderSoon();
+        return false;
+      }
+      const event = history.find(function(item) {
+        return item && item.id === undo.eventId;
+      });
+      if (!event) return false;
+      undo.pickerOpen = true;
+      undo.pausedAt = now;
+      undo.remainingMs = remainingMs;
+      undo.pendingProjectId = String(event.project && event.project.id || "");
+      undo.projectSearchQuery = "";
+      if (typeof ctx.cancelEventSyncToSheets === "function") {
+        ctx.cancelEventSyncToSheets(undo.eventId);
+      }
+      ctx.renderSoon();
+      return true;
+    };
+    ctx.resumeUndoProjectPicker = function() {
+      const undo = runtime.undoSpend;
+      if (!undo || !undo.pickerOpen) return false;
+      const remainingMs = Math.max(1, Number(undo.remainingMs || 0));
+      const now = Date.now();
+      undo.pickerOpen = false;
+      undo.pausedAt = null;
+      undo.expiresAt = now + remainingMs;
+      const event = history.find(function(item) {
+        return item && item.id === undo.eventId;
+      });
+      if (event && typeof ctx.resumeEventSyncAfterUndo === "function") {
+        ctx.resumeEventSyncAfterUndo(event, remainingMs);
+      }
+      ctx.renderSoon();
+      return true;
+    };
+    ctx.applyUndoProject = function(projectId) {
+      const undo = runtime.undoSpend;
+      if (!undo || !undo.pickerOpen) return null;
+      const id = String(projectId || "");
+      const entry = id && typeof ctx.findProjectById === "function" ? ctx.findProjectById(id) : null;
+      if (id && !entry) return null;
+      const project = entry ? sanitizeProject({ id: entry.id, name: entry.name, url: entry.url }) : sanitizeProject({});
+      const changed = replaceEventProject(history, undo.eventId, project, Date.now());
+      if (!changed.event) return null;
+      history = changed.history;
+      ctx.saveHistory();
+      undo.projectName = project.name || "\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430";
+      if (entry) ctx.selectProject(entry.id);
+      else ctx.clearProject();
+      ctx.addDiagnostic("undo project changed", undo.eventId, project.id || "none");
+      ctx.resumeUndoProjectPicker();
+      return changed.event;
+    };
+    ctx.setUndoProjectSearchQuery = function(value, selectedProjectId) {
+      const undo = runtime.undoSpend;
+      if (!undo || !undo.pickerOpen) return;
+      undo.projectSearchQuery = String(value || "");
+      if (selectedProjectId != null) undo.pendingProjectId = String(selectedProjectId || "");
+      ctx.renderSoon();
+    };
+    ctx.setUndoPendingProject = function(projectId) {
+      const undo = runtime.undoSpend;
+      if (!undo || !undo.pickerOpen) return;
+      undo.pendingProjectId = String(projectId || "");
+    };
+    ctx.hideUndoSpend = function() {
+      if (runtime.undoSpend && runtime.undoSpend.pickerOpen) {
+        ctx.resumeUndoProjectPicker();
+      }
+      runtime.undoSpend = null;
+      ctx.renderSoon();
+    };
+    ctx.deleteSpendEvent = function(eventId, options) {
+      const id = String(eventId || "");
+      if (!id) return null;
+      const event = history.find(function(item) {
+        return item && item.id === id;
+      });
+      if (!event) return null;
+      if (typeof ctx.cancelEventSyncToSheets === "function") {
+        ctx.cancelEventSyncToSheets(id);
+      }
+      history = history.filter(function(item) {
+        return item && item.id !== id;
+      });
+      session = removeEventFromSession(session, event);
+      runtime.lastUiSpend = null;
+      if (runtime.undoSpend && runtime.undoSpend.eventId === id) {
+        runtime.undoSpend = null;
+      }
+      ctx.saveHistory();
+      ctx.saveSession();
+      ctx.addDiagnostic("deleted spend", id);
+      if (!options || options.deleteSheets !== false) {
+        if (typeof ctx.deleteEventFromSheets === "function") {
+          ctx.deleteEventFromSheets(event);
+        }
+      }
+      ctx.renderSoon();
+      return event;
+    };
+    ctx.undoLastSpend = function() {
+      const undo = runtime.undoSpend;
+      const expired = !undo || !undo.pickerOpen && undo.expiresAt <= Date.now();
+      if (expired) {
+        runtime.undoSpend = null;
+        ctx.renderSoon();
+        return null;
+      }
+      return ctx.deleteSpendEvent(undo.eventId);
     };
     ctx.recordSpend = function(input, now) {
       if (!input || !isFiniteCredit(input.amount) || input.amount <= 0) return null;
@@ -3565,7 +5244,8 @@
         detail: input.detail || "",
         metadata: sanitizeMetadata(input.metadata || {}),
         project: sanitizeProject(input.project || runtime.project),
-        estimated: input.estimated === true
+        estimated: input.estimated === true,
+        user: String(runtime.settings && runtime.settings.sheetsNickname || "").trim()
       };
       history.unshift(event);
       history = sanitizeEvents(history);
@@ -3573,8 +5253,9 @@
       ctx.saveHistory();
       ctx.saveSession();
       ctx.addDiagnostic("recorded spend", event);
+      ctx.showUndoSpend(event);
       if (runtime.settings.sheetsEnabled) {
-        ctx.syncEventToSheets(event);
+        ctx.scheduleEventSyncToSheets(event, SHEETS_SYNC_DELAY_MS);
         ctx.retryFailedSyncs();
       }
       return event;
@@ -3603,6 +5284,9 @@
     network.patchFetch();
     network.patchXMLHttpRequest();
     panel.bootWhenBodyExists();
+    if (runtime.settings.sheetsEnabled && typeof ctx.startSheetsAutoPull === "function") {
+      ctx.startSheetsAutoPull();
+    }
     return {
       version: VERSION,
       getState: ctx.getState,

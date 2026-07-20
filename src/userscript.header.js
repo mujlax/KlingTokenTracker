@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         AI Token Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.8.2
-// @description  Tracks AI credits/tokens spending from Generate UI across supported platforms.
+// @version      0.9.3
+// @description  Отслеживает расход кредитов/токенов AI при генерации на поддерживаемых платформах.
 // @match        *://kling.ai/*
 // @match        *://*.kling.ai/*
 // @match        *://higgsfield.ai/*
 // @match        *://*.higgsfield.ai/*
+// @match        *://sjinn.ai/*
+// @match        *://*.sjinn.ai/*
 // @run-at       document-start
 // @grant        GM_getValue
 // @grant        GM_setValue

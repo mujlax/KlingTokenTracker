@@ -6,6 +6,11 @@ import {
     sanitizeProjectLibrary
 } from './project-model.js';
 import {
+    findProjectSuggestions,
+    searchProjectsByName,
+    sortProjectsByCreatedAt
+} from './project-search.js';
+import {
     eventMatchesProject,
     getFilteredHistory as filterHistoryByProject,
     getProjectAllTimeTotal as sumProjectHistory,
@@ -15,7 +20,7 @@ import {
 import { deepClone } from '../lib/utils.js';
 
 export function createProjects(ctx) {
-    function findProjectById(id) {
+    function findProjectRecordById(id) {
         const needle = String(id || '').trim();
         if (!needle) return null;
         const library = ctx.getProjectLibrary();
@@ -25,25 +30,78 @@ export function createProjects(ctx) {
         return null;
     }
 
+    function findProjectById(id) {
+        const entry = findProjectRecordById(id);
+        return entry && entry.status !== 'archived' ? entry : null;
+    }
+
     function createProjectEntry(name, url) {
         const now = Date.now();
         return sanitizeProjectEntry({
             id: createId('project'),
             name: name,
             url: url,
+            status: 'active',
             createdAt: now,
-            updatedAt: now
+            updatedAt: now,
+            updatedBy: String(ctx.getSettings && ctx.getSettings().sheetsNickname || '')
         });
     }
 
     function listProjects() {
-        return ctx.getProjectLibrary().map(function (entry) {
+        return ctx.getProjectLibrary().filter(function (entry) {
+            return entry.status !== 'archived';
+        }).map(function (entry) {
             return deepClone(entry);
         });
     }
 
+    function getProjectSuggestions(name, url, excludeId) {
+        return findProjectSuggestions(ctx.getProjectLibrary(), {
+            name: name,
+            url: url
+        }, {
+            limit: 5,
+            excludeId: excludeId
+        });
+    }
+
+    function getProjectsByCreatedAt() {
+        return sortProjectsByCreatedAt(ctx.getProjectLibrary()).map(function (entry) {
+            return deepClone(entry);
+        });
+    }
+
+    function searchProjects(name, limit) {
+        return searchProjectsByName(ctx.getProjectLibrary(), name, { limit: limit }).map(function (entry) {
+            return deepClone(entry);
+        });
+    }
+
+    function closeProjectSearch() {
+        ctx.runtime.projectSearchOpen = false;
+        ctx.runtime.projectSearchQuery = '';
+    }
+
+    function toggleProjectSearch() {
+        ctx.runtime.projectSearchOpen = !ctx.runtime.projectSearchOpen;
+        ctx.runtime.projectSearchQuery = '';
+        ctx.renderSoon();
+        return ctx.runtime.projectSearchOpen;
+    }
+
+    function setProjectSearchQuery(value) {
+        ctx.runtime.projectSearchQuery = String(value || '');
+        ctx.renderSoon();
+    }
+
+    function selectProjectSearchResult(id) {
+        closeProjectSearch();
+        return selectProject(id);
+    }
+
     function formatProjectOptionLabel(entry) {
-        const name = entry.name || 'Untitled';
+        const name = entry.name || 'Без названия';
         if (!entry.url) return name;
         try {
             const parsed = new URL(entry.url);
@@ -55,7 +113,7 @@ export function createProjects(ctx) {
 
     function getActiveProject() {
         const project = sanitizeProject(ctx.runtime.project || {});
-        if (project.id && findProjectById(project.id)) return project;
+        if (project.id) return findProjectById(project.id) ? project : sanitizeProject({});
         if (project.name) return project;
         return sanitizeProject({});
     }
@@ -133,6 +191,7 @@ export function createProjects(ctx) {
             name: nameInput ? nameInput.value : '',
             url: urlInput ? urlInput.value : ''
         };
+        ctx.renderSoon();
     }
 
     function shouldCompactProject() {
@@ -149,15 +208,22 @@ export function createProjects(ctx) {
             ctx.setProjectLibrary(library);
             active.id = entry.id;
             ctx.saveProjectLibrary();
-        } else if (active.id && !findProjectById(active.id) && active.name) {
-            const match = library.find(function (entry) {
-                return entry.name === active.name && entry.url === active.url;
-            });
-            active.id = match ? match.id : '';
+        } else if (active.id && !findProjectById(active.id)) {
+            const stored = findProjectRecordById(active.id);
+            if (stored && stored.status === 'archived') {
+                active.id = '';
+                active.name = '';
+                active.url = '';
+            } else if (active.name) {
+                const match = library.find(function (entry) {
+                    return entry.status !== 'archived' && entry.name === active.name && entry.url === active.url;
+                });
+                active.id = match ? match.id : '';
+            }
         }
         ctx.runtime.project = active;
         syncProjectDraftFromActive();
-        ctx.runtime.projectEditorOpen = !active.id && !library.length;
+        ctx.runtime.projectEditorOpen = !active.id && !listProjects().length;
         backfillHistoryProjectIds();
         ctx.saveProject();
     }
@@ -175,6 +241,7 @@ export function createProjects(ctx) {
     }
 
     function clearProject() {
+        closeProjectSearch();
         ctx.runtime.project = sanitizeProject({});
         ctx.runtime.projectEditorOpen = false;
         ctx.runtime.projectFilterEnabled = false;
@@ -198,6 +265,7 @@ export function createProjects(ctx) {
         library.unshift(entry);
         ctx.setProjectLibrary(sanitizeProjectLibrary(library));
         ctx.saveProjectLibrary();
+        if (typeof ctx.queueProjectUpsert === 'function') ctx.queueProjectUpsert(entry);
         ctx.renderSoon();
         return deepClone(entry);
     }
@@ -209,9 +277,12 @@ export function createProjects(ctx) {
         if (!sanitized.name) return null;
         entry.name = sanitized.name;
         entry.url = sanitized.url;
+        entry.status = 'active';
         entry.updatedAt = Date.now();
+        entry.updatedBy = String(ctx.getSettings && ctx.getSettings().sheetsNickname || '').trim();
         ctx.setProjectLibrary(sanitizeProjectLibrary(ctx.getProjectLibrary()));
         ctx.saveProjectLibrary();
+        if (typeof ctx.queueProjectUpsert === 'function') ctx.queueProjectUpsert(entry);
         if (ctx.runtime.project && ctx.runtime.project.id === entry.id) {
             ctx.runtime.project = sanitizeProject({
                 id: entry.id,
@@ -228,14 +299,14 @@ export function createProjects(ctx) {
     function deleteProject(id) {
         const needle = String(id || '').trim();
         if (!needle) return false;
-        const library = ctx.getProjectLibrary();
-        const before = library.length;
-        const next = library.filter(function (entry) {
-            return entry.id !== needle;
-        });
-        if (next.length === before) return false;
-        ctx.setProjectLibrary(next);
+        const entry = findProjectById(needle);
+        if (!entry) return false;
+        entry.status = 'archived';
+        entry.updatedAt = Date.now();
+        entry.updatedBy = String(ctx.getSettings && ctx.getSettings().sheetsNickname || '').trim();
+        ctx.setProjectLibrary(sanitizeProjectLibrary(ctx.getProjectLibrary()));
         ctx.saveProjectLibrary();
+        if (typeof ctx.queueProjectArchive === 'function') ctx.queueProjectArchive(entry);
         if (ctx.runtime.project && ctx.runtime.project.id === needle) {
             ctx.runtime.project = sanitizeProject({});
             syncProjectDraftFromActive();
@@ -250,14 +321,12 @@ export function createProjects(ctx) {
         if (!entry) {
             return clearProject();
         }
-        entry.updatedAt = Date.now();
-        ctx.setProjectLibrary(sanitizeProjectLibrary(ctx.getProjectLibrary()));
-        ctx.saveProjectLibrary();
         ctx.runtime.project = sanitizeProject({
             id: entry.id,
             name: entry.name,
             url: entry.url
         });
+        closeProjectSearch();
         syncProjectDraftFromActive();
         ctx.runtime.projectEditorOpen = false;
         ctx.saveProject();
@@ -266,6 +335,7 @@ export function createProjects(ctx) {
     }
 
     function openProjectEditor() {
+        closeProjectSearch();
         syncProjectDraftFromActive();
         ctx.runtime.projectEditorOpen = true;
         ctx.renderSoon();
@@ -308,6 +378,7 @@ export function createProjects(ctx) {
     }
 
     function beginNewProjectForm(root) {
+        closeProjectSearch();
         ctx.runtime.project = sanitizeProject({});
         ctx.runtime.projectDraft = { name: '', url: '' };
         ctx.runtime.projectEditorOpen = true;
@@ -320,6 +391,9 @@ export function createProjects(ctx) {
         if (urlInput) urlInput.value = '';
         if (nameInput) nameInput.focus();
         ctx.renderSoon();
+        if (typeof ctx.syncProjectsFromSheets === 'function') {
+            ctx.syncProjectsFromSheets().catch(function () {});
+        }
     }
 
     function deleteSelectedProject(root) {
@@ -330,10 +404,67 @@ export function createProjects(ctx) {
         return true;
     }
 
+    function reconcileProjectIds(idMap) {
+        const mapping = idMap && typeof idMap === 'object' ? idMap : {};
+        if (!Object.keys(mapping).length) return;
+        let historyChanged = false;
+        const nextHistory = ctx.getHistory().map(function (event) {
+            const project = sanitizeProject(event && event.project || {});
+            const nextId = mapping[project.id];
+            if (!nextId) return event;
+            historyChanged = true;
+            return Object.assign({}, event, {
+                project: sanitizeProject({ id: nextId, name: project.name, url: project.url })
+            });
+        });
+        if (historyChanged) {
+            ctx.setHistory(nextHistory);
+            ctx.saveHistory();
+        }
+        const active = sanitizeProject(ctx.runtime.project || {});
+        if (mapping[active.id]) {
+            active.id = mapping[active.id];
+            ctx.runtime.project = active;
+            ctx.saveProject();
+        }
+    }
+
+    function replaceProjectEntry(value) {
+        const entry = sanitizeProjectEntry(value || {});
+        const library = ctx.getProjectLibrary().filter(function (item) {
+            return item.id !== entry.id;
+        });
+        library.push(entry);
+        ctx.setProjectLibrary(sanitizeProjectLibrary(library));
+        ctx.saveProjectLibrary();
+
+        if (ctx.runtime.project && ctx.runtime.project.id === entry.id) {
+            if (entry.status === 'archived') {
+                ctx.runtime.project = sanitizeProject({});
+                ctx.runtime.projectFilterEnabled = false;
+            } else {
+                ctx.runtime.project = sanitizeProject(entry);
+            }
+            syncProjectDraftFromActive();
+            ctx.saveProject();
+            ctx.saveUiState();
+        }
+        ctx.renderSoon();
+        return deepClone(entry);
+    }
+
     return {
+        findProjectRecordById,
         findProjectById,
         createProjectEntry,
         listProjects,
+        getProjectSuggestions,
+        getProjectsByCreatedAt,
+        searchProjects,
+        toggleProjectSearch,
+        closeProjectSearch,
+        setProjectSearchQuery,
+        selectProjectSearchResult,
         formatProjectOptionLabel,
         getActiveProject,
         hasActiveProject,
@@ -359,7 +490,9 @@ export function createProjects(ctx) {
         closeProjectEditor,
         saveProjectFromForm,
         beginNewProjectForm,
-        deleteSelectedProject
+        deleteSelectedProject,
+        reconcileProjectIds,
+        replaceProjectEntry
     };
 }
 

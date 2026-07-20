@@ -32,12 +32,15 @@ export function sanitizeProject(value) {
 
 export function sanitizeProjectEntry(value) {
     const project = sanitizeProject(value || {});
+    const status = value && value.status === 'archived' ? 'archived' : 'active';
     return {
         id: project.id || createId('project'),
         name: project.name,
         url: project.url,
+        status: status,
         createdAt: Number(value && value.createdAt || Date.now()),
-        updatedAt: Number(value && value.updatedAt || Date.now())
+        updatedAt: Number(value && value.updatedAt || Date.now()),
+        updatedBy: String(value && value.updatedBy || '').trim().slice(0, 80)
     };
 }
 

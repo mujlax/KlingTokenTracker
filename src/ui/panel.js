@@ -51,15 +51,24 @@ export function createPanelModule(ctx) {
         const shadow = host.attachShadow({ mode: 'open' });
         shadow.innerHTML = [
             '<style>',
-            ':host{display:block;--ktt-idle-opacity:.2;opacity:var(--ktt-idle-opacity);transition:opacity .2s ease}',
-            ':host(:hover){opacity:1}',
-            '.panel{width:286px;color:#f6f7f8;background:rgba(18,20,24,.92);border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 30px rgba(0,0,0,.26);border-radius:8px;overflow:hidden;font:13px/1.35 Arial,sans-serif;backdrop-filter:blur(8px)}',
+            ':host{display:block;position:relative;--ktt-idle-opacity:.2}',
+            ':host(:hover) .panel,.panel.undo-active{opacity:1}',
+            '.panel{position:relative;width:286px;color:#f6f7f8;background:rgba(18,20,24,.92);border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 30px rgba(0,0,0,.26);border-radius:8px;overflow:hidden;font:13px/1.35 Arial,sans-serif;backdrop-filter:blur(8px);opacity:var(--ktt-idle-opacity);transition:opacity .2s ease}',
             '.panel.collapsed .panelContent{display:none}',
-            '.header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:rgba(255,255,255,.06);user-select:none}',
+            '.panelContent{position:relative}',
+            '.header{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:rgba(255,255,255,.06);user-select:none;min-height:28px;cursor:move}',
+            '.headerDefault{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;flex:1}',
+            '.panel.undo-active .header{background:rgba(45,108,223,.14)}',
+            '@keyframes undoFlash{0%,100%{background:rgba(45,108,223,.14);box-shadow:inset 0 0 0 0 rgba(110,164,255,0)}50%{background:rgba(45,108,223,.48);box-shadow:inset 0 0 18px rgba(110,164,255,.3)}}',
+            '.panel.undo-fresh .header{animation:undoFlash .5s ease-in-out 4}',
+            '.panel.undo-active .headerDefault{display:none}',
             '.headerDrag{display:flex;align-items:center;gap:8px;min-width:0;flex:1;cursor:move}',
+            '.headerControls{display:flex;align-items:center;gap:6px;flex-shrink:0}',
             '.headerBtn{width:28px;height:28px;flex-shrink:0;cursor:pointer}',
             '.headerBtn svg{width:15px;height:15px}',
             '.title{font-weight:700;letter-spacing:0}',
+            '.versionBtn{appearance:none;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);color:#d8dde6;border-radius:999px;padding:2px 7px;font:11px Arial,sans-serif;cursor:pointer;white-space:nowrap}',
+            '.versionBtn:hover{background:rgba(255,255,255,.14);color:#fff}',
             '.badge{font-size:11px;border-radius:999px;padding:2px 7px;background:#2d6cdf;color:#fff;text-transform:uppercase}',
             '.body{padding:10px 12px 12px}',
             '.tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 10px 0}',
@@ -76,6 +85,12 @@ export function createPanelModule(ctx) {
             '.history{margin-top:10px;display:flex;flex-direction:column;gap:8px;max-height:320px;overflow:auto}',
             '.histItem{border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:8px;background:rgba(255,255,255,.04)}',
             '.histTop{display:flex;justify-content:space-between;gap:8px;color:#fff;font-weight:700;font-size:12px}',
+            '.histSpendMain{min-width:0;flex:1;display:flex;align-items:center;gap:6px;flex-wrap:wrap}',
+            '.histTime{display:inline-flex;align-items:center;border:1px solid rgba(142,182,255,.28);background:rgba(45,108,223,.18);color:#d6e4ff;border-radius:999px;padding:1px 6px;font-size:11px;line-height:1.35;font-weight:700}',
+            '.histAmount{color:#fff;font-weight:800}',
+            '.histSpendService{color:#d8dde6;white-space:nowrap}',
+            '.histDelete{width:24px;height:24px;flex-shrink:0;opacity:.72}',
+            '.histDelete:hover{opacity:1}',
             '.histMeta{margin-top:5px;color:#bfc6d1;font-size:11px;display:flex;flex-wrap:wrap;gap:5px}',
             '.pill{border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:1px 6px;background:rgba(255,255,255,.05)}',
             '.raw{margin-top:5px;color:#8f98a6;font-size:11px;word-break:break-word}',
@@ -84,9 +99,31 @@ export function createPanelModule(ctx) {
             '.projectCompactTools{display:flex;gap:2px;align-items:center;flex-shrink:0}',
             '.projectCompactRow .select.field{padding:5px 22px 5px 8px;font-size:11px;min-height:28px}',
             '.projectCompactTools .miniBtn{width:24px;height:24px;flex-shrink:0}',
+            '.projectSearchPanel{display:grid;gap:5px}',
+            '.projectSearchPanel[hidden]{display:none}',
+            '.projectSearchInputRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px}',
+            '.projectSearchInputRow .field{padding:5px 7px;font-size:11px;min-height:28px}',
+            '.projectSearchClose{width:28px;height:28px}',
+            '.projectSearchResults{display:grid;gap:3px;max-height:150px;overflow:auto}',
+            '.projectSearchResult{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;padding:5px 7px;text-align:left;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:6px}',
+            '.projectSearchResult:hover{background:rgba(45,108,223,.13);border-color:rgba(45,108,223,.4)}',
+            '.projectSearchResultName{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+            '.projectSearchResultMeta{color:#8f98a6;font-size:9px;white-space:nowrap}',
+            '.projectSearchEmpty{padding:4px 2px;color:#8f98a6;font-size:10px}',
             '.projectEditor{display:grid;gap:6px}',
             '.projectBox.compact .projectEditor{display:none}',
             '.projectFields{display:grid;gap:6px}',
+            '.projectSuggestions{display:grid;gap:5px;padding:7px;border:1px solid rgba(242,184,75,.35);border-radius:7px;background:rgba(242,184,75,.08)}',
+            '.projectSuggestions[hidden]{display:none}',
+            '.projectSuggestionsTitle{font-size:10px;line-height:1.35;color:#f2d49b;font-weight:700}',
+            '.projectSuggestionsList{display:grid;gap:4px}',
+            '.projectSuggestion{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;text-align:left;padding:6px 7px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px}',
+            '.projectSuggestion.exact{border-color:rgba(242,184,75,.65);background:rgba(242,184,75,.12)}',
+            '.projectSuggestionMain{min-width:0;display:grid;gap:2px}',
+            '.projectSuggestionName{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+            '.projectSuggestionMeta{font-size:9px;color:#9da6b4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+            '.projectSuggestionAction{font-size:9px;color:#8eb6ff;align-self:center}',
+            '.projectCreateAnyway{font-size:10px;padding:5px 7px;background:transparent;border-color:rgba(255,255,255,.18)}',
             '.projectActionsRow{display:grid;grid-template-columns:1fr auto;gap:6px}',
             '.projectActionsRow button{font-weight:600}',
             '.projectHint{color:#8f98a6;font-size:11px;line-height:1.35}',
@@ -147,64 +184,122 @@ export function createPanelModule(ctx) {
             '.settingsCheck{display:inline-flex;align-items:center;gap:5px;color:#d8dde6;font-size:10px;cursor:pointer;user-select:none;grid-column:1/-1}',
             '.settingsCheck input{width:12px;height:12px;margin:0;cursor:pointer}',
             '.settingsStatus{color:#9aa3b2;font-size:10px;line-height:1.3;word-break:break-word;grid-column:1/-1}',
-            '.settingsActions{display:grid;grid-template-columns:1fr 1fr;gap:4px;grid-column:1/-1}',
+            '.settingsActions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;grid-column:1/-1}',
             '.settingsActions button,.settingsReset{padding:4px 6px;font-size:10px}',
             '.settingsReset{margin-top:2px}',
+            '.versionList{display:grid;gap:7px}',
+            '.versionItem{display:grid;gap:3px;border-top:1px solid rgba(255,255,255,.08);padding-top:7px}',
+            '.versionItem:first-child{border-top:none;padding-top:0}',
+            '.versionTop{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#fff;font-weight:700;font-size:11px}',
+            '.versionDate{color:#8f98a6;font-weight:400}',
+            '.versionChanges{margin:0;padding-left:14px;color:#bfc6d1;font-size:10px;line-height:1.35}',
+            '.undoToast{display:none;width:100%;grid-template-columns:auto minmax(0,1fr) auto auto;gap:6px;align-items:center}',
+            '.panel.undo-active .undoToast{display:grid}',
+            '.undoIcon{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(45,108,223,.32);color:#fff}',
+            '.undoIcon svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}',
+            '.undoText{display:grid;gap:0;min-width:0;color:#d8dde6;font-size:10px;line-height:1.2}',
+            '.undoText strong{color:#fff;font-size:11px;line-height:1.15}',
+            '.undoProjectButton{appearance:none;border:0;background:transparent;color:#fff;padding:0;min-width:0;max-width:100%;font:700 11px/1.15 Arial,sans-serif;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}',
+            '.undoProjectButton:hover{color:#9fc0ff;text-decoration:underline}',
+            '.undoMeta{color:#bfc6d1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+            '.undoAction{padding:4px 8px;font-size:11px;font-weight:700;border-radius:999px;background:#2d6cdf;border-color:#2d6cdf}',
+            '.undoClose{width:22px;height:22px;border-radius:999px}',
+            '.undoProgressTrack{display:none;position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.12);overflow:hidden}',
+            '.panel.undo-active .undoProgressTrack{display:block}',
+            '.undoProgressBar{display:block;width:100%;height:100%;background:linear-gradient(90deg,#6ea4ff,#2d6cdf);transform-origin:left center;transition:transform .1s linear;box-shadow:0 0 7px rgba(110,164,255,.75)}',
+            '.undoProjectPicker{display:none;width:100%;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;align-items:center}',
+            '.panel.undo-picking .undoToast{display:none}',
+            '.panel.undo-picking .undoProjectPicker{display:grid}',
+            '.undoProjectPicker .field{min-height:26px;padding:4px 22px 4px 7px;font-size:10px}',
+            '.undoProjectSearch{grid-column:1/-1;padding-right:7px!important}',
+            '.undoPickerAction{padding:4px 7px;font-size:10px;font-weight:700}',
+            '.undoPickerCancel{padding:4px 7px;font-size:10px;background:rgba(255,255,255,.06)}',
             '.sheetsNicknameWarn{padding:5px 10px;background:rgba(242,184,75,.14);border-bottom:1px solid rgba(242,184,75,.28);color:#f2d49b;font-size:10px;line-height:1.35;cursor:pointer}',
             '.sheetsNicknameWarn[hidden]{display:none}',
             '.tabPanel[data-panel="settings"]{max-height:260px;overflow:auto;padding-top:2px}',
             '</style>',
             '<div class="panel' + (ctx.runtime.panelCollapsed ? ' collapsed' : '') + '">',
-            '  <div class="header">',
-            '    <div class="headerDrag" data-drag-handle>',
-            '      <div class="title">AI Token Tracker</div>',
-            '      <div class="badge" data-field="serviceName">none</div>',
+            '  <div class="header" data-drag-handle>',
+            '    <div class="headerDefault" data-field="headerDefault">',
+            '      <div class="headerDrag">',
+            '        <div class="title">AITT</div>',
+            '        <div class="badge" data-field="serviceName">none</div>',
+            '      </div>',
+            '      <div class="headerControls">',
+            '        <button type="button" class="versionBtn" data-action="showVersions" data-field="versionBadge" aria-label="История версий">v-</button>',
+            '        <button type="button" class="iconBtn headerBtn" data-action="toggleCollapse" data-tooltip="Свернуть панель" aria-label="Свернуть панель">' + iconSvg(ctx.runtime.panelCollapsed ? 'chevron-up' : 'chevron-down') + '</button>',
+            '      </div>',
             '    </div>',
-            '    <button type="button" class="iconBtn headerBtn" data-action="toggleCollapse" data-tooltip="Collapse panel" aria-label="Collapse panel">' + iconSvg(ctx.runtime.panelCollapsed ? 'chevron-up' : 'chevron-down') + '</button>',
+            '    <div class="undoToast" data-field="undoToast" aria-hidden="true">',
+            '      <span class="undoIcon">' + iconSvg('rotate-ccw') + '</span>',
+            '      <span class="undoText"><button type="button" class="undoProjectButton" data-action="openUndoProjectPicker" data-field="undoProjectName" aria-label="Сменить проект">Без проекта ▾</button><span class="undoMeta" data-field="undoMeta"></span></span>',
+            '      <button type="button" class="undoAction" data-action="undoSpend">Отменить</button>',
+            '      <button type="button" class="iconBtn undoClose" data-action="closeUndoToast" data-tooltip="Закрыть" aria-label="Закрыть отмену">' + iconSvg('x') + '</button>',
+            '    </div>',
+            '    <div class="undoProjectPicker" data-field="undoProjectPicker">',
+            '      <input class="field undoProjectSearch" data-field="undoProjectSearch" type="search" placeholder="Поиск проекта">',
+            '      <select class="field select" data-field="undoProjectSelect" aria-label="Выбрать проект"></select>',
+            '      <button type="button" class="undoPickerAction" data-action="applyUndoProject">Применить</button>',
+            '      <button type="button" class="undoPickerCancel" data-action="cancelUndoProject">Отмена</button>',
+            '    </div>',
+            '    <span class="undoProgressTrack" aria-hidden="true"><span class="undoProgressBar" data-field="undoProgressBar"></span></span>',
             '  </div>',
             '  <div class="panelContent">',
             '  <div class="projectBox compact" data-field="projectBox">',
             '    <div class="projectCompactRow">',
-            '      <select class="field select" data-field="projectSelect" aria-label="Select project"></select>',
+            '      <select class="field select" data-field="projectSelect" aria-label="Выбрать проект"></select>',
             '      <div class="projectCompactTools">',
-            '        <button type="button" class="iconBtn miniBtn" data-action="editProject" data-tooltip="Edit project" aria-label="Edit project">' + iconSvg('pencil') + '</button>',
-            '        <button type="button" class="iconBtn miniBtn" data-action="newProject" data-tooltip="New project" aria-label="New project">' + iconSvg('plus') + '</button>',
-            '        <button type="button" class="iconBtn miniBtn" data-action="deleteProject" data-tooltip="Delete project" aria-label="Delete project">' + iconSvg('trash-2') + '</button>',
-            '        <button type="button" class="iconBtn miniBtn" data-action="clearProject" data-tooltip="Clear active project" aria-label="Clear active project">' + iconSvg('x') + '</button>',
+            '        <button type="button" class="iconBtn miniBtn" data-action="toggleProjectSearch" data-tooltip="Поиск проектов" aria-label="Поиск проектов">' + iconSvg('search') + '</button>',
+            '        <button type="button" class="iconBtn miniBtn" data-action="editProject" data-tooltip="Редактировать проект" aria-label="Редактировать проект">' + iconSvg('pencil') + '</button>',
+            '        <button type="button" class="iconBtn miniBtn" data-action="newProject" data-tooltip="Новый проект" aria-label="Новый проект">' + iconSvg('plus') + '</button>',
+            '        <button type="button" class="iconBtn miniBtn" data-action="deleteProject" data-tooltip="Удалить проект" aria-label="Удалить проект">' + iconSvg('trash-2') + '</button>',
+            '        <button type="button" class="iconBtn miniBtn" data-action="clearProject" data-tooltip="Сбросить проект" aria-label="Сбросить проект">' + iconSvg('x') + '</button>',
             '      </div>',
+            '    </div>',
+            '    <div class="projectSearchPanel" data-field="projectSearchPanel" hidden>',
+            '      <div class="projectSearchInputRow">',
+            '        <input class="field" data-field="projectSearchInput" type="search" placeholder="Поиск по названию">',
+            '        <button type="button" class="iconBtn projectSearchClose" data-action="closeProjectSearch" data-tooltip="Закрыть поиск" aria-label="Закрыть поиск">' + iconSvg('x') + '</button>',
+            '      </div>',
+            '      <div class="projectSearchResults" data-field="projectSearchResults"></div>',
             '    </div>',
             '    <div class="projectFilterRow" data-field="projectFilterRow">',
             '      <label class="projectFilter">',
             '        <input type="checkbox" data-field="projectFilterToggle">',
-            '        <span>Only this project</span>',
+            '        <span>Только этот проект</span>',
             '      </label>',
             '      <span class="projectMiniStat" data-field="projectMiniStat"></span>',
             '    </div>',
             '    <div class="projectEditor" data-field="projectEditor">',
             '      <div class="projectFields">',
-            '        <input class="field" data-field="projectName" type="text" placeholder="Task name">',
-            '        <input class="field" data-field="projectUrl" type="url" placeholder="Task URL">',
+            '        <input class="field" data-field="projectName" type="text" placeholder="Название задачи">',
+            '        <input class="field" data-field="projectUrl" type="url" placeholder="URL задачи">',
+            '      </div>',
+            '      <div class="projectSuggestions" data-field="projectSuggestions" hidden>',
+            '        <div class="projectSuggestionsTitle" data-field="projectSuggestionsTitle"></div>',
+            '        <div class="projectSuggestionsList" data-field="projectSuggestionsList"></div>',
+            '        <button type="button" class="projectCreateAnyway" data-action="createProjectAnyway">Всё равно создать новый</button>',
             '      </div>',
             '      <div class="projectActionsRow">',
-            '        <button type="button" data-action="saveProject">Save to list</button>',
-            '        <button type="button" data-action="cancelProjectEdit">Cancel</button>',
+            '        <button type="button" data-action="saveProject" data-field="saveProjectButton">Сохранить в список</button>',
+            '        <button type="button" data-action="cancelProjectEdit">Отмена</button>',
             '      </div>',
-            '      <div class="projectHint" data-field="projectHint">Select a saved project or create a new one.</div>',
+            '      <div class="projectHint" data-field="projectHint">Выберите сохранённый проект или создайте новый.</div>',
             '    </div>',
             '  </div>',
-            '  <div class="sheetsNicknameWarn" data-field="sheetsNicknameWarn" hidden>Добавьте nickname в Settings → Google Sheets</div>',
+            '  <div class="sheetsNicknameWarn" data-field="sheetsNicknameWarn" hidden>Добавьте имя в Настройки → Google Sheets</div>',
             '  <div class="tabs">',
-            '    <button type="button" class="tab" data-tab="summary">Summary</button>',
-            '    <button type="button" class="tab" data-tab="history">History</button>',
-            '    <button type="button" class="tab" data-tab="settings">Settings</button>',
+            '    <button type="button" class="tab" data-tab="summary">Сводка</button>',
+            '    <button type="button" class="tab" data-tab="history">История</button>',
+            '    <button type="button" class="tab" data-tab="settings">Настройки</button>',
             '  </div>',
             '  <div class="body">',
             '   <div class="tabPanel" data-panel="summary">',
             '    <div class="grid">',
-            '      <div class="label">Balance</div><div class="value" data-field="balance">-</div>',
+            '      <div class="label">Баланс</div><div class="value" data-field="balance">-</div>',
             '    </div>',
             '    <div class="projectGrid grid" data-field="projectGrid" hidden>',
-            '      <div class="label">Project total</div><div class="value" data-field="projectTotal">0</div>',
+            '      <div class="label">Итого по проекту</div><div class="value" data-field="projectTotal">0</div>',
             '      <div class="projectBreakdown" data-field="projectBreakdown"></div>',
             '    </div>',
             '    <div class="events" data-field="events"></div>',
@@ -217,20 +312,20 @@ export function createPanelModule(ctx) {
             '    <div class="settingsForm">',
             '      <div class="acc open" data-acc="panel">',
             '        <button type="button" class="accHead" data-action="toggleSettingsAcc">',
-            '          <span class="accTitle">Panel</span>',
+            '          <span class="accTitle">Панель</span>',
             '          <span class="accMeta" data-field="settingAccMetaPanel">20% · 286px</span>',
             '          <span class="accChevron">' + iconSvg('chevron-down') + '</span>',
             '        </button>',
             '        <div class="accBody">',
             '          <div class="settingsCompactRow">',
-            '            <span class="settingsLabel">Opacity</span>',
+            '            <span class="settingsLabel">Прозрачность</span>',
             '            <div class="settingsInline">',
             '              <input class="field" data-field="settingIdleOpacity" type="range" min="10" max="80" step="5">',
             '              <span class="settingsValue" data-field="settingIdleOpacityValue">20%</span>',
             '            </div>',
             '          </div>',
             '          <div class="settingsCompactRow">',
-            '            <span class="settingsLabel">Width</span>',
+            '            <span class="settingsLabel">Ширина</span>',
             '            <select class="field select" data-field="settingPanelWidth">',
             '              <option value="260">260 px</option>',
             '              <option value="286">286 px</option>',
@@ -239,19 +334,19 @@ export function createPanelModule(ctx) {
             '          </div>',
             '          <label class="settingsCheck">',
             '            <input type="checkbox" data-field="settingRememberPosition">',
-            '            <span>Remember position</span>',
+            '            <span>Запоминать позицию</span>',
             '          </label>',
             '        </div>',
             '      </div>',
             '      <div class="acc" data-acc="display">',
             '        <button type="button" class="accHead" data-action="toggleSettingsAcc">',
-            '          <span class="accTitle">Display</span>',
+            '          <span class="accTitle">Отображение</span>',
             '          <span class="accMeta" data-field="settingAccMetaDisplay">3 · 50</span>',
             '          <span class="accChevron">' + iconSvg('chevron-down') + '</span>',
             '        </button>',
             '        <div class="accBody">',
             '          <div class="settingsCompactRow">',
-            '            <span class="settingsLabel">Summary</span>',
+            '            <span class="settingsLabel">Сводка</span>',
             '            <select class="field select" data-field="settingSummaryEvents">',
             '              <option value="1">1</option>',
             '              <option value="3">3</option>',
@@ -260,13 +355,23 @@ export function createPanelModule(ctx) {
             '            </select>',
             '          </div>',
             '          <div class="settingsCompactRow">',
-            '            <span class="settingsLabel">History</span>',
+            '            <span class="settingsLabel">История</span>',
             '            <select class="field select" data-field="settingHistoryLimit">',
             '              <option value="25">25</option>',
             '              <option value="50">50</option>',
             '              <option value="100">100</option>',
             '            </select>',
             '          </div>',
+            '        </div>',
+            '      </div>',
+            '      <div class="acc" data-acc="versions">',
+            '        <button type="button" class="accHead" data-action="toggleSettingsAcc">',
+            '          <span class="accTitle">Версии</span>',
+            '          <span class="accMeta" data-field="settingAccMetaVersions">v-</span>',
+            '          <span class="accChevron">' + iconSvg('chevron-down') + '</span>',
+            '        </button>',
+            '        <div class="accBody">',
+            '          <div class="versionList" data-field="versionHistory"></div>',
             '        </div>',
             '      </div>',
             '      <div class="acc' + (needsSheetsNickname(ctx.runtime.settings) ? ' open' : '') + '" data-acc="sheets">',
@@ -278,38 +383,38 @@ export function createPanelModule(ctx) {
             '        <div class="accBody">',
             '          <label class="settingsCheck">',
             '            <input type="checkbox" data-field="settingSheetsEnabled">',
-            '            <span>Sync spends</span>',
+            '            <span>Синхронизация трат и проектов</span>',
             '          </label>',
             '          <div class="settingsCompactRow">',
-            '            <span class="settingsLabel">Nickname</span>',
-            '            <input class="field" data-field="settingSheetsNickname" type="text" placeholder="Team name">',
+            '            <span class="settingsLabel">Имя</span>',
+            '            <input class="field" data-field="settingSheetsNickname" type="text" placeholder="Имя в команде">',
             '          </div>',
             '          <div class="settingsCompactRow">',
-            '            <span class="settingsLabel">Token</span>',
-            '            <input class="field" data-field="settingSheetsSecretToken" type="password" placeholder="Secret">',
+            '            <span class="settingsLabel">Токен</span>',
+            '            <input class="field" data-field="settingSheetsSecretToken" type="password" placeholder="Секрет">',
             '          </div>',
             '          <div class="settingsCompactRow">',
             '            <span class="settingsLabel">URL</span>',
             '            <input class="field" data-field="settingSheetsWebAppUrl" type="url" placeholder=".../exec">',
             '          </div>',
-            '          <div class="settingsStatus" data-field="settingSheetsStatus">Sheets sync is off.</div>',
+            '          <div class="settingsStatus" data-field="settingSheetsStatus">Синхронизация с Sheets выключена.</div>',
             '          <div class="settingsActions">',
-            '            <button type="button" data-action="testSheetsConnection">Test</button>',
-            '            <button type="button" data-action="retrySheetsSync">Retry</button>',
+            '            <button type="button" data-action="testSheetsConnection">Проверить</button>',
+            '            <button type="button" data-action="retrySheetsSync">Повторить</button>',
+            '            <button type="button" data-action="refreshSheetsData">Обновить</button>',
             '          </div>',
             '        </div>',
             '      </div>',
-            '      <button type="button" class="settingsReset" data-action="resetSettings">Reset defaults</button>',
+            '      <button type="button" class="settingsReset" data-action="resetSettings">Сбросить настройки</button>',
             '    </div>',
             '   </div>',
             '    <div class="actions">',
-            '      <button type="button" class="iconBtn" data-action="resetAll" data-tooltip="Reset all" aria-label="Reset all">' + iconSvg('trash-2') + '</button>',
-            '      <button type="button" class="iconBtn" data-action="copyReport" data-tooltip="Copy report" aria-label="Copy report">' + iconSvg('clipboard-copy') + '</button>',
-            '      <button type="button" class="iconBtn" data-action="reset" data-tooltip="Reset session" aria-label="Reset session">' + iconSvg('rotate-ccw') + '</button>',
-            '      <button type="button" class="iconBtn" data-action="export" data-tooltip="Export JSON" aria-label="Export JSON">' + iconSvg('download') + '</button>',
-            '      <button type="button" class="iconBtn" data-action="debug" data-tooltip="Collect debug report" aria-label="Collect debug report">' + iconSvg('bug') + '</button>',
+            '      <button type="button" class="iconBtn" data-action="resetAll" data-tooltip="Сбросить всё" aria-label="Сбросить всё">' + iconSvg('trash-2') + '</button>',
+            '      <button type="button" class="iconBtn" data-action="copyReport" data-tooltip="Копировать отчёт" aria-label="Копировать отчёт">' + iconSvg('clipboard-copy') + '</button>',
+            '      <button type="button" class="iconBtn" data-action="reset" data-tooltip="Сбросить сессию" aria-label="Сбросить сессию">' + iconSvg('rotate-ccw') + '</button>',
+            '      <button type="button" class="iconBtn" data-action="export" data-tooltip="Экспорт JSON" aria-label="Экспорт JSON">' + iconSvg('download') + '</button>',
+            '      <button type="button" class="iconBtn" data-action="debug" data-tooltip="Собрать отчёт отладки" aria-label="Собрать отчёт отладки">' + iconSvg('bug') + '</button>',
             '    </div>',
-            '  </div>',
             '  </div>',
             '</div>'
         ].join('');
@@ -329,8 +434,72 @@ export function createPanelModule(ctx) {
         shadow.querySelector('[data-action="debug"]').addEventListener('click', function () {
             ctx.setDebug(!ctx.runtime.debug);
         });
+        shadow.querySelector('[data-action="undoSpend"]').addEventListener('click', function () {
+            ctx.undoLastSpend();
+        });
+        shadow.querySelector('[data-action="openUndoProjectPicker"]').addEventListener('click', function (event) {
+            event.stopPropagation();
+            if (ctx.openUndoProjectPicker()) {
+                window.setTimeout(function () {
+                    const input = shadow.querySelector('[data-field="undoProjectSearch"]');
+                    if (input) input.focus();
+                }, 0);
+            }
+        });
+        shadow.querySelector('[data-action="applyUndoProject"]').addEventListener('click', function () {
+            const select = shadow.querySelector('[data-field="undoProjectSelect"]');
+            ctx.applyUndoProject(select ? select.value : '');
+        });
+        shadow.querySelector('[data-action="cancelUndoProject"]').addEventListener('click', function () {
+            ctx.resumeUndoProjectPicker();
+        });
+        shadow.querySelector('[data-field="undoProjectSearch"]').addEventListener('input', function (event) {
+            const select = shadow.querySelector('[data-field="undoProjectSelect"]');
+            ctx.setUndoProjectSearchQuery(event.currentTarget.value, select ? select.value : '');
+        });
+        shadow.querySelector('[data-field="undoProjectSelect"]').addEventListener('change', function (event) {
+            ctx.setUndoPendingProject(event.currentTarget.value);
+        });
+        shadow.querySelector('[data-action="closeUndoToast"]').addEventListener('click', function () {
+            ctx.hideUndoSpend();
+        });
+        shadow.querySelector('[data-action="showVersions"]').addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            ctx.setActiveTab('settings');
+            window.setTimeout(function () {
+                const versionsAcc = shadow.querySelector('[data-acc="versions"]');
+                if (versionsAcc) versionsAcc.classList.add('open');
+            }, 60);
+        });
         shadow.querySelector('[data-action="clearProject"]').addEventListener('click', function () {
             ctx.clearProject();
+        });
+        shadow.querySelector('[data-action="toggleProjectSearch"]').addEventListener('click', function () {
+            const opened = ctx.toggleProjectSearch();
+            if (opened) {
+                window.setTimeout(function () {
+                    const input = shadow.querySelector('[data-field="projectSearchInput"]');
+                    if (input) input.focus();
+                }, 0);
+            }
+        });
+        shadow.querySelector('[data-action="closeProjectSearch"]').addEventListener('click', function () {
+            ctx.closeProjectSearch();
+            ctx.renderSoon();
+        });
+        shadow.querySelector('[data-field="projectSearchInput"]').addEventListener('input', function (event) {
+            ctx.setProjectSearchQuery(event.currentTarget.value);
+        });
+        shadow.querySelector('[data-field="projectSearchInput"]').addEventListener('keydown', function (event) {
+            if (event.key !== 'Escape') return;
+            ctx.closeProjectSearch();
+            ctx.renderSoon();
+        });
+        shadow.querySelector('[data-field="projectSearchResults"]').addEventListener('click', function (event) {
+            const button = event.target.closest('[data-project-search-id]');
+            if (!button) return;
+            ctx.selectProjectSearchResult(button.getAttribute('data-project-search-id'));
         });
         shadow.querySelector('[data-action="editProject"]').addEventListener('click', function () {
             ctx.openProjectEditor();
@@ -347,6 +516,14 @@ export function createPanelModule(ctx) {
         });
         shadow.querySelector('[data-action="saveProject"]').addEventListener('click', function () {
             ctx.saveProjectFromForm(shadow);
+        });
+        shadow.querySelector('[data-action="createProjectAnyway"]').addEventListener('click', function () {
+            ctx.saveProjectFromForm(shadow);
+        });
+        shadow.querySelector('[data-field="projectSuggestionsList"]').addEventListener('click', function (event) {
+            const button = event.target.closest('[data-project-id]');
+            if (!button) return;
+            ctx.selectProject(button.getAttribute('data-project-id'));
         });
         shadow.querySelector('[data-field="projectSelect"]').addEventListener('change', function (event) {
             const id = event.currentTarget.value;
@@ -420,7 +597,7 @@ export function createPanelModule(ctx) {
             applySheetsFieldsFromForm(ctx, shadow);
             const statusEl = shadow.querySelector('[data-field="settingSheetsStatus"]');
             const testButton = shadow.querySelector('[data-action="testSheetsConnection"]');
-            if (statusEl) statusEl.textContent = 'Testing connection...';
+            if (statusEl) statusEl.textContent = 'Проверка соединения…';
             if (testButton) testButton.disabled = true;
 
             const runTest = typeof ctx.testSheetsConnection === 'function'
@@ -428,7 +605,7 @@ export function createPanelModule(ctx) {
                 : Promise.reject(new Error('sheets module not ready'));
 
             runTest.then(function () {
-                if (statusEl) statusEl.textContent = 'Connection OK';
+                if (statusEl) statusEl.textContent = 'Соединение OK';
             }).catch(function () {
                 // sheetsLastError updated in sendSheetsRequest
             }).finally(function () {
@@ -438,14 +615,25 @@ export function createPanelModule(ctx) {
         });
         shadow.querySelector('[data-action="retrySheetsSync"]').addEventListener('click', function () {
             applySheetsFieldsFromForm(ctx, shadow);
-            ctx.retryFailedSyncs().then(function () {
+            Promise.all([ctx.retryFailedSyncs(), ctx.retryProjectSyncs()]).then(function () {
+                ctx.renderSoon();
+            });
+        });
+        shadow.querySelector('[data-action="refreshSheetsData"]').addEventListener('click', function () {
+            applySheetsFieldsFromForm(ctx, shadow);
+            const statusEl = shadow.querySelector('[data-field="settingSheetsStatus"]');
+            const refreshButton = shadow.querySelector('[data-action="refreshSheetsData"]');
+            if (statusEl) statusEl.textContent = 'Обновление данных…';
+            if (refreshButton) refreshButton.disabled = true;
+            Promise.resolve(ctx.refreshSheetsData()).catch(function () {}).then(function () {
+                if (refreshButton) refreshButton.disabled = false;
                 ctx.renderSoon();
             });
         });
         shadow.querySelector('[data-action="resetSettings"]').addEventListener('click', function () {
             ctx.resetSettings();
         });
-        installPanelDrag(host, shadow.querySelector('[data-drag-handle]'));
+        installPanelDrag(host, shadow.querySelector('.header'));
 
         mount.appendChild(host);
         ctx.runtime.panelHost = host;
@@ -461,7 +649,7 @@ export function createPanelModule(ctx) {
         if (panel) panel.classList.toggle('collapsed', ctx.runtime.panelCollapsed);
         if (button) {
             button.innerHTML = iconSvg(ctx.runtime.panelCollapsed ? 'chevron-up' : 'chevron-down');
-            const label = ctx.runtime.panelCollapsed ? 'Expand panel' : 'Collapse panel';
+            const label = ctx.runtime.panelCollapsed ? 'Развернуть панель' : 'Свернуть панель';
             button.setAttribute('data-tooltip', label);
             button.setAttribute('aria-label', label);
         }
@@ -491,6 +679,9 @@ export function createPanelModule(ctx) {
         let startBottom = 0;
 
         handle.addEventListener('pointerdown', function (event) {
+            if (event.target && event.target.closest && event.target.closest('button, input, select, textarea, a, [role="button"]')) {
+                return;
+            }
             dragging = true;
             startX = event.clientX;
             startY = event.clientY;

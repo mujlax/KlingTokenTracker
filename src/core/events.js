@@ -146,6 +146,8 @@ export function sanitizeEvents(value) {
             metadata: sanitizeMetadata(event.metadata || {}),
             project: sanitizeProject(event.project || {}),
             estimated: event.estimated === true,
+            user: String(event.user || ''),
+            remote: event.remote === true,
             updatedAt: event.updatedAt ? Number(event.updatedAt) : undefined
         };
     }).sort(function (a, b) {
@@ -161,8 +163,23 @@ export function addEventToSession(session, event) {
     return session;
 }
 
+export function removeEventFromSession(session, event) {
+    if (!session || !Array.isArray(session.eventIds)) session = createSession();
+    if (!event || !event.id) return session;
+    if (session.eventIds.indexOf(event.id) < 0) return session;
+    session.eventIds = session.eventIds.filter(function (id) {
+        return id !== event.id;
+    });
+    session.total = normalizeCredit(Math.max(0, Number(session.total || 0) - Number(event.amount || 0)));
+    return session;
+}
+
 export function eventMatchesService(event, serviceId) {
     return String((event && event.service) || 'kling') === serviceId;
+}
+
+function normalizeProjectName(name) {
+    return String(name || '').trim().toLowerCase();
 }
 
 export function eventMatchesProject(event, project) {
@@ -170,9 +187,7 @@ export function eventMatchesProject(event, project) {
     const eventProject = sanitizeProject((event && event.project) || {});
     if (!eventProject.name) return false;
     if (project.id && eventProject.id) return eventProject.id === project.id;
-    if (eventProject.name !== project.name) return false;
-    if (project.url && eventProject.url && project.url !== eventProject.url) return false;
-    return true;
+    return normalizeProjectName(eventProject.name) === normalizeProjectName(project.name);
 }
 
 export function getFilteredHistory(history, project) {
@@ -217,6 +232,24 @@ export function getProjectTotalsByService(history, project) {
         if (b.total !== a.total) return b.total - a.total;
         return a.serviceName.localeCompare(b.serviceName);
     });
+}
+
+export function replaceEventProject(history, eventId, project, now) {
+    const id = String(eventId || '');
+    const nextProject = sanitizeProject(project || {});
+    let updatedEvent = null;
+    const nextHistory = (Array.isArray(history) ? history : []).map(function (event) {
+        if (!event || event.id !== id) return event;
+        updatedEvent = Object.assign({}, event, {
+            project: nextProject,
+            updatedAt: Number(now || Date.now())
+        });
+        return updatedEvent;
+    });
+    return {
+        history: nextHistory,
+        event: updatedEvent
+    };
 }
 
 export function getTodayTotal(history, serviceId) {

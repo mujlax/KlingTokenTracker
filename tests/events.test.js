@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findDuplicateSpend, getProjectTotalsByService } from '../src/core/events.js';
+import {
+    eventMatchesProject,
+    findDuplicateSpend,
+    getProjectTotalsByService,
+    removeEventFromSession,
+    replaceEventProject,
+    sanitizeEvents
+} from '../src/core/events.js';
 
 const baseInput = {
     amount: 15,
@@ -9,6 +16,30 @@ const baseInput = {
     source: 'ui',
     estimated: true
 };
+
+test('replaceEventProject updates only the requested spend', function () {
+    const history = [
+        { id: 'event:1', project: { id: 'old', name: 'Old', url: '' }, updatedAt: 1 },
+        { id: 'event:2', project: { id: 'other', name: 'Other', url: '' }, updatedAt: 2 }
+    ];
+    const result = replaceEventProject(history, 'event:1', {
+        id: 'new',
+        name: 'New project',
+        url: 'https://example.com'
+    }, 100);
+    assert.equal(result.event.project.id, 'new');
+    assert.equal(result.event.project.name, 'New project');
+    assert.equal(result.event.updatedAt, 100);
+    assert.equal(result.history[1], history[1]);
+    assert.equal(history[0].project.id, 'old');
+});
+
+test('replaceEventProject supports removing the project assignment', function () {
+    const result = replaceEventProject([
+        { id: 'event:1', project: { id: 'old', name: 'Old', url: '' } }
+    ], 'event:1', {}, 100);
+    assert.deepEqual(result.event.project, { id: '', name: '', url: '' });
+});
 
 test('findDuplicateSpend does not merge identical stale UI spends after 15s', function () {
     const history = [{
@@ -103,4 +134,40 @@ test('getProjectTotalsByService uses first non-empty serviceName', function () {
 
 test('getProjectTotalsByService returns empty array for empty history', function () {
     assert.deepEqual(getProjectTotalsByService([], { id: 'p1', name: 'Launch', url: '' }), []);
+});
+
+test('eventMatchesProject matches by normalized name across users', function () {
+    const localProject = { id: 'p_local', name: 'Bononews', url: '' };
+    const remoteEvent = { project: { id: '', name: '  bononews  ', url: '' } };
+    assert.equal(eventMatchesProject(remoteEvent, localProject), true);
+
+    const otherEvent = { project: { id: '', name: 'Something else', url: '' } };
+    assert.equal(eventMatchesProject(otherEvent, localProject), false);
+});
+
+test('sanitizeEvents preserves user and remote flags', function () {
+    const events = sanitizeEvents([
+        { id: 'e1', amount: 5, user: 'Alice', remote: true },
+        { id: 'e2', amount: 3 }
+    ]);
+    const byId = {};
+    events.forEach(function (event) {
+        byId[event.id] = event;
+    });
+    assert.equal(byId.e1.user, 'Alice');
+    assert.equal(byId.e1.remote, true);
+    assert.equal(byId.e2.user, '');
+    assert.equal(byId.e2.remote, false);
+});
+
+test('removeEventFromSession removes id and subtracts amount', function () {
+    const session = {
+        id: 's1',
+        startedAt: 100,
+        total: 25,
+        eventIds: ['e1', 'e2']
+    };
+    const next = removeEventFromSession(session, { id: 'e1', amount: 10 });
+    assert.deepEqual(next.eventIds, ['e2']);
+    assert.equal(next.total, 15);
 });

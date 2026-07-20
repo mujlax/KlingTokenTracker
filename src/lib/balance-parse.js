@@ -33,6 +33,10 @@ export function scoreBalancePath(pathText, url) {
     return score;
 }
 
+function normalizeKlingPointAndTicketCredit(value) {
+    return normalizeCredit(value / 100);
+}
+
 export function extractKlingPointAndTicketBalance(payload) {
     const data = payload && payload.data;
     if (!data || typeof data !== 'object') return null;
@@ -40,7 +44,7 @@ export function extractKlingPointAndTicketBalance(payload) {
     const total = normalizeJsonNumber(data.total);
     if (isFiniteCredit(total)) {
         return {
-            value: normalizeCredit(total),
+            value: normalizeKlingPointAndTicketCredit(total),
             path: 'data.total',
             score: 30
         };
@@ -57,7 +61,7 @@ export function extractKlingPointAndTicketBalance(payload) {
         });
         if (hasAny) {
             return {
-                value: normalizeCredit(sum),
+                value: normalizeKlingPointAndTicketCredit(sum),
                 path: 'data.points[].balance(sum)',
                 score: 28
             };
@@ -69,7 +73,7 @@ export function extractKlingPointAndTicketBalance(payload) {
     );
     if (isFiniteCredit(remain)) {
         return {
-            value: normalizeCredit(remain),
+            value: normalizeKlingPointAndTicketCredit(remain),
             path: data.remainPoints != null ? 'data.remainPoints' : 'data.remain_points',
             score: 26
         };

@@ -1,6 +1,6 @@
-import { HISTORY_KEY, PROJECT_KEY, PROJECTS_LIBRARY_KEY, MAX_EVENTS } from './constants.js';
+import { HISTORY_KEY, PROJECT_KEY, PROJECTS_LIBRARY_KEY, PROJECTS_SYNC_KEY, MAX_EVENTS } from './constants.js';
 
-const SHARED_KEYS = new Set([HISTORY_KEY, PROJECT_KEY, PROJECTS_LIBRARY_KEY]);
+const SHARED_KEYS = new Set([HISTORY_KEY, PROJECT_KEY, PROJECTS_LIBRARY_KEY, PROJECTS_SYNC_KEY]);
 
 function gmAvailable() {
     return typeof GM_getValue === 'function' && typeof GM_setValue === 'function';

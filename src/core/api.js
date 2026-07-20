@@ -136,6 +136,8 @@ export function createApi(ctx) {
         ctx.setProjectLibrary([]);
         ctx.runtime.projectDraft = { name: '', url: '' };
         ctx.runtime.projectEditorOpen = false;
+        ctx.runtime.projectSearchOpen = false;
+        ctx.runtime.projectSearchQuery = '';
         ctx.runtime.projectFilterEnabled = false;
         ctx.runtime.balance = null;
         ctx.runtime.balanceSource = 'none';
@@ -192,6 +194,8 @@ export function createApi(ctx) {
             clearHistory,
             forgetBalance,
             resetAll,
+            deleteSpendEvent: ctx.deleteSpendEvent,
+            undoLastSpend: ctx.undoLastSpend,
             setProject: ctx.setProject,
             clearProject: ctx.clearProject,
             listProjects: ctx.listProjects,
@@ -199,6 +203,7 @@ export function createApi(ctx) {
             updateProject: ctx.updateProject,
             deleteProject: ctx.deleteProject,
             selectProject: ctx.selectProject,
+            syncProjectsFromSheets: ctx.syncProjectsFromSheets,
             getDebugReport,
             copyDebugReport
         };
@@ -219,6 +224,8 @@ export function createApi(ctx) {
         forgetBalance,
         resetAll,
         setDebug,
+        deleteSpendEvent: ctx.deleteSpendEvent,
+        undoLastSpend: ctx.undoLastSpend,
         downloadExport
     };
 }

@@ -10,10 +10,10 @@ test('extractKlingPointAndTicketBalance prefers data.total over points[0].balanc
     const payload = {
         data: {
             points: [
-                { type: 'bonus', balance: 1700 },
-                { type: 'plan', balance: 4300 }
+                { type: 'bonus', balance: 170000 },
+                { type: 'plan', balance: 430000 }
             ],
-            total: 6000
+            total: 600000
         }
     };
 
@@ -26,8 +26,8 @@ test('extractKlingPointAndTicketBalance sums points when total is missing', func
     const payload = {
         data: {
             points: [
-                { balance: 1700 },
-                { balance: 4300 }
+                { balance: 170000 },
+                { balance: 430000 }
             ]
         }
     };
@@ -37,11 +37,28 @@ test('extractKlingPointAndTicketBalance sums points when total is missing', func
     assert.equal(result.path, 'data.points[].balance(sum)');
 });
 
+test('extractKlingPointAndTicketBalance normalizes pointAndTicket minor units', function () {
+    const payload = {
+        data: {
+            points: [
+                { balance: 591200 },
+                { balance: 100 },
+                { balance: 0 }
+            ],
+            total: 591300
+        }
+    };
+
+    const result = extractKlingPointAndTicketBalance(payload);
+    assert.equal(result.value, 5913);
+    assert.equal(result.path, 'data.total');
+});
+
 test('extractBalanceFromPayload uses total for pointAndTicket endpoint', function () {
     const payload = {
         data: {
-            points: [{ balance: 1700 }],
-            total: 994
+            points: [{ balance: 170000 }],
+            total: 99400
         }
     };
 
