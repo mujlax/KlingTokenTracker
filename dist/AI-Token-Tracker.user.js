@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI Token Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.9.4
+// @version      0.9.5
 // @description  Учёт расхода AI-кредитов при генерации: панель, проекты, история, синхронизация с Google Sheets.
 // @match        *://kling.ai/*
 // @match        *://*.kling.ai/*
@@ -20,8 +20,16 @@
 
 (() => {
   // src/core/constants.js
-  var VERSION = "0.9.4";
+  var VERSION = "0.9.5";
   var VERSION_HISTORY = [
+    {
+      version: "0.9.5",
+      date: "2026-07-20",
+      changes: [
+        "\u041E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0430 \u043F\u0435\u0440\u0435\u0441\u0431\u043E\u0440\u043A\u0430 dist \u0434\u043B\u044F Tampermonkey",
+        "\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u0430 \u0432\u0435\u0440\u0441\u0438\u044F \u0432\u043E \u0432\u0441\u0435\u0445 \u0430\u0440\u0442\u0435\u0444\u0430\u043A\u0442\u0430\u0445 \u043F\u0440\u043E\u0435\u043A\u0442\u0430"
+      ]
+    },
     {
       version: "0.9.4",
       date: "2026-07-20",

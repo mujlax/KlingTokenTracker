@@ -1,5 +1,13 @@
-export const VERSION = '0.9.4';
+export const VERSION = '0.9.5';
 export const VERSION_HISTORY = [
+    {
+        version: '0.9.5',
+        date: '2026-07-20',
+        changes: [
+            'Обновлена пересборка dist для Tampermonkey',
+            'Синхронизирована версия во всех артефактах проекта'
+        ]
+    },
     {
         version: '0.9.4',
         date: '2026-07-20',
