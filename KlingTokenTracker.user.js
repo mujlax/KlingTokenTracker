@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI Token Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.9.2
+// @version      0.9.3
 // @description  Tracks AI credits/tokens spending from Generate UI across supported platforms.
 // @match        *://kling.ai/*
 // @match        *://*.kling.ai/*
@@ -20,8 +20,17 @@
 
 (() => {
   // src/core/constants.js
-  var VERSION = "0.9.2";
+  var VERSION = "0.9.3";
   var VERSION_HISTORY = [
+    {
+      version: "0.9.3",
+      date: "2026-07-20",
+      changes: [
+        "Added project name search in Undo",
+        "Sorted Undo projects by newest created",
+        "Added quick project search to the compact panel"
+      ]
+    },
     {
       version: "0.9.2",
       date: "2026-07-20",
@@ -1451,6 +1460,25 @@
       return Number(right.updatedAt || 0) - Number(left.updatedAt || 0);
     }).slice(0, limit);
   }
+  function sortProjectsByCreatedAt(projects) {
+    return (Array.isArray(projects) ? projects : []).filter(function(project) {
+      return project && project.status !== "archived";
+    }).slice().sort(function(left, right) {
+      const createdDiff = Number(right.createdAt || 0) - Number(left.createdAt || 0);
+      if (createdDiff) return createdDiff;
+      return String(left.name || "").localeCompare(String(right.name || ""));
+    });
+  }
+  function searchProjectsByName(projects, query, options) {
+    const settings = options || {};
+    const limit = Number(settings.limit) > 0 ? Number(settings.limit) : Infinity;
+    const needle = normalizeProjectName2(query);
+    const sorted = sortProjectsByCreatedAt(projects);
+    const matches = needle ? sorted.filter(function(project) {
+      return nameMatchScore(needle, normalizeProjectName2(project.name)) >= 0.55;
+    }) : sorted;
+    return matches.slice(0, limit);
+  }
   function projectsAreEquivalent(left, right) {
     const leftUrl = normalizeProjectUrl(left && left.url);
     const rightUrl = normalizeProjectUrl(right && right.url);
@@ -1503,6 +1531,34 @@
         limit: 5,
         excludeId
       });
+    }
+    function getProjectsByCreatedAt() {
+      return sortProjectsByCreatedAt(ctx.getProjectLibrary()).map(function(entry) {
+        return deepClone(entry);
+      });
+    }
+    function searchProjects(name, limit) {
+      return searchProjectsByName(ctx.getProjectLibrary(), name, { limit }).map(function(entry) {
+        return deepClone(entry);
+      });
+    }
+    function closeProjectSearch() {
+      ctx.runtime.projectSearchOpen = false;
+      ctx.runtime.projectSearchQuery = "";
+    }
+    function toggleProjectSearch() {
+      ctx.runtime.projectSearchOpen = !ctx.runtime.projectSearchOpen;
+      ctx.runtime.projectSearchQuery = "";
+      ctx.renderSoon();
+      return ctx.runtime.projectSearchOpen;
+    }
+    function setProjectSearchQuery(value) {
+      ctx.runtime.projectSearchQuery = String(value || "");
+      ctx.renderSoon();
+    }
+    function selectProjectSearchResult(id) {
+      closeProjectSearch();
+      return selectProject(id);
     }
     function formatProjectOptionLabel(entry) {
       const name = entry.name || "Untitled";
@@ -1630,6 +1686,7 @@
       return ctx.getState();
     }
     function clearProject() {
+      closeProjectSearch();
       ctx.runtime.project = sanitizeProject({});
       ctx.runtime.projectEditorOpen = false;
       ctx.runtime.projectFilterEnabled = false;
@@ -1709,6 +1766,7 @@
         name: entry.name,
         url: entry.url
       });
+      closeProjectSearch();
       syncProjectDraftFromActive();
       ctx.runtime.projectEditorOpen = false;
       ctx.saveProject();
@@ -1716,6 +1774,7 @@
       return ctx.getState();
     }
     function openProjectEditor() {
+      closeProjectSearch();
       syncProjectDraftFromActive();
       ctx.runtime.projectEditorOpen = true;
       ctx.renderSoon();
@@ -1753,6 +1812,7 @@
       return entry;
     }
     function beginNewProjectForm(root) {
+      closeProjectSearch();
       ctx.runtime.project = sanitizeProject({});
       ctx.runtime.projectDraft = { name: "", url: "" };
       ctx.runtime.projectEditorOpen = true;
@@ -1829,6 +1889,12 @@
       createProjectEntry,
       listProjects,
       getProjectSuggestions,
+      getProjectsByCreatedAt,
+      searchProjects,
+      toggleProjectSearch,
+      closeProjectSearch,
+      setProjectSearchQuery,
+      selectProjectSearchResult,
       formatProjectOptionLabel,
       getActiveProject,
       hasActiveProject,
@@ -2437,6 +2503,8 @@
       ctx.setProjectLibrary([]);
       ctx.runtime.projectDraft = { name: "", url: "" };
       ctx.runtime.projectEditorOpen = false;
+      ctx.runtime.projectSearchOpen = false;
+      ctx.runtime.projectSearchQuery = "";
       ctx.runtime.projectFilterEnabled = false;
       ctx.runtime.balance = null;
       ctx.runtime.balanceSource = "none";
@@ -2580,6 +2648,10 @@
       pencil: [
         '<path d="M12 20h9"/>',
         '<path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>'
+      ],
+      search: [
+        '<circle cx="11" cy="11" r="7"/>',
+        '<path d="M20 20l-4-4"/>'
       ],
       "chevron-down": [
         '<path d="M6 9l6 6 6-6"/>'
@@ -2783,6 +2855,17 @@
         ".projectCompactTools{display:flex;gap:2px;align-items:center;flex-shrink:0}",
         ".projectCompactRow .select.field{padding:5px 22px 5px 8px;font-size:11px;min-height:28px}",
         ".projectCompactTools .miniBtn{width:24px;height:24px;flex-shrink:0}",
+        ".projectSearchPanel{display:grid;gap:5px}",
+        ".projectSearchPanel[hidden]{display:none}",
+        ".projectSearchInputRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px}",
+        ".projectSearchInputRow .field{padding:5px 7px;font-size:11px;min-height:28px}",
+        ".projectSearchClose{width:28px;height:28px}",
+        ".projectSearchResults{display:grid;gap:3px;max-height:150px;overflow:auto}",
+        ".projectSearchResult{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;padding:5px 7px;text-align:left;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:6px}",
+        ".projectSearchResult:hover{background:rgba(45,108,223,.13);border-color:rgba(45,108,223,.4)}",
+        ".projectSearchResultName{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+        ".projectSearchResultMeta{color:#8f98a6;font-size:9px;white-space:nowrap}",
+        ".projectSearchEmpty{padding:4px 2px;color:#8f98a6;font-size:10px}",
         ".projectEditor{display:grid;gap:6px}",
         ".projectBox.compact .projectEditor{display:none}",
         ".projectFields{display:grid;gap:6px}",
@@ -2884,6 +2967,7 @@
         ".panel.undo-picking .undoToast{display:none}",
         ".panel.undo-picking .undoProjectPicker{display:grid}",
         ".undoProjectPicker .field{min-height:26px;padding:4px 22px 4px 7px;font-size:10px}",
+        ".undoProjectSearch{grid-column:1/-1;padding-right:7px!important}",
         ".undoPickerAction{padding:4px 7px;font-size:10px;font-weight:700}",
         ".undoPickerCancel{padding:4px 7px;font-size:10px;background:rgba(255,255,255,.06)}",
         ".sheetsNicknameWarn{padding:5px 10px;background:rgba(242,184,75,.14);border-bottom:1px solid rgba(242,184,75,.28);color:#f2d49b;font-size:10px;line-height:1.35;cursor:pointer}",
@@ -2909,6 +2993,7 @@
         '      <button type="button" class="iconBtn undoClose" data-action="closeUndoToast" data-tooltip="Close" aria-label="Close undo">' + iconSvg("x") + "</button>",
         "    </div>",
         '    <div class="undoProjectPicker" data-field="undoProjectPicker">',
+        '      <input class="field undoProjectSearch" data-field="undoProjectSearch" type="search" placeholder="\u041F\u043E\u0438\u0441\u043A \u043F\u0440\u043E\u0435\u043A\u0442\u0430">',
         '      <select class="field select" data-field="undoProjectSelect" aria-label="Choose project"></select>',
         '      <button type="button" class="undoPickerAction" data-action="applyUndoProject">\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C</button>',
         '      <button type="button" class="undoPickerCancel" data-action="cancelUndoProject">\u041E\u0442\u043C\u0435\u043D\u0430</button>',
@@ -2920,11 +3005,19 @@
         '    <div class="projectCompactRow">',
         '      <select class="field select" data-field="projectSelect" aria-label="Select project"></select>',
         '      <div class="projectCompactTools">',
+        '        <button type="button" class="iconBtn miniBtn" data-action="toggleProjectSearch" data-tooltip="Search projects" aria-label="Search projects">' + iconSvg("search") + "</button>",
         '        <button type="button" class="iconBtn miniBtn" data-action="editProject" data-tooltip="Edit project" aria-label="Edit project">' + iconSvg("pencil") + "</button>",
         '        <button type="button" class="iconBtn miniBtn" data-action="newProject" data-tooltip="New project" aria-label="New project">' + iconSvg("plus") + "</button>",
         '        <button type="button" class="iconBtn miniBtn" data-action="deleteProject" data-tooltip="Delete project" aria-label="Delete project">' + iconSvg("trash-2") + "</button>",
         '        <button type="button" class="iconBtn miniBtn" data-action="clearProject" data-tooltip="Clear active project" aria-label="Clear active project">' + iconSvg("x") + "</button>",
         "      </div>",
+        "    </div>",
+        '    <div class="projectSearchPanel" data-field="projectSearchPanel" hidden>',
+        '      <div class="projectSearchInputRow">',
+        '        <input class="field" data-field="projectSearchInput" type="search" placeholder="\u041F\u043E\u0438\u0441\u043A \u043F\u043E \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u044E">',
+        '        <button type="button" class="iconBtn projectSearchClose" data-action="closeProjectSearch" data-tooltip="Close search" aria-label="Close search">' + iconSvg("x") + "</button>",
+        "      </div>",
+        '      <div class="projectSearchResults" data-field="projectSearchResults"></div>',
         "    </div>",
         '    <div class="projectFilterRow" data-field="projectFilterRow">',
         '      <label class="projectFilter">',
@@ -3101,7 +3194,12 @@
       });
       shadow.querySelector('[data-action="openUndoProjectPicker"]').addEventListener("click", function(event) {
         event.stopPropagation();
-        ctx.openUndoProjectPicker();
+        if (ctx.openUndoProjectPicker()) {
+          window.setTimeout(function() {
+            const input = shadow.querySelector('[data-field="undoProjectSearch"]');
+            if (input) input.focus();
+          }, 0);
+        }
       });
       shadow.querySelector('[data-action="applyUndoProject"]').addEventListener("click", function() {
         const select = shadow.querySelector('[data-field="undoProjectSelect"]');
@@ -3109,6 +3207,13 @@
       });
       shadow.querySelector('[data-action="cancelUndoProject"]').addEventListener("click", function() {
         ctx.resumeUndoProjectPicker();
+      });
+      shadow.querySelector('[data-field="undoProjectSearch"]').addEventListener("input", function(event) {
+        const select = shadow.querySelector('[data-field="undoProjectSelect"]');
+        ctx.setUndoProjectSearchQuery(event.currentTarget.value, select ? select.value : "");
+      });
+      shadow.querySelector('[data-field="undoProjectSelect"]').addEventListener("change", function(event) {
+        ctx.setUndoPendingProject(event.currentTarget.value);
       });
       shadow.querySelector('[data-action="closeUndoToast"]').addEventListener("click", function() {
         ctx.hideUndoSpend();
@@ -3124,6 +3229,32 @@
       });
       shadow.querySelector('[data-action="clearProject"]').addEventListener("click", function() {
         ctx.clearProject();
+      });
+      shadow.querySelector('[data-action="toggleProjectSearch"]').addEventListener("click", function() {
+        const opened = ctx.toggleProjectSearch();
+        if (opened) {
+          window.setTimeout(function() {
+            const input = shadow.querySelector('[data-field="projectSearchInput"]');
+            if (input) input.focus();
+          }, 0);
+        }
+      });
+      shadow.querySelector('[data-action="closeProjectSearch"]').addEventListener("click", function() {
+        ctx.closeProjectSearch();
+        ctx.renderSoon();
+      });
+      shadow.querySelector('[data-field="projectSearchInput"]').addEventListener("input", function(event) {
+        ctx.setProjectSearchQuery(event.currentTarget.value);
+      });
+      shadow.querySelector('[data-field="projectSearchInput"]').addEventListener("keydown", function(event) {
+        if (event.key !== "Escape") return;
+        ctx.closeProjectSearch();
+        ctx.renderSoon();
+      });
+      shadow.querySelector('[data-field="projectSearchResults"]').addEventListener("click", function(event) {
+        const button = event.target.closest("[data-project-search-id]");
+        if (!button) return;
+        ctx.selectProjectSearchResult(button.getAttribute("data-project-search-id"));
       });
       shadow.querySelector('[data-action="editProject"]').addEventListener("click", function() {
         ctx.openProjectEditor();
@@ -3680,6 +3811,10 @@
       const suggestionsTitle = root.querySelector('[data-field="projectSuggestionsTitle"]');
       const suggestionsList = root.querySelector('[data-field="projectSuggestionsList"]');
       const saveButton = root.querySelector('[data-field="saveProjectButton"]');
+      const searchPanel = root.querySelector('[data-field="projectSearchPanel"]');
+      const searchInput = root.querySelector('[data-field="projectSearchInput"]');
+      const searchResults = root.querySelector('[data-field="projectSearchResults"]');
+      const searchButton = root.querySelector('[data-action="toggleProjectSearch"]');
       const activeProject = ctx.runtime.project || sanitizeProject({});
       const activeId = activeProject.id && ctx.findProjectById(activeProject.id) ? activeProject.id : "";
       const compact = ctx.shouldCompactProject();
@@ -3716,6 +3851,43 @@
       }
       if (nameInput && active !== nameInput) nameInput.value = ctx.runtime.projectDraft.name || "";
       if (urlInput && active !== urlInput) urlInput.value = ctx.runtime.projectDraft.url || "";
+      const searchOpen = ctx.runtime.projectSearchOpen === true;
+      if (searchPanel) searchPanel.hidden = !searchOpen;
+      if (searchButton) searchButton.style.background = searchOpen ? "rgba(45,108,223,.35)" : "";
+      if (searchInput && active !== searchInput) {
+        searchInput.value = ctx.runtime.projectSearchQuery || "";
+      }
+      if (searchResults) {
+        searchResults.textContent = "";
+        if (searchOpen) {
+          const results = ctx.searchProjects(ctx.runtime.projectSearchQuery, 5);
+          if (!results.length) {
+            const empty = document.createElement("div");
+            empty.className = "projectSearchEmpty";
+            empty.textContent = "\u041F\u0440\u043E\u0435\u043A\u0442\u044B \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B";
+            searchResults.appendChild(empty);
+          }
+          results.forEach(function(entry) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "projectSearchResult";
+            button.setAttribute("data-project-search-id", entry.id);
+            const name = document.createElement("span");
+            name.className = "projectSearchResultName";
+            name.textContent = entry.name;
+            const meta = document.createElement("span");
+            meta.className = "projectSearchResultMeta";
+            try {
+              meta.textContent = new Date(entry.createdAt).toLocaleDateString();
+            } catch (_) {
+              meta.textContent = "";
+            }
+            button.appendChild(name);
+            button.appendChild(meta);
+            searchResults.appendChild(button);
+          });
+        }
+      }
       const suggestions = ctx.runtime.projectEditorOpen && !activeId ? ctx.getProjectSuggestions(
         ctx.runtime.projectDraft.name,
         ctx.runtime.projectDraft.url,
@@ -3922,19 +4094,37 @@
       const progressBar = root.querySelector('[data-field="undoProgressBar"]');
       if (progressBar) progressBar.style.transform = "scaleX(" + visual.progress.toFixed(3) + ")";
       const projectSelect = root.querySelector('[data-field="undoProjectSelect"]');
+      const undoSearch = root.querySelector('[data-field="undoProjectSearch"]');
+      if (undoSearch && root.activeElement !== undoSearch) {
+        undoSearch.value = String(undo.projectSearchQuery || "");
+      }
       if (projectSelect && visual.paused && root.activeElement !== projectSelect) {
         projectSelect.textContent = "";
         const noProject = document.createElement("option");
         noProject.value = "";
         noProject.textContent = "\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430";
         projectSelect.appendChild(noProject);
-        ctx.listProjects().forEach(function(project) {
+        const filteredProjects = ctx.searchProjects(undo.projectSearchQuery || "");
+        const selectedId = String(undo.pendingProjectId || "");
+        const selectedVisible = filteredProjects.some(function(project) {
+          return project.id === selectedId;
+        });
+        if (selectedId && !selectedVisible) {
+          const current = ctx.findProjectById(selectedId);
+          if (current) {
+            const currentOption = document.createElement("option");
+            currentOption.value = current.id;
+            currentOption.textContent = "\u0422\u0435\u043A\u0443\u0449\u0438\u0439: " + ctx.formatProjectOptionLabel(current);
+            projectSelect.appendChild(currentOption);
+          }
+        }
+        filteredProjects.forEach(function(project) {
           const option = document.createElement("option");
           option.value = project.id;
           option.textContent = ctx.formatProjectOptionLabel(project);
           projectSelect.appendChild(option);
         });
-        projectSelect.value = String(undo.pendingProjectId || "");
+        projectSelect.value = selectedId;
       }
       toast.setAttribute("aria-hidden", "false");
       if (!visual.paused && !ctx.runtime.undoRenderTimer) {
@@ -4794,6 +4984,8 @@
       project: sanitizeProject(readJson(PROJECT_KEY, {})),
       projectDraft: { name: "", url: "" },
       projectEditorOpen: false,
+      projectSearchOpen: false,
+      projectSearchQuery: "",
       settings: loadSettings(),
       sheetsNicknameNotified: false
     };
@@ -4914,6 +5106,7 @@
       undo.pausedAt = now;
       undo.remainingMs = remainingMs;
       undo.pendingProjectId = String(event.project && event.project.id || "");
+      undo.projectSearchQuery = "";
       if (typeof ctx.cancelEventSyncToSheets === "function") {
         ctx.cancelEventSyncToSheets(undo.eventId);
       }
@@ -4954,6 +5147,18 @@
       ctx.addDiagnostic("undo project changed", undo.eventId, project.id || "none");
       ctx.resumeUndoProjectPicker();
       return changed.event;
+    };
+    ctx.setUndoProjectSearchQuery = function(value, selectedProjectId) {
+      const undo = runtime.undoSpend;
+      if (!undo || !undo.pickerOpen) return;
+      undo.projectSearchQuery = String(value || "");
+      if (selectedProjectId != null) undo.pendingProjectId = String(selectedProjectId || "");
+      ctx.renderSoon();
+    };
+    ctx.setUndoPendingProject = function(projectId) {
+      const undo = runtime.undoSpend;
+      if (!undo || !undo.pickerOpen) return;
+      undo.pendingProjectId = String(projectId || "");
     };
     ctx.hideUndoSpend = function() {
       if (runtime.undoSpend && runtime.undoSpend.pickerOpen) {
