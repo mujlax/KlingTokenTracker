@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI Token Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.9.0
+// @version      0.9.1
 // @description  Tracks AI credits/tokens spending from Generate UI across supported platforms.
 // @match        *://kling.ai/*
 // @match        *://*.kling.ai/*
@@ -20,8 +20,16 @@
 
 (() => {
   // src/core/constants.js
-  var VERSION = "0.9.0";
+  var VERSION = "0.9.1";
   var VERSION_HISTORY = [
+    {
+      version: "0.9.1",
+      date: "2026-07-17",
+      changes: [
+        "Updated default Google Sheets web app URL",
+        "Auto-migrated cached legacy sync URLs"
+      ]
+    },
     {
       version: "0.9.0",
       date: "2026-07-17",
@@ -101,12 +109,13 @@
   var SETTINGS_KEY = STORAGE_PREFIX + "settings.v1";
   var SHEETS_SYNC_KEY = STORAGE_PREFIX + "sheetsSync.v1";
   var PROJECTS_SYNC_KEY = STORAGE_PREFIX + "projectsSync.v1";
-  var DEFAULT_SHEETS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzYAcB-tOiiNjUs9_wNM2VbIYqobqn9BMGJSuQzXTzZgwsp9-gRNYOdlpTF8JhabtTPfg/exec";
+  var DEFAULT_SHEETS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz9bp6ZWtJD5jJYdYPi-rjLkJO71L2dMJL8hxmayfuKtImtd_qbnVfTP25saOL0hlCj_Q/exec";
   var LEGACY_SHEETS_WEB_APP_URLS = [
     "https://script.google.com/macros/s/AKfycbyBKgzw0oZmfdaOSHU4iBdsRY6l-tXupdUNjcRbMDNw7-glxMuw9kC2rJCljgJquDZORA/exec",
     "https://script.google.com/macros/s/AKfycbxi3YrJYesMvttSYoFVA-_E_RxIeSHXIOjmGvFVc4HVmOp0QDka_rUo2Oxw82fTP2HXmg/exec",
     "https://script.google.com/macros/s/AKfycbwZ4SqCwMEvByu8L1MNO1OdRz30Q96HDGabFl5nj_ZvoT2Lw1Z9iWLH5vvswalTwV90kg/exec",
-    "https://script.google.com/macros/s/AKfycbwG2o3NIhF6zUURKV_0G0YBRm3nYIPHfbnLKIf4kuOQb2NuGljoqAD8AbG5blBRUAXc5g/exec"
+    "https://script.google.com/macros/s/AKfycbwG2o3NIhF6zUURKV_0G0YBRm3nYIPHfbnLKIf4kuOQb2NuGljoqAD8AbG5blBRUAXc5g/exec",
+    "https://script.google.com/macros/s/AKfycbzYAcB-tOiiNjUs9_wNM2VbIYqobqn9BMGJSuQzXTzZgwsp9-gRNYOdlpTF8JhabtTPfg/exec"
   ];
   var DEFAULT_SHEETS_SECRET_TOKEN = "token";
   var PROJECT_KEY = STORAGE_PREFIX + "project.v1";
@@ -2705,9 +2714,11 @@
         ".panel{position:relative;width:286px;color:#f6f7f8;background:rgba(18,20,24,.92);border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 30px rgba(0,0,0,.26);border-radius:8px;overflow:hidden;font:13px/1.35 Arial,sans-serif;backdrop-filter:blur(8px);opacity:var(--ktt-idle-opacity);transition:opacity .2s ease}",
         ".panel.collapsed .panelContent{display:none}",
         ".panelContent{position:relative}",
-        ".header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:rgba(255,255,255,.06);user-select:none;min-height:28px;cursor:move}",
+        ".header{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:rgba(255,255,255,.06);user-select:none;min-height:28px;cursor:move}",
         ".headerDefault{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;flex:1}",
         ".panel.undo-active .header{background:rgba(45,108,223,.14)}",
+        "@keyframes undoFlash{0%,100%{background:rgba(45,108,223,.14);box-shadow:inset 0 0 0 0 rgba(110,164,255,0)}50%{background:rgba(45,108,223,.48);box-shadow:inset 0 0 18px rgba(110,164,255,.3)}}",
+        ".panel.undo-fresh .header{animation:undoFlash .5s ease-in-out 4}",
         ".panel.undo-active .headerDefault{display:none}",
         ".headerDrag{display:flex;align-items:center;gap:8px;min-width:0;flex:1;cursor:move}",
         ".headerControls{display:flex;align-items:center;gap:6px;flex-shrink:0}",
@@ -2838,6 +2849,9 @@
         ".undoMeta{color:#bfc6d1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
         ".undoAction{padding:4px 8px;font-size:11px;font-weight:700;border-radius:999px;background:#2d6cdf;border-color:#2d6cdf}",
         ".undoClose{width:22px;height:22px;border-radius:999px}",
+        ".undoProgressTrack{display:none;position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.12);overflow:hidden}",
+        ".panel.undo-active .undoProgressTrack{display:block}",
+        ".undoProgressBar{display:block;width:100%;height:100%;background:linear-gradient(90deg,#6ea4ff,#2d6cdf);transform-origin:left center;transition:transform .1s linear;box-shadow:0 0 7px rgba(110,164,255,.75)}",
         ".sheetsNicknameWarn{padding:5px 10px;background:rgba(242,184,75,.14);border-bottom:1px solid rgba(242,184,75,.28);color:#f2d49b;font-size:10px;line-height:1.35;cursor:pointer}",
         ".sheetsNicknameWarn[hidden]{display:none}",
         '.tabPanel[data-panel="settings"]{max-height:260px;overflow:auto;padding-top:2px}',
@@ -2856,10 +2870,11 @@
         "    </div>",
         '    <div class="undoToast" data-field="undoToast" aria-hidden="true">',
         '      <span class="undoIcon">' + iconSvg("rotate-ccw") + "</span>",
-        '      <span class="undoText"><strong>Recorded</strong><span class="undoMeta" data-field="undoMeta"></span></span>',
+        '      <span class="undoText"><strong data-field="undoProjectName">\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430</strong><span class="undoMeta" data-field="undoMeta"></span></span>',
         '      <button type="button" class="undoAction" data-action="undoSpend">Undo</button>',
         '      <button type="button" class="iconBtn undoClose" data-action="closeUndoToast" data-tooltip="Close" aria-label="Close undo">' + iconSvg("x") + "</button>",
         "    </div>",
+        '    <span class="undoProgressTrack" aria-hidden="true"><span class="undoProgressBar" data-field="undoProgressBar"></span></span>',
         "  </div>",
         '  <div class="panelContent">',
         '  <div class="projectBox compact" data-field="projectBox">',
@@ -3355,6 +3370,18 @@
       return "";
     }
   }
+  function getUndoVisualState(undo, now) {
+    const current = Number(now || Date.now());
+    const expiresAt = Number(undo && undo.expiresAt || 0);
+    const startedAt = Number(undo && undo.startedAt || expiresAt - SPEND_UNDO_WINDOW_MS);
+    const remainingMs = Math.max(0, expiresAt - current);
+    return {
+      visible: remainingMs > 0,
+      seconds: Math.max(0, Math.ceil(remainingMs / 1e3)),
+      progress: Math.max(0, Math.min(1, remainingMs / SPEND_UNDO_WINDOW_MS)),
+      fresh: remainingMs > 0 && current - startedAt < 2200
+    };
+  }
   function createRender(ctx) {
     function getDisplaySource() {
       if (ctx.runtime.sourceSeen.network && ctx.runtime.sourceSeen.ui) return "mixed";
@@ -3822,26 +3849,31 @@
       if (!toast || !panel) return;
       const undo = ctx.runtime.undoSpend;
       const now = Date.now();
-      const visible = !!(undo && undo.expiresAt > now);
-      if (!undo || undo.expiresAt <= now) {
+      const visual = getUndoVisualState(undo, now);
+      const visible = !!(undo && visual.visible);
+      if (!visible) {
         ctx.runtime.undoSpend = null;
       }
       panel.classList.toggle("undo-active", visible);
+      panel.classList.toggle("undo-fresh", visible && visual.fresh);
       if (!visible) {
         toast.setAttribute("aria-hidden", "true");
         return;
       }
-      const seconds = Math.max(1, Math.ceil((undo.expiresAt - now) / 1e3));
+      const projectName = root.querySelector('[data-field="undoProjectName"]');
+      if (projectName) projectName.textContent = undo.projectName || "\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430";
       const meta = root.querySelector('[data-field="undoMeta"]');
       if (meta) {
-        meta.textContent = "-" + formatCredit(undo.amount) + " \xB7 " + (undo.serviceName || "spend") + " \xB7 " + seconds + "s";
+        meta.textContent = "-" + formatCredit(undo.amount) + " \xB7 " + (undo.serviceName || "spend") + " \xB7 " + visual.seconds + "s";
       }
+      const progressBar = root.querySelector('[data-field="undoProgressBar"]');
+      if (progressBar) progressBar.style.transform = "scaleX(" + visual.progress.toFixed(3) + ")";
       toast.setAttribute("aria-hidden", "false");
       if (!ctx.runtime.undoRenderTimer) {
         ctx.runtime.undoRenderTimer = window.setTimeout(function() {
           ctx.runtime.undoRenderTimer = null;
           renderSoon();
-        }, 1e3);
+        }, 100);
       }
     }
     function renderPanel() {
@@ -4736,11 +4768,14 @@
     };
     ctx.showUndoSpend = function(event) {
       if (!event || !event.id) return;
+      const startedAt = Date.now();
       runtime.undoSpend = {
         eventId: event.id,
         amount: event.amount,
         serviceName: event.serviceName || event.service || getActiveAdapter().name,
-        expiresAt: Date.now() + SPEND_UNDO_WINDOW_MS
+        projectName: String(event.project && event.project.name || "").trim() || "\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430",
+        startedAt,
+        expiresAt: startedAt + SPEND_UNDO_WINDOW_MS
       };
       ctx.renderSoon();
     };
