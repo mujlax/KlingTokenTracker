@@ -2,7 +2,7 @@
 // @name         AI Token Tracker
 // @namespace    http://tampermonkey.net/
 // @version      0.9.4
-// @description  Отслеживает расход кредитов/токенов AI при генерации на поддерживаемых платформах.
+// @description  Учёт расхода AI-кредитов при генерации: панель, проекты, история, синхронизация с Google Sheets.
 // @match        *://kling.ai/*
 // @match        *://*.kling.ai/*
 // @match        *://higgsfield.ai/*
@@ -20,8 +20,17 @@
 
 (() => {
   // src/core/constants.js
-  var VERSION = "0.9.3";
+  var VERSION = "0.9.4";
   var VERSION_HISTORY = [
+    {
+      version: "0.9.4",
+      date: "2026-07-20",
+      changes: [
+        "\u041F\u043E\u043B\u043D\u044B\u0439 \u043F\u0435\u0440\u0435\u0432\u043E\u0434 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430 \u043F\u0430\u043D\u0435\u043B\u0438 \u043D\u0430 \u0440\u0443\u0441\u0441\u043A\u0438\u0439 \u044F\u0437\u044B\u043A",
+        "\u0420\u0443\u0441\u0441\u043A\u0438\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u043E\u0431 \u043E\u0448\u0438\u0431\u043A\u0430\u0445 \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u0438 Google Sheets",
+        "\u041E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u043E \u043E\u043F\u0438\u0441\u0430\u043D\u0438\u0435 userscript \u0434\u043B\u044F Tampermonkey"
+      ]
+    },
     {
       version: "0.9.3",
       date: "2026-07-20",

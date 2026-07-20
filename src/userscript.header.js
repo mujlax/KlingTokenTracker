@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         AI Token Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.9.3
-// @description  Отслеживает расход кредитов/токенов AI при генерации на поддерживаемых платформах.
+// @version      0.9.4
+// @description  Учёт расхода AI-кредитов при генерации: панель, проекты, история, синхронизация с Google Sheets.
 // @match        *://kling.ai/*
 // @match        *://*.kling.ai/*
 // @match        *://higgsfield.ai/*

@@ -1,5 +1,14 @@
-export const VERSION = '0.9.3';
+export const VERSION = '0.9.4';
 export const VERSION_HISTORY = [
+    {
+        version: '0.9.4',
+        date: '2026-07-20',
+        changes: [
+            'Полный перевод интерфейса панели на русский язык',
+            'Русские сообщения об ошибках синхронизации Google Sheets',
+            'Обновлено описание userscript для Tampermonkey'
+        ]
+    },
     {
         version: '0.9.3',
         date: '2026-07-20',

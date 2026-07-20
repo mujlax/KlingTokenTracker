@@ -8,6 +8,7 @@ Tampermonkey userscript for tracking AI credit/token spending from the Generate 
 |----------|-----|----------|
 | Kling | `https://kling.ai/app/*` | UI + network balance API |
 | Higgsfield | `https://higgsfield.ai/*` | UI only (`Generate ✦ 16` on button) |
+| SJinn Seedance | `https://sjinn.ai/tools/seedance20-video` | UI only, calculated from duration × credits/s |
 
 ## Build & test
 
@@ -64,17 +65,30 @@ harness/
 ```javascript
 window.AITokenTracker.getState()
 window.AITokenTracker.listProjects()
+window.AITokenTracker.syncProjectsFromSheets()
 // Alias for backward compatibility:
 window.KlingTokenTracker
 ```
+
+## Adding a platform
+
+1. Create a focused adapter in `src/adapters/`.
+2. Export its factory from `src/adapters/index.js`.
+3. Add Tampermonkey `@match` entries in `src/userscript.header.js`.
+4. Add adapter unit tests.
+5. Run `npm test` and `npm run build`.
 
 ## Storage
 
 Uses `localStorage` prefix `klingTokenTracker.*` (unchanged for backward compatibility).
 
-**Projects** and **spend history** are stored in Tampermonkey's `GM_getValue` / `GM_setValue`, so they sync automatically between Kling and Higgsfield. On first run after update, data from each site's `localStorage` is merged into shared storage.
+**Projects** and **spend history** are stored in Tampermonkey's `GM_getValue` / `GM_setValue`, so they sync automatically between supported platforms. On first run after update, data from each site's `localStorage` is merged into shared storage.
 
 - **History** — combined across all services (History tab, project totals, «Only this project» filter).
+- **Shared project catalog** — synchronized through the configured Google Sheet. New project forms suggest exact and fuzzy matches before creating a duplicate.
+- **Project deletion** — archives the shared project without removing historical spend rows.
+- **Undo project correction** — click the project name in the Undo banner to pause the countdown and reassign the spend before sync completes.
+- **Project search** — search active projects by name from the compact panel or the paused Undo picker; Undo lists newest-created projects first.
 - **Balance / Session** — per current site only.
 - **Today** — per current site only (from shared history, filtered by service).
 
@@ -84,4 +98,4 @@ GitHub Actions runs `npm test`, `npm run build`, and `node --check` on push and 
 
 ## Version
 
-0.6.0
+0.9.4
