@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI Token Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.9.1
+// @version      0.9.2
 // @description  Tracks AI credits/tokens spending from Generate UI across supported platforms.
 // @match        *://kling.ai/*
 // @match        *://*.kling.ai/*
@@ -20,8 +20,17 @@
 
 (() => {
   // src/core/constants.js
-  var VERSION = "0.9.1";
+  var VERSION = "0.9.2";
   var VERSION_HISTORY = [
+    {
+      version: "0.9.2",
+      date: "2026-07-20",
+      changes: [
+        "Added project reassignment during Undo",
+        "Paused Undo and Sheets timers while choosing a project",
+        "Added synced event project updates"
+      ]
+    },
     {
       version: "0.9.1",
       date: "2026-07-17",
@@ -1290,6 +1299,23 @@
       if (b.total !== a.total) return b.total - a.total;
       return a.serviceName.localeCompare(b.serviceName);
     });
+  }
+  function replaceEventProject(history, eventId, project, now) {
+    const id = String(eventId || "");
+    const nextProject = sanitizeProject(project || {});
+    let updatedEvent = null;
+    const nextHistory = (Array.isArray(history) ? history : []).map(function(event) {
+      if (!event || event.id !== id) return event;
+      updatedEvent = Object.assign({}, event, {
+        project: nextProject,
+        updatedAt: Number(now || Date.now())
+      });
+      return updatedEvent;
+    });
+    return {
+      history: nextHistory,
+      event: updatedEvent
+    };
   }
   function getTodayTotal(history, serviceId) {
     const today = localDateKey(Date.now());
@@ -2846,12 +2872,20 @@
         ".undoIcon svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}",
         ".undoText{display:grid;gap:0;min-width:0;color:#d8dde6;font-size:10px;line-height:1.2}",
         ".undoText strong{color:#fff;font-size:11px;line-height:1.15}",
+        ".undoProjectButton{appearance:none;border:0;background:transparent;color:#fff;padding:0;min-width:0;max-width:100%;font:700 11px/1.15 Arial,sans-serif;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}",
+        ".undoProjectButton:hover{color:#9fc0ff;text-decoration:underline}",
         ".undoMeta{color:#bfc6d1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
         ".undoAction{padding:4px 8px;font-size:11px;font-weight:700;border-radius:999px;background:#2d6cdf;border-color:#2d6cdf}",
         ".undoClose{width:22px;height:22px;border-radius:999px}",
         ".undoProgressTrack{display:none;position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.12);overflow:hidden}",
         ".panel.undo-active .undoProgressTrack{display:block}",
         ".undoProgressBar{display:block;width:100%;height:100%;background:linear-gradient(90deg,#6ea4ff,#2d6cdf);transform-origin:left center;transition:transform .1s linear;box-shadow:0 0 7px rgba(110,164,255,.75)}",
+        ".undoProjectPicker{display:none;width:100%;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;align-items:center}",
+        ".panel.undo-picking .undoToast{display:none}",
+        ".panel.undo-picking .undoProjectPicker{display:grid}",
+        ".undoProjectPicker .field{min-height:26px;padding:4px 22px 4px 7px;font-size:10px}",
+        ".undoPickerAction{padding:4px 7px;font-size:10px;font-weight:700}",
+        ".undoPickerCancel{padding:4px 7px;font-size:10px;background:rgba(255,255,255,.06)}",
         ".sheetsNicknameWarn{padding:5px 10px;background:rgba(242,184,75,.14);border-bottom:1px solid rgba(242,184,75,.28);color:#f2d49b;font-size:10px;line-height:1.35;cursor:pointer}",
         ".sheetsNicknameWarn[hidden]{display:none}",
         '.tabPanel[data-panel="settings"]{max-height:260px;overflow:auto;padding-top:2px}',
@@ -2870,9 +2904,14 @@
         "    </div>",
         '    <div class="undoToast" data-field="undoToast" aria-hidden="true">',
         '      <span class="undoIcon">' + iconSvg("rotate-ccw") + "</span>",
-        '      <span class="undoText"><strong data-field="undoProjectName">\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430</strong><span class="undoMeta" data-field="undoMeta"></span></span>',
+        '      <span class="undoText"><button type="button" class="undoProjectButton" data-action="openUndoProjectPicker" data-field="undoProjectName" aria-label="Change project">\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \u25BE</button><span class="undoMeta" data-field="undoMeta"></span></span>',
         '      <button type="button" class="undoAction" data-action="undoSpend">Undo</button>',
         '      <button type="button" class="iconBtn undoClose" data-action="closeUndoToast" data-tooltip="Close" aria-label="Close undo">' + iconSvg("x") + "</button>",
+        "    </div>",
+        '    <div class="undoProjectPicker" data-field="undoProjectPicker">',
+        '      <select class="field select" data-field="undoProjectSelect" aria-label="Choose project"></select>',
+        '      <button type="button" class="undoPickerAction" data-action="applyUndoProject">\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C</button>',
+        '      <button type="button" class="undoPickerCancel" data-action="cancelUndoProject">\u041E\u0442\u043C\u0435\u043D\u0430</button>',
         "    </div>",
         '    <span class="undoProgressTrack" aria-hidden="true"><span class="undoProgressBar" data-field="undoProgressBar"></span></span>',
         "  </div>",
@@ -3059,6 +3098,17 @@
       });
       shadow.querySelector('[data-action="undoSpend"]').addEventListener("click", function() {
         ctx.undoLastSpend();
+      });
+      shadow.querySelector('[data-action="openUndoProjectPicker"]').addEventListener("click", function(event) {
+        event.stopPropagation();
+        ctx.openUndoProjectPicker();
+      });
+      shadow.querySelector('[data-action="applyUndoProject"]').addEventListener("click", function() {
+        const select = shadow.querySelector('[data-field="undoProjectSelect"]');
+        ctx.applyUndoProject(select ? select.value : "");
+      });
+      shadow.querySelector('[data-action="cancelUndoProject"]').addEventListener("click", function() {
+        ctx.resumeUndoProjectPicker();
       });
       shadow.querySelector('[data-action="closeUndoToast"]').addEventListener("click", function() {
         ctx.hideUndoSpend();
@@ -3374,12 +3424,14 @@
     const current = Number(now || Date.now());
     const expiresAt = Number(undo && undo.expiresAt || 0);
     const startedAt = Number(undo && undo.startedAt || expiresAt - SPEND_UNDO_WINDOW_MS);
-    const remainingMs = Math.max(0, expiresAt - current);
+    const paused = undo && undo.pickerOpen === true;
+    const remainingMs = paused ? Math.max(0, Number(undo.remainingMs || 0)) : Math.max(0, expiresAt - current);
     return {
       visible: remainingMs > 0,
       seconds: Math.max(0, Math.ceil(remainingMs / 1e3)),
       progress: Math.max(0, Math.min(1, remainingMs / SPEND_UNDO_WINDOW_MS)),
-      fresh: remainingMs > 0 && current - startedAt < 2200
+      fresh: !paused && remainingMs > 0 && current - startedAt < 2200,
+      paused
     };
   }
   function createRender(ctx) {
@@ -3856,20 +3908,36 @@
       }
       panel.classList.toggle("undo-active", visible);
       panel.classList.toggle("undo-fresh", visible && visual.fresh);
+      panel.classList.toggle("undo-picking", visible && visual.paused);
       if (!visible) {
         toast.setAttribute("aria-hidden", "true");
         return;
       }
       const projectName = root.querySelector('[data-field="undoProjectName"]');
-      if (projectName) projectName.textContent = undo.projectName || "\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430";
+      if (projectName) projectName.textContent = (undo.projectName || "\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430") + " \u25BE";
       const meta = root.querySelector('[data-field="undoMeta"]');
       if (meta) {
         meta.textContent = "-" + formatCredit(undo.amount) + " \xB7 " + (undo.serviceName || "spend") + " \xB7 " + visual.seconds + "s";
       }
       const progressBar = root.querySelector('[data-field="undoProgressBar"]');
       if (progressBar) progressBar.style.transform = "scaleX(" + visual.progress.toFixed(3) + ")";
+      const projectSelect = root.querySelector('[data-field="undoProjectSelect"]');
+      if (projectSelect && visual.paused && root.activeElement !== projectSelect) {
+        projectSelect.textContent = "";
+        const noProject = document.createElement("option");
+        noProject.value = "";
+        noProject.textContent = "\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430";
+        projectSelect.appendChild(noProject);
+        ctx.listProjects().forEach(function(project) {
+          const option = document.createElement("option");
+          option.value = project.id;
+          option.textContent = ctx.formatProjectOptionLabel(project);
+          projectSelect.appendChild(option);
+        });
+        projectSelect.value = String(undo.pendingProjectId || "");
+      }
       toast.setAttribute("aria-hidden", "false");
-      if (!ctx.runtime.undoRenderTimer) {
+      if (!visual.paused && !ctx.runtime.undoRenderTimer) {
         ctx.runtime.undoRenderTimer = window.setTimeout(function() {
           ctx.runtime.undoRenderTimer = null;
           renderSoon();
@@ -4045,6 +4113,14 @@
       projectName,
       user: String(settings.sheetsNickname || "").trim(),
       trackerVersion: VERSION
+    };
+  }
+  function buildEventProjectPayload(event) {
+    const project = event && event.project || {};
+    return {
+      eventId: String(event && event.id || ""),
+      projectId: String(project.id || ""),
+      projectName: String(project.name || "").trim()
     };
   }
   function buildProjectPayload(project, settings) {
@@ -4307,6 +4383,36 @@
       return null;
     });
   }
+  function updateEventProjectInSheets(ctx, event) {
+    if (!event || !event.id) return Promise.resolve(null);
+    if (!canSyncToSheets(ctx.getSettings())) return Promise.resolve(null);
+    return sendSheetsRequest(ctx, "updateEventProject", buildEventProjectPayload(event)).then(function(data) {
+      if (data && data.updated === false) return data;
+      markSyncState(event.id, "synced");
+      ctx.addDiagnostic("sheets event project update ok", event.id);
+      return data || { ok: true, updated: true };
+    }).catch(function(error) {
+      markSyncState(event.id, "projectUpdateFailed");
+      ctx.addDiagnostic("sheets event project update failed", event.id, error && error.message);
+      return null;
+    });
+  }
+  function resumeEventSyncAfterUndo(ctx, event, delayMs) {
+    if (!event || !event.id) return Promise.resolve(null);
+    if (!canSyncToSheets(ctx.getSettings())) return Promise.resolve(null);
+    if (getSyncState(event.id) !== "synced") {
+      scheduleEventSyncToSheets(ctx, event, delayMs);
+      return Promise.resolve({ scheduled: true });
+    }
+    return updateEventProjectInSheets(ctx, event).then(function(data) {
+      if (data && data.updated === false) {
+        clearSyncState(event.id);
+        scheduleEventSyncToSheets(ctx, event, delayMs);
+        return { scheduled: true, missingRemote: true };
+      }
+      return data;
+    });
+  }
   function scheduleEventSyncToSheets(ctx, event, delayMs) {
     if (!event || !event.id) return null;
     if (!canSyncToSheets(ctx.getSettings())) return null;
@@ -4369,13 +4475,15 @@
     }
     const history = ctx.getHistory();
     const failed = history.filter(function(event) {
-      return event && getSyncState(event.id) === "failed";
+      const status = event && getSyncState(event.id);
+      return status === "failed" || status === "projectUpdateFailed";
     });
     let synced = 0;
     let chain = Promise.resolve();
     failed.forEach(function(event) {
       chain = chain.then(function() {
-        return syncEventToSheets(ctx, event).then(function(result) {
+        const retry = getSyncState(event.id) === "projectUpdateFailed" ? updateEventProjectInSheets(ctx, event) : syncEventToSheets(ctx, event);
+        return retry.then(function(result) {
           if (result) synced += 1;
         });
       });
@@ -4596,6 +4704,12 @@
       cancelEventSyncToSheets: function(eventId) {
         return cancelEventSyncToSheets(ctx, eventId);
       },
+      resumeEventSyncAfterUndo: function(event, delayMs) {
+        return resumeEventSyncAfterUndo(ctx, event, delayMs);
+      },
+      updateEventProjectInSheets: function(event) {
+        return updateEventProjectInSheets(ctx, event);
+      },
       deleteEventFromSheets: function(event) {
         return deleteEventFromSheets(ctx, event);
       },
@@ -4775,11 +4889,76 @@
         serviceName: event.serviceName || event.service || getActiveAdapter().name,
         projectName: String(event.project && event.project.name || "").trim() || "\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430",
         startedAt,
-        expiresAt: startedAt + SPEND_UNDO_WINDOW_MS
+        expiresAt: startedAt + SPEND_UNDO_WINDOW_MS,
+        pickerOpen: false,
+        pausedAt: null,
+        remainingMs: SPEND_UNDO_WINDOW_MS
       };
       ctx.renderSoon();
     };
+    ctx.openUndoProjectPicker = function() {
+      const undo = runtime.undoSpend;
+      if (!undo || undo.pickerOpen) return false;
+      const now = Date.now();
+      const remainingMs = Math.max(0, Number(undo.expiresAt || 0) - now);
+      if (!remainingMs) {
+        runtime.undoSpend = null;
+        ctx.renderSoon();
+        return false;
+      }
+      const event = history.find(function(item) {
+        return item && item.id === undo.eventId;
+      });
+      if (!event) return false;
+      undo.pickerOpen = true;
+      undo.pausedAt = now;
+      undo.remainingMs = remainingMs;
+      undo.pendingProjectId = String(event.project && event.project.id || "");
+      if (typeof ctx.cancelEventSyncToSheets === "function") {
+        ctx.cancelEventSyncToSheets(undo.eventId);
+      }
+      ctx.renderSoon();
+      return true;
+    };
+    ctx.resumeUndoProjectPicker = function() {
+      const undo = runtime.undoSpend;
+      if (!undo || !undo.pickerOpen) return false;
+      const remainingMs = Math.max(1, Number(undo.remainingMs || 0));
+      const now = Date.now();
+      undo.pickerOpen = false;
+      undo.pausedAt = null;
+      undo.expiresAt = now + remainingMs;
+      const event = history.find(function(item) {
+        return item && item.id === undo.eventId;
+      });
+      if (event && typeof ctx.resumeEventSyncAfterUndo === "function") {
+        ctx.resumeEventSyncAfterUndo(event, remainingMs);
+      }
+      ctx.renderSoon();
+      return true;
+    };
+    ctx.applyUndoProject = function(projectId) {
+      const undo = runtime.undoSpend;
+      if (!undo || !undo.pickerOpen) return null;
+      const id = String(projectId || "");
+      const entry = id && typeof ctx.findProjectById === "function" ? ctx.findProjectById(id) : null;
+      if (id && !entry) return null;
+      const project = entry ? sanitizeProject({ id: entry.id, name: entry.name, url: entry.url }) : sanitizeProject({});
+      const changed = replaceEventProject(history, undo.eventId, project, Date.now());
+      if (!changed.event) return null;
+      history = changed.history;
+      ctx.saveHistory();
+      undo.projectName = project.name || "\u0411\u0435\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430";
+      if (entry) ctx.selectProject(entry.id);
+      else ctx.clearProject();
+      ctx.addDiagnostic("undo project changed", undo.eventId, project.id || "none");
+      ctx.resumeUndoProjectPicker();
+      return changed.event;
+    };
     ctx.hideUndoSpend = function() {
+      if (runtime.undoSpend && runtime.undoSpend.pickerOpen) {
+        ctx.resumeUndoProjectPicker();
+      }
       runtime.undoSpend = null;
       ctx.renderSoon();
     };
@@ -4813,12 +4992,14 @@
       return event;
     };
     ctx.undoLastSpend = function() {
-      if (!runtime.undoSpend || runtime.undoSpend.expiresAt <= Date.now()) {
+      const undo = runtime.undoSpend;
+      const expired = !undo || !undo.pickerOpen && undo.expiresAt <= Date.now();
+      if (expired) {
         runtime.undoSpend = null;
         ctx.renderSoon();
         return null;
       }
-      return ctx.deleteSpendEvent(runtime.undoSpend.eventId);
+      return ctx.deleteSpendEvent(undo.eventId);
     };
     ctx.recordSpend = function(input, now) {
       if (!input || !isFiniteCredit(input.amount) || input.amount <= 0) return null;
