@@ -207,11 +207,16 @@ export function createPanelModule(ctx) {
             '.undoProgressTrack{display:none;position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.12);overflow:hidden}',
             '.panel.undo-active .undoProgressTrack{display:block}',
             '.undoProgressBar{display:block;width:100%;height:100%;background:linear-gradient(90deg,#6ea4ff,#2d6cdf);transform-origin:left center;transition:transform .1s linear;box-shadow:0 0 7px rgba(110,164,255,.75)}',
-            '.undoProjectPicker{display:none;width:100%;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;align-items:center}',
+            '.undoProjectPicker{display:none;width:100%}',
             '.panel.undo-picking .undoToast{display:none}',
-            '.panel.undo-picking .undoProjectPicker{display:grid}',
+            '.panel.undo-picking .undoProjectPicker{display:block}',
+            '.undoProjectChoose{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;align-items:center}',
+            '.undoProjectCreate{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;align-items:center}',
+            '.undoProjectChoose[hidden],.undoProjectCreate[hidden]{display:none}',
             '.undoProjectPicker .field{min-height:26px;padding:4px 22px 4px 7px;font-size:10px}',
             '.undoProjectSearch{grid-column:1/-1;padding-right:7px!important}',
+            '.undoProjectCreate .field{grid-column:1/-1;padding-right:7px}',
+            '.undoCreateProject{grid-column:1/-1;padding:5px 7px;font-size:10px;background:rgba(45,108,223,.16);border-color:rgba(110,164,255,.45);color:#cfe0ff}',
             '.undoPickerAction{padding:4px 7px;font-size:10px;font-weight:700}',
             '.undoPickerCancel{padding:4px 7px;font-size:10px;background:rgba(255,255,255,.06)}',
             '.sheetsNicknameWarn{padding:5px 10px;background:rgba(242,184,75,.14);border-bottom:1px solid rgba(242,184,75,.28);color:#f2d49b;font-size:10px;line-height:1.35;cursor:pointer}',
@@ -237,10 +242,20 @@ export function createPanelModule(ctx) {
             '      <button type="button" class="iconBtn undoClose" data-action="closeUndoToast" data-tooltip="Закрыть" aria-label="Закрыть отмену">' + iconSvg('x') + '</button>',
             '    </div>',
             '    <div class="undoProjectPicker" data-field="undoProjectPicker">',
-            '      <input class="field undoProjectSearch" data-field="undoProjectSearch" type="search" placeholder="Поиск проекта">',
-            '      <select class="field select" data-field="undoProjectSelect" aria-label="Выбрать проект"></select>',
-            '      <button type="button" class="undoPickerAction" data-action="applyUndoProject">Применить</button>',
-            '      <button type="button" class="undoPickerCancel" data-action="cancelUndoProject">Отмена</button>',
+            '      <div class="undoProjectChoose" data-field="undoProjectChoose">',
+            '        <input class="field undoProjectSearch" data-field="undoProjectSearch" type="search" placeholder="Поиск проекта">',
+            '        <select class="field select" data-field="undoProjectSelect" aria-label="Выбрать проект"></select>',
+            '        <button type="button" class="undoPickerAction" data-action="applyUndoProject">Применить</button>',
+            '        <button type="button" class="undoPickerCancel" data-action="cancelUndoProject">Отмена</button>',
+            '        <button type="button" class="undoCreateProject" data-action="openUndoProjectCreator">+ Создать новый проект</button>',
+            '      </div>',
+            '      <div class="undoProjectCreate" data-field="undoProjectCreate" hidden>',
+            '        <input class="field" data-field="undoProjectCreateName" type="text" placeholder="Название проекта">',
+            '        <input class="field" data-field="undoProjectCreateUrl" type="url" placeholder="URL проекта (необязательно)">',
+            '        <button type="button" class="undoPickerAction" data-action="createUndoProject">Создать</button>',
+            '        <button type="button" class="undoPickerCancel" data-action="backUndoProjectPicker">Назад</button>',
+            '        <button type="button" class="undoPickerCancel" data-action="cancelUndoProjectCreate">Отмена</button>',
+            '      </div>',
             '    </div>',
             '    <span class="undoProgressTrack" aria-hidden="true"><span class="undoProgressBar" data-field="undoProgressBar"></span></span>',
             '  </div>',
@@ -459,6 +474,58 @@ export function createPanelModule(ctx) {
         });
         shadow.querySelector('[data-field="undoProjectSelect"]').addEventListener('change', function (event) {
             ctx.setUndoPendingProject(event.currentTarget.value);
+        });
+        shadow.querySelector('[data-action="openUndoProjectCreator"]').addEventListener('click', function () {
+            if (ctx.openUndoProjectCreator()) {
+                window.setTimeout(function () {
+                    const input = shadow.querySelector('[data-field="undoProjectCreateName"]');
+                    if (input) {
+                        input.focus();
+                        input.select();
+                    }
+                }, 0);
+            }
+        });
+        shadow.querySelector('[data-action="backUndoProjectPicker"]').addEventListener('click', function () {
+            ctx.closeUndoProjectCreator();
+        });
+        shadow.querySelector('[data-action="cancelUndoProjectCreate"]').addEventListener('click', function () {
+            ctx.resumeUndoProjectPicker();
+        });
+        function createProjectFromUndoInputs() {
+            const nameInput = shadow.querySelector('[data-field="undoProjectCreateName"]');
+            const urlInput = shadow.querySelector('[data-field="undoProjectCreateUrl"]');
+            const created = ctx.createProjectForUndo(
+                nameInput ? nameInput.value : '',
+                urlInput ? urlInput.value : ''
+            );
+            if (!created && nameInput) {
+                nameInput.focus();
+                nameInput.setCustomValidity('Укажите название проекта');
+                nameInput.reportValidity();
+            }
+        }
+        shadow.querySelector('[data-action="createUndoProject"]').addEventListener('click', createProjectFromUndoInputs);
+        ['undoProjectCreateName', 'undoProjectCreateUrl'].forEach(function (field) {
+            shadow.querySelector('[data-field="' + field + '"]').addEventListener('input', function () {
+                const nameInput = shadow.querySelector('[data-field="undoProjectCreateName"]');
+                const urlInput = shadow.querySelector('[data-field="undoProjectCreateUrl"]');
+                if (nameInput) nameInput.setCustomValidity('');
+                ctx.setUndoProjectCreateDraft(
+                    nameInput ? nameInput.value : '',
+                    urlInput ? urlInput.value : ''
+                );
+            });
+            shadow.querySelector('[data-field="' + field + '"]').addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    createProjectFromUndoInputs();
+                }
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    ctx.closeUndoProjectCreator();
+                }
+            });
         });
         shadow.querySelector('[data-action="closeUndoToast"]').addEventListener('click', function () {
             ctx.hideUndoSpend();

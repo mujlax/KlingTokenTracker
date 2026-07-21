@@ -638,10 +638,28 @@ export function createRender(ctx) {
         if (progressBar) progressBar.style.transform = 'scaleX(' + visual.progress.toFixed(3) + ')';
         const projectSelect = root.querySelector('[data-field="undoProjectSelect"]');
         const undoSearch = root.querySelector('[data-field="undoProjectSearch"]');
+        const projectChoose = root.querySelector('[data-field="undoProjectChoose"]');
+        const projectCreate = root.querySelector('[data-field="undoProjectCreate"]');
+        const createName = root.querySelector('[data-field="undoProjectCreateName"]');
+        const createUrl = root.querySelector('[data-field="undoProjectCreateUrl"]');
+        const createButton = root.querySelector('[data-action="openUndoProjectCreator"]');
+        const creatingProject = visual.paused && undo.projectCreateOpen === true;
+        if (projectChoose) projectChoose.hidden = creatingProject;
+        if (projectCreate) projectCreate.hidden = !creatingProject;
         if (undoSearch && root.activeElement !== undoSearch) {
             undoSearch.value = String(undo.projectSearchQuery || '');
         }
-        if (projectSelect && visual.paused && root.activeElement !== projectSelect) {
+        if (createName && root.activeElement !== createName) {
+            createName.value = String(undo.projectCreateName || '');
+        }
+        if (createUrl && root.activeElement !== createUrl) {
+            createUrl.value = String(undo.projectCreateUrl || '');
+        }
+        if (createButton) {
+            const draftName = String(undo.projectSearchQuery || '').trim();
+            createButton.textContent = draftName ? '+ Создать «' + draftName + '»' : '+ Создать новый проект';
+        }
+        if (projectSelect && visual.paused && !creatingProject && root.activeElement !== projectSelect) {
             projectSelect.textContent = '';
             const noProject = document.createElement('option');
             noProject.value = '';

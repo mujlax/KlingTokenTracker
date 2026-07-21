@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI Token Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.9.5
+// @version      0.9.6
 // @description  Учёт расхода AI-кредитов при генерации: панель, проекты, история, синхронизация с Google Sheets.
 // @match        *://kling.ai/*
 // @match        *://*.kling.ai/*
@@ -20,8 +20,17 @@
 
 (() => {
   // src/core/constants.js
-  var VERSION = "0.9.5";
+  var VERSION = "0.9.6";
   var VERSION_HISTORY = [
+    {
+      version: "0.9.6",
+      date: "2026-07-21",
+      changes: [
+        "\u0421\u043E\u0437\u0434\u0430\u043D\u0438\u0435 \u043D\u043E\u0432\u043E\u0433\u043E \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \u043F\u0440\u044F\u043C\u043E \u0432\u043E \u0432\u0440\u0435\u043C\u044F \u043E\u0442\u043C\u0435\u043D\u044B \u0442\u0440\u0430\u0442\u044B",
+        "\u0410\u0432\u0442\u043E\u0437\u0430\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u044F \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \u0438\u0437 \u043F\u043E\u0438\u0441\u043A\u043E\u0432\u043E\u0433\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0430",
+        "\u041D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442 \u0441\u0440\u0430\u0437\u0443 \u043F\u0440\u0438\u0432\u044F\u0437\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u043A \u0442\u0440\u0430\u0442\u0435 \u0438 \u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0441\u044F \u0430\u043A\u0442\u0438\u0432\u043D\u044B\u043C"
+      ]
+    },
     {
       version: "0.9.5",
       date: "2026-07-20",
@@ -2980,11 +2989,16 @@
         ".undoProgressTrack{display:none;position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.12);overflow:hidden}",
         ".panel.undo-active .undoProgressTrack{display:block}",
         ".undoProgressBar{display:block;width:100%;height:100%;background:linear-gradient(90deg,#6ea4ff,#2d6cdf);transform-origin:left center;transition:transform .1s linear;box-shadow:0 0 7px rgba(110,164,255,.75)}",
-        ".undoProjectPicker{display:none;width:100%;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;align-items:center}",
+        ".undoProjectPicker{display:none;width:100%}",
         ".panel.undo-picking .undoToast{display:none}",
-        ".panel.undo-picking .undoProjectPicker{display:grid}",
+        ".panel.undo-picking .undoProjectPicker{display:block}",
+        ".undoProjectChoose{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;align-items:center}",
+        ".undoProjectCreate{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;align-items:center}",
+        ".undoProjectChoose[hidden],.undoProjectCreate[hidden]{display:none}",
         ".undoProjectPicker .field{min-height:26px;padding:4px 22px 4px 7px;font-size:10px}",
         ".undoProjectSearch{grid-column:1/-1;padding-right:7px!important}",
+        ".undoProjectCreate .field{grid-column:1/-1;padding-right:7px}",
+        ".undoCreateProject{grid-column:1/-1;padding:5px 7px;font-size:10px;background:rgba(45,108,223,.16);border-color:rgba(110,164,255,.45);color:#cfe0ff}",
         ".undoPickerAction{padding:4px 7px;font-size:10px;font-weight:700}",
         ".undoPickerCancel{padding:4px 7px;font-size:10px;background:rgba(255,255,255,.06)}",
         ".sheetsNicknameWarn{padding:5px 10px;background:rgba(242,184,75,.14);border-bottom:1px solid rgba(242,184,75,.28);color:#f2d49b;font-size:10px;line-height:1.35;cursor:pointer}",
@@ -3010,10 +3024,20 @@
         '      <button type="button" class="iconBtn undoClose" data-action="closeUndoToast" data-tooltip="\u0417\u0430\u043A\u0440\u044B\u0442\u044C" aria-label="\u0417\u0430\u043A\u0440\u044B\u0442\u044C \u043E\u0442\u043C\u0435\u043D\u0443">' + iconSvg("x") + "</button>",
         "    </div>",
         '    <div class="undoProjectPicker" data-field="undoProjectPicker">',
-        '      <input class="field undoProjectSearch" data-field="undoProjectSearch" type="search" placeholder="\u041F\u043E\u0438\u0441\u043A \u043F\u0440\u043E\u0435\u043A\u0442\u0430">',
-        '      <select class="field select" data-field="undoProjectSelect" aria-label="\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442"></select>',
-        '      <button type="button" class="undoPickerAction" data-action="applyUndoProject">\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C</button>',
-        '      <button type="button" class="undoPickerCancel" data-action="cancelUndoProject">\u041E\u0442\u043C\u0435\u043D\u0430</button>',
+        '      <div class="undoProjectChoose" data-field="undoProjectChoose">',
+        '        <input class="field undoProjectSearch" data-field="undoProjectSearch" type="search" placeholder="\u041F\u043E\u0438\u0441\u043A \u043F\u0440\u043E\u0435\u043A\u0442\u0430">',
+        '        <select class="field select" data-field="undoProjectSelect" aria-label="\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442"></select>',
+        '        <button type="button" class="undoPickerAction" data-action="applyUndoProject">\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C</button>',
+        '        <button type="button" class="undoPickerCancel" data-action="cancelUndoProject">\u041E\u0442\u043C\u0435\u043D\u0430</button>',
+        '        <button type="button" class="undoCreateProject" data-action="openUndoProjectCreator">+ \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442</button>',
+        "      </div>",
+        '      <div class="undoProjectCreate" data-field="undoProjectCreate" hidden>',
+        '        <input class="field" data-field="undoProjectCreateName" type="text" placeholder="\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u043F\u0440\u043E\u0435\u043A\u0442\u0430">',
+        '        <input class="field" data-field="undoProjectCreateUrl" type="url" placeholder="URL \u043F\u0440\u043E\u0435\u043A\u0442\u0430 (\u043D\u0435\u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u043E)">',
+        '        <button type="button" class="undoPickerAction" data-action="createUndoProject">\u0421\u043E\u0437\u0434\u0430\u0442\u044C</button>',
+        '        <button type="button" class="undoPickerCancel" data-action="backUndoProjectPicker">\u041D\u0430\u0437\u0430\u0434</button>',
+        '        <button type="button" class="undoPickerCancel" data-action="cancelUndoProjectCreate">\u041E\u0442\u043C\u0435\u043D\u0430</button>',
+        "      </div>",
         "    </div>",
         '    <span class="undoProgressTrack" aria-hidden="true"><span class="undoProgressBar" data-field="undoProgressBar"></span></span>',
         "  </div>",
@@ -3231,6 +3255,58 @@
       });
       shadow.querySelector('[data-field="undoProjectSelect"]').addEventListener("change", function(event) {
         ctx.setUndoPendingProject(event.currentTarget.value);
+      });
+      shadow.querySelector('[data-action="openUndoProjectCreator"]').addEventListener("click", function() {
+        if (ctx.openUndoProjectCreator()) {
+          window.setTimeout(function() {
+            const input = shadow.querySelector('[data-field="undoProjectCreateName"]');
+            if (input) {
+              input.focus();
+              input.select();
+            }
+          }, 0);
+        }
+      });
+      shadow.querySelector('[data-action="backUndoProjectPicker"]').addEventListener("click", function() {
+        ctx.closeUndoProjectCreator();
+      });
+      shadow.querySelector('[data-action="cancelUndoProjectCreate"]').addEventListener("click", function() {
+        ctx.resumeUndoProjectPicker();
+      });
+      function createProjectFromUndoInputs() {
+        const nameInput = shadow.querySelector('[data-field="undoProjectCreateName"]');
+        const urlInput = shadow.querySelector('[data-field="undoProjectCreateUrl"]');
+        const created = ctx.createProjectForUndo(
+          nameInput ? nameInput.value : "",
+          urlInput ? urlInput.value : ""
+        );
+        if (!created && nameInput) {
+          nameInput.focus();
+          nameInput.setCustomValidity("\u0423\u043A\u0430\u0436\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u043F\u0440\u043E\u0435\u043A\u0442\u0430");
+          nameInput.reportValidity();
+        }
+      }
+      shadow.querySelector('[data-action="createUndoProject"]').addEventListener("click", createProjectFromUndoInputs);
+      ["undoProjectCreateName", "undoProjectCreateUrl"].forEach(function(field) {
+        shadow.querySelector('[data-field="' + field + '"]').addEventListener("input", function() {
+          const nameInput = shadow.querySelector('[data-field="undoProjectCreateName"]');
+          const urlInput = shadow.querySelector('[data-field="undoProjectCreateUrl"]');
+          if (nameInput) nameInput.setCustomValidity("");
+          ctx.setUndoProjectCreateDraft(
+            nameInput ? nameInput.value : "",
+            urlInput ? urlInput.value : ""
+          );
+        });
+        shadow.querySelector('[data-field="' + field + '"]').addEventListener("keydown", function(event) {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            createProjectFromUndoInputs();
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            ctx.closeUndoProjectCreator();
+          }
+        });
       });
       shadow.querySelector('[data-action="closeUndoToast"]').addEventListener("click", function() {
         ctx.hideUndoSpend();
@@ -4112,10 +4188,28 @@
       if (progressBar) progressBar.style.transform = "scaleX(" + visual.progress.toFixed(3) + ")";
       const projectSelect = root.querySelector('[data-field="undoProjectSelect"]');
       const undoSearch = root.querySelector('[data-field="undoProjectSearch"]');
+      const projectChoose = root.querySelector('[data-field="undoProjectChoose"]');
+      const projectCreate = root.querySelector('[data-field="undoProjectCreate"]');
+      const createName = root.querySelector('[data-field="undoProjectCreateName"]');
+      const createUrl = root.querySelector('[data-field="undoProjectCreateUrl"]');
+      const createButton = root.querySelector('[data-action="openUndoProjectCreator"]');
+      const creatingProject = visual.paused && undo.projectCreateOpen === true;
+      if (projectChoose) projectChoose.hidden = creatingProject;
+      if (projectCreate) projectCreate.hidden = !creatingProject;
       if (undoSearch && root.activeElement !== undoSearch) {
         undoSearch.value = String(undo.projectSearchQuery || "");
       }
-      if (projectSelect && visual.paused && root.activeElement !== projectSelect) {
+      if (createName && root.activeElement !== createName) {
+        createName.value = String(undo.projectCreateName || "");
+      }
+      if (createUrl && root.activeElement !== createUrl) {
+        createUrl.value = String(undo.projectCreateUrl || "");
+      }
+      if (createButton) {
+        const draftName = String(undo.projectSearchQuery || "").trim();
+        createButton.textContent = draftName ? "+ \u0421\u043E\u0437\u0434\u0430\u0442\u044C \xAB" + draftName + "\xBB" : "+ \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442";
+      }
+      if (projectSelect && visual.paused && !creatingProject && root.activeElement !== projectSelect) {
         projectSelect.textContent = "";
         const noProject = document.createElement("option");
         noProject.value = "";
@@ -4969,6 +5063,17 @@
       lastBalanceAt: value && value.lastBalanceAt ? Number(value.lastBalanceAt) : null
     };
   }
+  function createAndAssignUndoProject(ctx, undo, name, url) {
+    if (!undo || !undo.pickerOpen || !undo.projectCreateOpen) return null;
+    undo.projectCreateName = String(name || "");
+    undo.projectCreateUrl = String(url || "");
+    const entry = ctx && typeof ctx.addProject === "function" ? ctx.addProject(undo.projectCreateName, undo.projectCreateUrl) : null;
+    if (!entry) return null;
+    if (typeof ctx.addDiagnostic === "function") {
+      ctx.addDiagnostic("project created from undo", entry.id, entry.name);
+    }
+    return typeof ctx.applyUndoProject === "function" ? ctx.applyUndoProject(entry.id) : null;
+  }
   function createTracker() {
     const initialUiState = sanitizeUiState(readJson(UI_KEY, {}));
     const runtime = {
@@ -5124,6 +5229,9 @@
       undo.remainingMs = remainingMs;
       undo.pendingProjectId = String(event.project && event.project.id || "");
       undo.projectSearchQuery = "";
+      undo.projectCreateOpen = false;
+      undo.projectCreateName = "";
+      undo.projectCreateUrl = "";
       if (typeof ctx.cancelEventSyncToSheets === "function") {
         ctx.cancelEventSyncToSheets(undo.eventId);
       }
@@ -5176,6 +5284,32 @@
       const undo = runtime.undoSpend;
       if (!undo || !undo.pickerOpen) return;
       undo.pendingProjectId = String(projectId || "");
+    };
+    ctx.openUndoProjectCreator = function() {
+      const undo = runtime.undoSpend;
+      if (!undo || !undo.pickerOpen) return false;
+      undo.projectCreateOpen = true;
+      undo.projectCreateName = String(undo.projectSearchQuery || "").trim();
+      undo.projectCreateUrl = "";
+      ctx.renderSoon();
+      return true;
+    };
+    ctx.closeUndoProjectCreator = function() {
+      const undo = runtime.undoSpend;
+      if (!undo || !undo.pickerOpen || !undo.projectCreateOpen) return false;
+      undo.projectCreateOpen = false;
+      ctx.renderSoon();
+      return true;
+    };
+    ctx.setUndoProjectCreateDraft = function(name, url) {
+      const undo = runtime.undoSpend;
+      if (!undo || !undo.pickerOpen || !undo.projectCreateOpen) return;
+      undo.projectCreateName = String(name || "");
+      undo.projectCreateUrl = String(url || "");
+    };
+    ctx.createProjectForUndo = function(name, url) {
+      const undo = runtime.undoSpend;
+      return createAndAssignUndoProject(ctx, undo, name, url);
     };
     ctx.hideUndoSpend = function() {
       if (runtime.undoSpend && runtime.undoSpend.pickerOpen) {

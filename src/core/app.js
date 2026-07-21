@@ -54,6 +54,20 @@ function sanitizeMeta(value) {
     };
 }
 
+export function createAndAssignUndoProject(ctx, undo, name, url) {
+    if (!undo || !undo.pickerOpen || !undo.projectCreateOpen) return null;
+    undo.projectCreateName = String(name || '');
+    undo.projectCreateUrl = String(url || '');
+    const entry = ctx && typeof ctx.addProject === 'function'
+        ? ctx.addProject(undo.projectCreateName, undo.projectCreateUrl)
+        : null;
+    if (!entry) return null;
+    if (typeof ctx.addDiagnostic === 'function') {
+        ctx.addDiagnostic('project created from undo', entry.id, entry.name);
+    }
+    return typeof ctx.applyUndoProject === 'function' ? ctx.applyUndoProject(entry.id) : null;
+}
+
 export function createTracker() {
     const initialUiState = sanitizeUiState(readJson(UI_KEY, {}));
 
@@ -218,6 +232,9 @@ export function createTracker() {
         undo.remainingMs = remainingMs;
         undo.pendingProjectId = String(event.project && event.project.id || '');
         undo.projectSearchQuery = '';
+        undo.projectCreateOpen = false;
+        undo.projectCreateName = '';
+        undo.projectCreateUrl = '';
         if (typeof ctx.cancelEventSyncToSheets === 'function') {
             ctx.cancelEventSyncToSheets(undo.eventId);
         }
@@ -278,6 +295,36 @@ export function createTracker() {
         const undo = runtime.undoSpend;
         if (!undo || !undo.pickerOpen) return;
         undo.pendingProjectId = String(projectId || '');
+    };
+
+    ctx.openUndoProjectCreator = function () {
+        const undo = runtime.undoSpend;
+        if (!undo || !undo.pickerOpen) return false;
+        undo.projectCreateOpen = true;
+        undo.projectCreateName = String(undo.projectSearchQuery || '').trim();
+        undo.projectCreateUrl = '';
+        ctx.renderSoon();
+        return true;
+    };
+
+    ctx.closeUndoProjectCreator = function () {
+        const undo = runtime.undoSpend;
+        if (!undo || !undo.pickerOpen || !undo.projectCreateOpen) return false;
+        undo.projectCreateOpen = false;
+        ctx.renderSoon();
+        return true;
+    };
+
+    ctx.setUndoProjectCreateDraft = function (name, url) {
+        const undo = runtime.undoSpend;
+        if (!undo || !undo.pickerOpen || !undo.projectCreateOpen) return;
+        undo.projectCreateName = String(name || '');
+        undo.projectCreateUrl = String(url || '');
+    };
+
+    ctx.createProjectForUndo = function (name, url) {
+        const undo = runtime.undoSpend;
+        return createAndAssignUndoProject(ctx, undo, name, url);
     };
 
     ctx.hideUndoSpend = function () {

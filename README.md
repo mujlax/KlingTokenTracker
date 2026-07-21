@@ -88,6 +88,7 @@ Uses `localStorage` prefix `klingTokenTracker.*` (unchanged for backward compati
 - **Shared project catalog** — synchronized through the configured Google Sheet. New project forms suggest exact and fuzzy matches before creating a duplicate.
 - **Project deletion** — archives the shared project without removing historical spend rows.
 - **Undo project correction** — click the project name in the Undo banner to pause the countdown and reassign the spend before sync completes.
+- **Create from Undo** — if the required project is missing, create it directly in the paused picker and immediately attach it to the spend.
 - **Project search** — search active projects by name from the compact panel or the paused Undo picker; Undo lists newest-created projects first.
 - **Balance / Session** — per current site only.
 - **Today** — per current site only (from shared history, filtered by service).
@@ -98,4 +99,4 @@ GitHub Actions runs `npm test`, `npm run build`, and `node --check` on push and 
 
 ## Version
 
-0.9.5
+0.9.6
