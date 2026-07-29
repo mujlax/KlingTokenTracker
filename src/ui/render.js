@@ -250,42 +250,59 @@ export function createRender(ctx) {
 
         if (historyHeader) {
             historyHeader.textContent = '';
-            const headerText = document.createElement('span');
-            headerText.className = 'histHeaderText';
+
+            const top = document.createElement('div');
+            top.className = 'histHeaderTop';
+
+            const left = document.createElement('div');
+            left.className = 'histHeaderLeft';
+
             if (hasProject) {
                 const projectTotal = ctx.getProjectAllTimeTotal(activeProject);
                 const projectCount = ctx.getProjectEventCount(activeProject);
                 if (filterOn) {
-                    headerText.innerHTML = 'Только проект · <strong>' + projectCount + ' событий</strong> · -' + formatCredit(projectTotal);
+                    const badge = document.createElement('span');
+                    badge.className = 'histFilterBadge';
+                    badge.textContent = 'Проект';
+                    left.appendChild(badge);
+
+                    const summary = document.createElement('span');
+                    summary.className = 'histHeaderSummary';
+                    summary.innerHTML = '<strong>−' + formatCredit(projectTotal) + '</strong>'
+                        + ' · ' + projectCount + ' соб.';
+                    left.appendChild(summary);
                 } else {
-                    headerText.innerHTML = 'Вся история · Проект: <strong>' + escapeHtml(activeProject.name) + '</strong> · -' + formatCredit(projectTotal);
+                    const summary = document.createElement('span');
+                    summary.className = 'histHeaderSummary';
+                    summary.innerHTML = '<strong>' + escapeHtml(activeProject.name) + '</strong>'
+                        + ' · −' + formatCredit(projectTotal);
+                    left.appendChild(summary);
                 }
             } else {
-                headerText.textContent = 'Вся история';
+                const summary = document.createElement('span');
+                summary.className = 'histHeaderSummary';
+                summary.textContent = 'Вся история';
+                left.appendChild(summary);
             }
-            historyHeader.appendChild(headerText);
+            top.appendChild(left);
 
-            const stats = document.createElement('span');
-            stats.className = 'histStats';
-            const sessionStat = document.createElement('span');
-            sessionStat.className = 'histStat';
-            sessionStat.textContent = 'Сессия: ' + formatCredit(ctx.getSession().total || 0);
-            const todayStat = document.createElement('span');
-            todayStat.className = 'histStat';
-            todayStat.textContent = 'Сегодня: ' + formatCredit(getTodayTotal());
-            stats.appendChild(sessionStat);
-            stats.appendChild(todayStat);
             if (hasProject && filterOn) {
                 const showAll = document.createElement('button');
                 showAll.type = 'button';
                 showAll.className = 'histShowAll';
-                showAll.textContent = 'Показать всё';
+                showAll.textContent = 'Сбросить';
                 showAll.addEventListener('click', function () {
                     ctx.setProjectFilterEnabled(false);
                 });
-                stats.appendChild(showAll);
+                top.appendChild(showAll);
             }
-            historyHeader.appendChild(stats);
+            historyHeader.appendChild(top);
+
+            const meta = document.createElement('div');
+            meta.className = 'histHeaderMeta';
+            meta.textContent = 'Сессия ' + formatCredit(ctx.getSession().total || 0)
+                + ' · Сегодня ' + formatCredit(getTodayTotal());
+            historyHeader.appendChild(meta);
         }
 
         historyEl.textContent = '';
@@ -720,13 +737,6 @@ export function createRender(ctx) {
         const nicknameWarn = root.querySelector('[data-field="sheetsNicknameWarn"]');
         if (nicknameWarn) {
             nicknameWarn.hidden = !needsSheetsNickname(ctx.getSettings());
-        }
-
-        const debugButton = root.querySelector('[data-action="debug"]');
-        if (debugButton) {
-            debugButton.classList.toggle('active', ctx.runtime.debug);
-            debugButton.setAttribute('data-tooltip', ctx.runtime.debug ? 'Сбор отчёта отладки…' : 'Собрать отчёт отладки');
-            debugButton.setAttribute('aria-label', ctx.runtime.debug ? 'Сбор отчёта отладки…' : 'Собрать отчёт отладки');
         }
 
         const eventsEl = root.querySelector('[data-field="events"]');

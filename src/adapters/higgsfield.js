@@ -55,9 +55,6 @@ export function createHiggsfieldAdapter(h) {
         extractUiBalance: function (root, panelHost) {
             return extractHiggsfieldBalance(root, panelHost);
         },
-        isRelevantDebugUrl: function () {
-            return false;
-        },
         isGenerateButton: isLikelyHiggsfieldGenerateButton,
         extractCostFromUiText: extractHiggsfieldCost
     };

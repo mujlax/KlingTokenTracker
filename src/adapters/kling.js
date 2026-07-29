@@ -52,9 +52,6 @@ export function createKlingAdapter(h) {
             }
             return h.extractBalanceFromPayload(payload, url);
         },
-        isRelevantDebugUrl: function (url, payload) {
-            return h.looksRelevantForDebug(url, payload);
-        },
         isGenerateButton: isLikelyKlingGenerateButton
     };
 }

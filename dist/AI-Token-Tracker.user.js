@@ -147,7 +147,6 @@
   var HISTORY_KEY = STORAGE_PREFIX + "history.v1";
   var SESSION_KEY = STORAGE_PREFIX + "session.v1";
   var META_KEY = STORAGE_PREFIX + "meta.v1";
-  var DEBUG_KEY = STORAGE_PREFIX + "debug.v1";
   var PANEL_KEY = STORAGE_PREFIX + "panel.v1";
   var UI_KEY = STORAGE_PREFIX + "ui.v1";
   var SETTINGS_KEY = STORAGE_PREFIX + "settings.v1";
@@ -721,9 +720,6 @@
         }
         return h.extractBalanceFromPayload(payload, url);
       },
-      isRelevantDebugUrl: function(url, payload) {
-        return h.looksRelevantForDebug(url, payload);
-      },
       isGenerateButton: isLikelyKlingGenerateButton
     };
   }
@@ -769,9 +765,6 @@
       },
       extractUiBalance: function(root, panelHost) {
         return extractHiggsfieldBalance(root, panelHost);
-      },
-      isRelevantDebugUrl: function() {
-        return false;
       },
       isGenerateButton: isLikelyHiggsfieldGenerateButton,
       extractCostFromUiText: extractHiggsfieldCost
@@ -956,9 +949,6 @@
       },
       extractBalance: function() {
         return null;
-      },
-      isRelevantDebugUrl: function() {
-        return false;
       }
     };
   }
@@ -2274,15 +2264,6 @@
       if (init && "body" in init) bodyText = stringifyBody(init.body);
       return { url, method, bodyText, pending: null };
     }
-    function looksRelevantForDebug(url, payload) {
-      const text = String(url || "").toLowerCase();
-      if (/wallet|balance|credit|quota|token|account|profile|video|generate|task/.test(text)) return true;
-      try {
-        return /wallet|balance|credit|quota|token|task|video/i.test(JSON.stringify(payload).slice(0, 3e3));
-      } catch (_) {
-        return false;
-      }
-    }
     function handlePayload(payload, context) {
       const activeAdapter = ctx.getActiveAdapter();
       if (!activeAdapter || !activeAdapter.networkEnabled) return;
@@ -2291,12 +2272,7 @@
         context.pending.taskId = taskId;
       }
       const balanceCandidate = activeAdapter.extractBalance(payload, context.url);
-      if (!balanceCandidate) {
-        if (ctx.runtime.debug && activeAdapter.isRelevantDebugUrl(context.url, payload)) {
-          ctx.addDiagnostic("network payload candidate without balance", context.method || "", context.url);
-        }
-        return;
-      }
+      if (!balanceCandidate) return;
       ctx.addDiagnostic("balance candidate", balanceCandidate.value, balanceCandidate.path, context.url);
       ctx.observeBalance(balanceCandidate.value, "network", {
         url: context.url,
@@ -2400,58 +2376,12 @@
       inspectXhrResponse,
       handlePayload,
       getFetchMeta,
-      stringifyBody,
-      looksRelevantForDebug
+      stringifyBody
     };
   }
 
   // src/core/api.js
   function createApi(ctx) {
-    function summarizeDiagnostics(items) {
-      const list = Array.isArray(items) ? items.slice(-80) : [];
-      const grouped = {};
-      list.forEach(function(entry) {
-        const args = entry && Array.isArray(entry.args) ? entry.args : [];
-        const label = String(args[0] || "unknown");
-        const key = label + "|" + String(args[1] || "") + "|" + String(args[2] || "");
-        if (!grouped[key]) {
-          grouped[key] = {
-            count: 0,
-            lastAt: null,
-            sample: args
-          };
-        }
-        grouped[key].count += 1;
-        grouped[key].lastAt = entry.ts || null;
-        grouped[key].sample = args;
-      });
-      return Object.keys(grouped).map(function(key) {
-        return grouped[key];
-      }).sort(function(a, b) {
-        return (b.lastAt || 0) - (a.lastAt || 0);
-      }).slice(0, 30);
-    }
-    function createDebugReport() {
-      return {
-        version: VERSION,
-        service: ctx.getActiveAdapter().id,
-        serviceName: ctx.getActiveAdapter().name,
-        page: redactUrl(window.location.href),
-        capturedAt: (/* @__PURE__ */ new Date()).toISOString(),
-        balance: ctx.runtime.balance,
-        balanceSource: ctx.runtime.balanceSource,
-        balancePath: ctx.runtime.balancePath,
-        lastBalanceAt: ctx.runtime.lastBalanceAt,
-        sessionTotal: ctx.getSession().total || 0,
-        todayTotal: ctx.getTodayTotal(),
-        project: ctx.runtime.project,
-        history: ctx.getHistory().slice(0, 10),
-        pending: ctx.runtime.pending.slice(-10).map(function(pending) {
-          return Object.assign({}, pending);
-        }),
-        diagnostics: summarizeDiagnostics(ctx.runtime.diagnostics)
-      };
-    }
     function getState() {
       return deepClone({
         version: VERSION,
@@ -2470,8 +2400,7 @@
         pending: ctx.runtime.pending.map(function(item) {
           return Object.assign({}, item);
         }),
-        diagnostics: ctx.runtime.diagnostics.slice(-80),
-        debug: ctx.runtime.debug
+        diagnostics: ctx.runtime.diagnostics.slice(-80)
       });
     }
     function resetSession() {
@@ -2479,22 +2408,6 @@
       ctx.saveSession();
       ctx.renderSoon();
       return getState();
-    }
-    function exportJSON() {
-      return JSON.stringify(getState(), null, 2);
-    }
-    function getDebugReport() {
-      return JSON.stringify(createDebugReport(), null, 2);
-    }
-    function copyDebugReport() {
-      const report = getDebugReport();
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-        return navigator.clipboard.writeText(report).then(function() {
-          ctx.addDiagnostic("debug report copied");
-          return report;
-        });
-      }
-      return report;
     }
     function clearHistory() {
       ctx.setHistory([]);
@@ -2551,36 +2464,11 @@
       ctx.renderSoon();
       return getState();
     }
-    function setDebug(enabled) {
-      ctx.runtime.debug = Boolean(enabled);
-      writeJson(DEBUG_KEY, ctx.runtime.debug);
-      ctx.renderSoon();
-      ctx.addDiagnostic("debug", ctx.runtime.debug ? "enabled" : "disabled");
-      if (ctx.runtime.debug) {
-        console.info("[AI Token Tracker] Debug is collecting a compact report. Use window.AITokenTracker.copyDebugReport() or the Copy report button.");
-      }
-      return ctx.runtime.debug;
-    }
-    function downloadExport() {
-      const blob = new Blob([exportJSON()], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "kling-token-tracker-" + localDateKey(Date.now()) + ".json";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(function() {
-        URL.revokeObjectURL(url);
-      }, 1e3);
-    }
     function exposeApi() {
       const api = {
         version: VERSION,
         getState,
         resetSession,
-        exportJSON,
-        setDebug,
         clearHistory,
         forgetBalance,
         resetAll,
@@ -2593,9 +2481,7 @@
         updateProject: ctx.updateProject,
         deleteProject: ctx.deleteProject,
         selectProject: ctx.selectProject,
-        syncProjectsFromSheets: ctx.syncProjectsFromSheets,
-        getDebugReport,
-        copyDebugReport
+        syncProjectsFromSheets: ctx.syncProjectsFromSheets
       };
       const pageWindow = getPageWindow();
       pageWindow.AITokenTracker = api;
@@ -2605,17 +2491,11 @@
       exposeApi,
       getState,
       resetSession,
-      exportJSON,
-      getDebugReport,
-      copyDebugReport,
-      createDebugReport,
       clearHistory,
       forgetBalance,
       resetAll,
-      setDebug,
       deleteSpendEvent: ctx.deleteSpendEvent,
-      undoLastSpend: ctx.undoLastSpend,
-      downloadExport
+      undoLastSpend: ctx.undoLastSpend
     };
   }
   function formatDebugArg(value) {
@@ -2922,12 +2802,15 @@
         ".projectBreakdownName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
         ".projectBreakdownValue{font-weight:700;color:#fff;text-align:right}",
         ".projectBreakdownEmpty{color:#8f98a6;font-size:11px}",
-        ".histHeader{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:#bfc6d1;margin-bottom:6px}",
+        ".histHeader{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#bfc6d1;margin-bottom:8px}",
+        ".histHeaderTop{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}",
+        ".histHeaderLeft{display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden}",
+        ".histFilterBadge{flex-shrink:0;border:1px solid rgba(45,108,223,.45);background:rgba(45,108,223,.18);color:#d6e4ff;border-radius:999px;padding:1px 7px;font-size:10px;font-weight:700;line-height:1.35}",
+        ".histHeaderSummary{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#bfc6d1}",
         ".histHeader strong{color:#fff}",
-        ".histHeaderText{min-width:0}",
-        ".histStats{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap;flex-shrink:0}",
-        ".histStat{border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:1px 6px;background:rgba(255,255,255,.05);white-space:nowrap}",
-        ".histShowAll{appearance:none;border:none;background:none;color:#8eb6ff;padding:0;font:11px Arial,sans-serif;cursor:pointer;text-decoration:underline}",
+        ".histHeaderMeta{color:#8f98a6;font-size:10px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+        ".histShowAll{flex-shrink:0;appearance:none;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#d6e4ff;border-radius:999px;padding:2px 8px;font:10px/1.3 Arial,sans-serif;cursor:pointer}",
+        ".histShowAll:hover{background:rgba(255,255,255,.12)}",
         ".histItem--matched{border-color:rgba(45,108,223,.45);background:rgba(45,108,223,.08)}",
         ".select.field{cursor:pointer;padding-right:24px}",
         ".field{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;border-radius:6px;padding:7px 8px;font:12px Arial,sans-serif;outline:none}",
@@ -2936,7 +2819,6 @@
         ".miniBtn svg{width:14px;height:14px}",
         ".dot{width:7px;height:7px;border-radius:50%;background:#28b67a}",
         ".source{color:#aeb6c2;text-transform:uppercase;font-size:10px}",
-        ".actions{display:flex;gap:8px;margin-top:10px;align-items:center;justify-content:space-between}",
         "button{appearance:none;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#fff;border-radius:6px;padding:6px 8px;font:12px Arial,sans-serif;cursor:pointer;min-width:0}",
         "button:hover{background:rgba(255,255,255,.14)}",
         "button.active{background:#2d6cdf;border-color:#2d6cdf}",
@@ -2967,6 +2849,7 @@
         ".settingsCheck input{width:12px;height:12px;margin:0;cursor:pointer}",
         ".settingsStatus{color:#9aa3b2;font-size:10px;line-height:1.3;word-break:break-word;grid-column:1/-1}",
         ".settingsActions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;grid-column:1/-1}",
+        ".settingsActions--pair{grid-template-columns:1fr 1fr}",
         ".settingsActions button,.settingsReset{padding:4px 6px;font-size:10px}",
         ".settingsReset{margin-top:2px}",
         ".versionList{display:grid;gap:7px}",
@@ -3202,16 +3085,22 @@
         "          </div>",
         "        </div>",
         "      </div>",
+        '      <div class="acc" data-acc="data">',
+        '        <button type="button" class="accHead" data-action="toggleSettingsAcc">',
+        '          <span class="accTitle">\u0414\u0430\u043D\u043D\u044B\u0435</span>',
+        '          <span class="accMeta">2</span>',
+        '          <span class="accChevron">' + iconSvg("chevron-down") + "</span>",
+        "        </button>",
+        '        <div class="accBody">',
+        '          <div class="settingsActions settingsActions--pair">',
+        '            <button type="button" data-action="reset">\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0441\u0435\u0441\u0441\u0438\u044E</button>',
+        '            <button type="button" data-action="resetAll">\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0432\u0441\u0451</button>',
+        "          </div>",
+        "        </div>",
+        "      </div>",
         '      <button type="button" class="settingsReset" data-action="resetSettings">\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438</button>',
         "    </div>",
         "   </div>",
-        '    <div class="actions">',
-        '      <button type="button" class="iconBtn" data-action="resetAll" data-tooltip="\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0432\u0441\u0451" aria-label="\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0432\u0441\u0451">' + iconSvg("trash-2") + "</button>",
-        '      <button type="button" class="iconBtn" data-action="copyReport" data-tooltip="\u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043E\u0442\u0447\u0451\u0442" aria-label="\u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043E\u0442\u0447\u0451\u0442">' + iconSvg("clipboard-copy") + "</button>",
-        '      <button type="button" class="iconBtn" data-action="reset" data-tooltip="\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0441\u0435\u0441\u0441\u0438\u044E" aria-label="\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0441\u0435\u0441\u0441\u0438\u044E">' + iconSvg("rotate-ccw") + "</button>",
-        '      <button type="button" class="iconBtn" data-action="export" data-tooltip="\u042D\u043A\u0441\u043F\u043E\u0440\u0442 JSON" aria-label="\u042D\u043A\u0441\u043F\u043E\u0440\u0442 JSON">' + iconSvg("download") + "</button>",
-        '      <button type="button" class="iconBtn" data-action="debug" data-tooltip="\u0421\u043E\u0431\u0440\u0430\u0442\u044C \u043E\u0442\u0447\u0451\u0442 \u043E\u0442\u043B\u0430\u0434\u043A\u0438" aria-label="\u0421\u043E\u0431\u0440\u0430\u0442\u044C \u043E\u0442\u0447\u0451\u0442 \u043E\u0442\u043B\u0430\u0434\u043A\u0438">' + iconSvg("bug") + "</button>",
-        "    </div>",
         "  </div>",
         "</div>"
       ].join("");
@@ -3220,15 +3109,6 @@
       });
       shadow.querySelector('[data-action="resetAll"]').addEventListener("click", function() {
         ctx.resetAll();
-      });
-      shadow.querySelector('[data-action="copyReport"]').addEventListener("click", function() {
-        ctx.copyDebugReport();
-      });
-      shadow.querySelector('[data-action="export"]').addEventListener("click", function() {
-        ctx.downloadExport();
-      });
-      shadow.querySelector('[data-action="debug"]').addEventListener("click", function() {
-        ctx.setDebug(!ctx.runtime.debug);
       });
       shadow.querySelector('[data-action="undoSpend"]').addEventListener("click", function() {
         ctx.undoLastSpend();
@@ -3834,41 +3714,50 @@
       if (!historyEl) return;
       if (historyHeader) {
         historyHeader.textContent = "";
-        const headerText = document.createElement("span");
-        headerText.className = "histHeaderText";
+        const top = document.createElement("div");
+        top.className = "histHeaderTop";
+        const left = document.createElement("div");
+        left.className = "histHeaderLeft";
         if (hasProject) {
           const projectTotal = ctx.getProjectAllTimeTotal(activeProject);
           const projectCount = ctx.getProjectEventCount(activeProject);
           if (filterOn) {
-            headerText.innerHTML = "\u0422\u043E\u043B\u044C\u043A\u043E \u043F\u0440\u043E\u0435\u043A\u0442 \xB7 <strong>" + projectCount + " \u0441\u043E\u0431\u044B\u0442\u0438\u0439</strong> \xB7 -" + formatCredit(projectTotal);
+            const badge = document.createElement("span");
+            badge.className = "histFilterBadge";
+            badge.textContent = "\u041F\u0440\u043E\u0435\u043A\u0442";
+            left.appendChild(badge);
+            const summary = document.createElement("span");
+            summary.className = "histHeaderSummary";
+            summary.innerHTML = "<strong>\u2212" + formatCredit(projectTotal) + "</strong> \xB7 " + projectCount + " \u0441\u043E\u0431.";
+            left.appendChild(summary);
           } else {
-            headerText.innerHTML = "\u0412\u0441\u044F \u0438\u0441\u0442\u043E\u0440\u0438\u044F \xB7 \u041F\u0440\u043E\u0435\u043A\u0442: <strong>" + escapeHtml(activeProject.name) + "</strong> \xB7 -" + formatCredit(projectTotal);
+            const summary = document.createElement("span");
+            summary.className = "histHeaderSummary";
+            summary.innerHTML = "<strong>" + escapeHtml(activeProject.name) + "</strong> \xB7 \u2212" + formatCredit(projectTotal);
+            left.appendChild(summary);
           }
         } else {
-          headerText.textContent = "\u0412\u0441\u044F \u0438\u0441\u0442\u043E\u0440\u0438\u044F";
+          const summary = document.createElement("span");
+          summary.className = "histHeaderSummary";
+          summary.textContent = "\u0412\u0441\u044F \u0438\u0441\u0442\u043E\u0440\u0438\u044F";
+          left.appendChild(summary);
         }
-        historyHeader.appendChild(headerText);
-        const stats = document.createElement("span");
-        stats.className = "histStats";
-        const sessionStat = document.createElement("span");
-        sessionStat.className = "histStat";
-        sessionStat.textContent = "\u0421\u0435\u0441\u0441\u0438\u044F: " + formatCredit(ctx.getSession().total || 0);
-        const todayStat = document.createElement("span");
-        todayStat.className = "histStat";
-        todayStat.textContent = "\u0421\u0435\u0433\u043E\u0434\u043D\u044F: " + formatCredit(getTodayTotal2());
-        stats.appendChild(sessionStat);
-        stats.appendChild(todayStat);
+        top.appendChild(left);
         if (hasProject && filterOn) {
           const showAll = document.createElement("button");
           showAll.type = "button";
           showAll.className = "histShowAll";
-          showAll.textContent = "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0432\u0441\u0451";
+          showAll.textContent = "\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C";
           showAll.addEventListener("click", function() {
             ctx.setProjectFilterEnabled(false);
           });
-          stats.appendChild(showAll);
+          top.appendChild(showAll);
         }
-        historyHeader.appendChild(stats);
+        historyHeader.appendChild(top);
+        const meta = document.createElement("div");
+        meta.className = "histHeaderMeta";
+        meta.textContent = "\u0421\u0435\u0441\u0441\u0438\u044F " + formatCredit(ctx.getSession().total || 0) + " \xB7 \u0421\u0435\u0433\u043E\u0434\u043D\u044F " + formatCredit(getTodayTotal2());
+        historyHeader.appendChild(meta);
       }
       historyEl.textContent = "";
       const history = ctx.getHistory();
@@ -4266,12 +4155,6 @@
       const nicknameWarn = root.querySelector('[data-field="sheetsNicknameWarn"]');
       if (nicknameWarn) {
         nicknameWarn.hidden = !needsSheetsNickname(ctx.getSettings());
-      }
-      const debugButton = root.querySelector('[data-action="debug"]');
-      if (debugButton) {
-        debugButton.classList.toggle("active", ctx.runtime.debug);
-        debugButton.setAttribute("data-tooltip", ctx.runtime.debug ? "\u0421\u0431\u043E\u0440 \u043E\u0442\u0447\u0451\u0442\u0430 \u043E\u0442\u043B\u0430\u0434\u043A\u0438\u2026" : "\u0421\u043E\u0431\u0440\u0430\u0442\u044C \u043E\u0442\u0447\u0451\u0442 \u043E\u0442\u043B\u0430\u0434\u043A\u0438");
-        debugButton.setAttribute("aria-label", ctx.runtime.debug ? "\u0421\u0431\u043E\u0440 \u043E\u0442\u0447\u0451\u0442\u0430 \u043E\u0442\u043B\u0430\u0434\u043A\u0438\u2026" : "\u0421\u043E\u0431\u0440\u0430\u0442\u044C \u043E\u0442\u0447\u0451\u0442 \u043E\u0442\u043B\u0430\u0434\u043A\u0438");
       }
       const eventsEl = root.querySelector('[data-field="events"]');
       if (!eventsEl) return;
@@ -5096,7 +4979,6 @@
       renderTimer: null,
       undoRenderTimer: null,
       sheetsPullTimer: null,
-      debug: false,
       diagnostics: [],
       lastUiSpend: null,
       undoSpend: null,
@@ -5115,7 +4997,6 @@
     let session = sanitizeSession(readJson(SESSION_KEY, null)) || createSession();
     let meta = sanitizeMeta(readJson(META_KEY, {}));
     let projectLibrary = sanitizeProjectLibrary(readJson(PROJECTS_LIBRARY_KEY, []));
-    runtime.debug = readJson(DEBUG_KEY, false) === true;
     runtime.balance = meta.balance;
     runtime.balanceSource = meta.balanceSource || "none";
     runtime.balancePath = meta.balancePath || "";
@@ -5427,8 +5308,7 @@
       getPanelHost: function() {
         return runtime.panelHost;
       },
-      extractBalanceFromPayload,
-      looksRelevantForDebug: network.looksRelevantForDebug
+      extractBalanceFromPayload
     });
     ctx.migrateProjectLibrary();
     ctx.exposeApi();

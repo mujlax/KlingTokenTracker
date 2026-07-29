@@ -140,12 +140,15 @@ export function createPanelModule(ctx) {
             '.projectBreakdownName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
             '.projectBreakdownValue{font-weight:700;color:#fff;text-align:right}',
             '.projectBreakdownEmpty{color:#8f98a6;font-size:11px}',
-            '.histHeader{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:#bfc6d1;margin-bottom:6px}',
+            '.histHeader{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#bfc6d1;margin-bottom:8px}',
+            '.histHeaderTop{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}',
+            '.histHeaderLeft{display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden}',
+            '.histFilterBadge{flex-shrink:0;border:1px solid rgba(45,108,223,.45);background:rgba(45,108,223,.18);color:#d6e4ff;border-radius:999px;padding:1px 7px;font-size:10px;font-weight:700;line-height:1.35}',
+            '.histHeaderSummary{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#bfc6d1}',
             '.histHeader strong{color:#fff}',
-            '.histHeaderText{min-width:0}',
-            '.histStats{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap;flex-shrink:0}',
-            '.histStat{border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:1px 6px;background:rgba(255,255,255,.05);white-space:nowrap}',
-            '.histShowAll{appearance:none;border:none;background:none;color:#8eb6ff;padding:0;font:11px Arial,sans-serif;cursor:pointer;text-decoration:underline}',
+            '.histHeaderMeta{color:#8f98a6;font-size:10px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+            '.histShowAll{flex-shrink:0;appearance:none;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#d6e4ff;border-radius:999px;padding:2px 8px;font:10px/1.3 Arial,sans-serif;cursor:pointer}',
+            '.histShowAll:hover{background:rgba(255,255,255,.12)}',
             '.histItem--matched{border-color:rgba(45,108,223,.45);background:rgba(45,108,223,.08)}',
             '.select.field{cursor:pointer;padding-right:24px}',
             '.field{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;border-radius:6px;padding:7px 8px;font:12px Arial,sans-serif;outline:none}',
@@ -154,7 +157,6 @@ export function createPanelModule(ctx) {
             '.miniBtn svg{width:14px;height:14px}',
             '.dot{width:7px;height:7px;border-radius:50%;background:#28b67a}',
             '.source{color:#aeb6c2;text-transform:uppercase;font-size:10px}',
-            '.actions{display:flex;gap:8px;margin-top:10px;align-items:center;justify-content:space-between}',
             'button{appearance:none;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#fff;border-radius:6px;padding:6px 8px;font:12px Arial,sans-serif;cursor:pointer;min-width:0}',
             'button:hover{background:rgba(255,255,255,.14)}',
             'button.active{background:#2d6cdf;border-color:#2d6cdf}',
@@ -185,6 +187,7 @@ export function createPanelModule(ctx) {
             '.settingsCheck input{width:12px;height:12px;margin:0;cursor:pointer}',
             '.settingsStatus{color:#9aa3b2;font-size:10px;line-height:1.3;word-break:break-word;grid-column:1/-1}',
             '.settingsActions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;grid-column:1/-1}',
+            '.settingsActions--pair{grid-template-columns:1fr 1fr}',
             '.settingsActions button,.settingsReset{padding:4px 6px;font-size:10px}',
             '.settingsReset{margin-top:2px}',
             '.versionList{display:grid;gap:7px}',
@@ -420,16 +423,22 @@ export function createPanelModule(ctx) {
             '          </div>',
             '        </div>',
             '      </div>',
+            '      <div class="acc" data-acc="data">',
+            '        <button type="button" class="accHead" data-action="toggleSettingsAcc">',
+            '          <span class="accTitle">Данные</span>',
+            '          <span class="accMeta">2</span>',
+            '          <span class="accChevron">' + iconSvg('chevron-down') + '</span>',
+            '        </button>',
+            '        <div class="accBody">',
+            '          <div class="settingsActions settingsActions--pair">',
+            '            <button type="button" data-action="reset">Сбросить сессию</button>',
+            '            <button type="button" data-action="resetAll">Сбросить всё</button>',
+            '          </div>',
+            '        </div>',
+            '      </div>',
             '      <button type="button" class="settingsReset" data-action="resetSettings">Сбросить настройки</button>',
             '    </div>',
             '   </div>',
-            '    <div class="actions">',
-            '      <button type="button" class="iconBtn" data-action="resetAll" data-tooltip="Сбросить всё" aria-label="Сбросить всё">' + iconSvg('trash-2') + '</button>',
-            '      <button type="button" class="iconBtn" data-action="copyReport" data-tooltip="Копировать отчёт" aria-label="Копировать отчёт">' + iconSvg('clipboard-copy') + '</button>',
-            '      <button type="button" class="iconBtn" data-action="reset" data-tooltip="Сбросить сессию" aria-label="Сбросить сессию">' + iconSvg('rotate-ccw') + '</button>',
-            '      <button type="button" class="iconBtn" data-action="export" data-tooltip="Экспорт JSON" aria-label="Экспорт JSON">' + iconSvg('download') + '</button>',
-            '      <button type="button" class="iconBtn" data-action="debug" data-tooltip="Собрать отчёт отладки" aria-label="Собрать отчёт отладки">' + iconSvg('bug') + '</button>',
-            '    </div>',
             '  </div>',
             '</div>'
         ].join('');
@@ -439,15 +448,6 @@ export function createPanelModule(ctx) {
         });
         shadow.querySelector('[data-action="resetAll"]').addEventListener('click', function () {
             ctx.resetAll();
-        });
-        shadow.querySelector('[data-action="copyReport"]').addEventListener('click', function () {
-            ctx.copyDebugReport();
-        });
-        shadow.querySelector('[data-action="export"]').addEventListener('click', function () {
-            ctx.downloadExport();
-        });
-        shadow.querySelector('[data-action="debug"]').addEventListener('click', function () {
-            ctx.setDebug(!ctx.runtime.debug);
         });
         shadow.querySelector('[data-action="undoSpend"]').addEventListener('click', function () {
             ctx.undoLastSpend();

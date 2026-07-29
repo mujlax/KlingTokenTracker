@@ -43,16 +43,6 @@ export function createNetwork(ctx) {
         return { url, method, bodyText, pending: null };
     }
 
-    function looksRelevantForDebug(url, payload) {
-        const text = String(url || '').toLowerCase();
-        if (/wallet|balance|credit|quota|token|account|profile|video|generate|task/.test(text)) return true;
-        try {
-            return /wallet|balance|credit|quota|token|task|video/i.test(JSON.stringify(payload).slice(0, 3000));
-        } catch (_) {
-            return false;
-        }
-    }
-
     function handlePayload(payload, context) {
         const activeAdapter = ctx.getActiveAdapter();
         if (!activeAdapter || !activeAdapter.networkEnabled) return;
@@ -62,12 +52,7 @@ export function createNetwork(ctx) {
         }
 
         const balanceCandidate = activeAdapter.extractBalance(payload, context.url);
-        if (!balanceCandidate) {
-            if (ctx.runtime.debug && activeAdapter.isRelevantDebugUrl(context.url, payload)) {
-                ctx.addDiagnostic('network payload candidate without balance', context.method || '', context.url);
-            }
-            return;
-        }
+        if (!balanceCandidate) return;
 
         ctx.addDiagnostic('balance candidate', balanceCandidate.value, balanceCandidate.path, context.url);
         ctx.observeBalance(balanceCandidate.value, 'network', {
@@ -188,7 +173,6 @@ export function createNetwork(ctx) {
         inspectXhrResponse,
         handlePayload,
         getFetchMeta,
-        stringifyBody,
-        looksRelevantForDebug
+        stringifyBody
     };
 }

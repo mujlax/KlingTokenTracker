@@ -157,8 +157,7 @@ test('registry selects Seedance only for Seedance tool URL', function () {
     initAdapters({
         getPanelHost: function () { return null; },
         addDiagnostic: function () {},
-        extractBalanceFromPayload: function () { return null; },
-        looksRelevantForDebug: function () { return false; }
+        extractBalanceFromPayload: function () { return null; }
     });
 
     global.window = { location: { href: 'https://sjinn.ai/tools/seedance20-video' } };

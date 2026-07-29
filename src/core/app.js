@@ -5,7 +5,6 @@ import {
     HISTORY_KEY,
     SESSION_KEY,
     META_KEY,
-    DEBUG_KEY,
     UI_KEY,
     PROJECT_KEY,
     PROJECTS_LIBRARY_KEY
@@ -91,7 +90,6 @@ export function createTracker() {
         renderTimer: null,
         undoRenderTimer: null,
         sheetsPullTimer: null,
-        debug: false,
         diagnostics: [],
         lastUiSpend: null,
         undoSpend: null,
@@ -112,7 +110,6 @@ export function createTracker() {
     let meta = sanitizeMeta(readJson(META_KEY, {}));
     let projectLibrary = sanitizeProjectLibrary(readJson(PROJECTS_LIBRARY_KEY, []));
 
-    runtime.debug = readJson(DEBUG_KEY, false) === true;
     runtime.balance = meta.balance;
     runtime.balanceSource = meta.balanceSource || 'none';
     runtime.balancePath = meta.balancePath || '';
@@ -459,8 +456,7 @@ export function createTracker() {
     initAdapters({
         addDiagnostic: ctx.addDiagnostic,
         getPanelHost: function () { return runtime.panelHost; },
-        extractBalanceFromPayload,
-        looksRelevantForDebug: network.looksRelevantForDebug
+        extractBalanceFromPayload
     });
 
     ctx.migrateProjectLibrary();

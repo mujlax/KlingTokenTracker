@@ -213,9 +213,6 @@ export function createSeedanceAdapter(h) {
         },
         extractBalance: function () {
             return null;
-        },
-        isRelevantDebugUrl: function () {
-            return false;
         }
     };
 }

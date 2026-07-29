@@ -126,7 +126,6 @@ export const STORAGE_PREFIX = 'klingTokenTracker.';
 export const HISTORY_KEY = STORAGE_PREFIX + 'history.v1';
 export const SESSION_KEY = STORAGE_PREFIX + 'session.v1';
 export const META_KEY = STORAGE_PREFIX + 'meta.v1';
-export const DEBUG_KEY = STORAGE_PREFIX + 'debug.v1';
 export const PANEL_KEY = STORAGE_PREFIX + 'panel.v1';
 export const UI_KEY = STORAGE_PREFIX + 'ui.v1';
 export const SETTINGS_KEY = STORAGE_PREFIX + 'settings.v1';
