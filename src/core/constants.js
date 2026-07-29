@@ -1,5 +1,14 @@
-export const VERSION = '0.9.6';
+export const VERSION = '1.0.0';
 export const VERSION_HISTORY = [
+    {
+        version: '1.0.0',
+        date: '2026-07-29',
+        changes: [
+            'Полный редизайн панели в стиле чёрного glass + blue aurora',
+            'Сводка стала компактнее и всегда показывает траты активного проекта',
+            'В историю добавлен отдельный фильтр Все / Проект'
+        ]
+    },
     {
         version: '0.9.6',
         date: '2026-07-21',

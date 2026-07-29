@@ -20,8 +20,17 @@
 
 (() => {
   // src/core/constants.js
-  var VERSION = "0.9.6";
+  var VERSION = "1.0.0";
   var VERSION_HISTORY = [
+    {
+      version: "1.0.0",
+      date: "2026-07-29",
+      changes: [
+        "\u041F\u043E\u043B\u043D\u044B\u0439 \u0440\u0435\u0434\u0438\u0437\u0430\u0439\u043D \u043F\u0430\u043D\u0435\u043B\u0438 \u0432 \u0441\u0442\u0438\u043B\u0435 \u0447\u0451\u0440\u043D\u043E\u0433\u043E glass + blue aurora",
+        "\u0421\u0432\u043E\u0434\u043A\u0430 \u0441\u0442\u0430\u043B\u0430 \u043A\u043E\u043C\u043F\u0430\u043A\u0442\u043D\u0435\u0435 \u0438 \u0432\u0441\u0435\u0433\u0434\u0430 \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u0442 \u0442\u0440\u0430\u0442\u044B \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0433\u043E \u043F\u0440\u043E\u0435\u043A\u0442\u0430",
+        "\u0412 \u0438\u0441\u0442\u043E\u0440\u0438\u044E \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u0439 \u0444\u0438\u043B\u044C\u0442\u0440 \u0412\u0441\u0435 / \u041F\u0440\u043E\u0435\u043A\u0442"
+      ]
+    },
     {
       version: "0.9.6",
       date: "2026-07-21",
@@ -2569,6 +2578,271 @@
     return '<svg viewBox="0 0 24 24" aria-hidden="true">' + (icons[name] || []).join("") + "</svg>";
   }
 
+  // src/ui/panel-styles.js
+  var PANEL_STYLES = [
+    ":host{display:block;position:relative}",
+    ":host(:hover) .panel,.panel.undo-active{opacity:1}",
+    ':host{--ktt-idle-opacity:.24;--ktt-font:"Google Sans","Roboto",Arial,sans-serif;--ktt-radius-sm:14px;--ktt-radius-md:20px;--ktt-radius-lg:32px;--ktt-radius-pill:999px;--ktt-black:#000;--ktt-surface:rgba(0,0,0,.78);--ktt-surface-elevated:rgba(255,255,255,.06);--ktt-surface-container:rgba(255,255,255,.08);--ktt-surface-container-high:rgba(255,255,255,.12);--ktt-surface-hover:rgba(255,255,255,.14);--ktt-glass:rgba(255,255,255,.10);--ktt-on-surface:#f8fafc;--ktt-on-surface-variant:#94a3b8;--ktt-on-surface-muted:#64748b;--ktt-outline:rgba(255,255,255,.12);--ktt-outline-variant:rgba(255,255,255,.06);--ktt-primary:#38bdf8;--ktt-primary-deep:#1d4ed8;--ktt-on-primary:#fff;--ktt-primary-container:rgba(56,189,248,.16);--ktt-on-primary-container:#bae6fd;--ktt-link:#7dd3fc;--ktt-warning:#fbbf24;--ktt-warning-container:rgba(251,191,36,.12);--ktt-blur:blur(14px);--ktt-glow:0 0 28px rgba(56,189,248,.28),0 0 64px rgba(29,78,216,.18);--ktt-glow-hover:0 0 36px rgba(56,189,248,.38),0 0 80px rgba(29,78,216,.24);--ktt-focus-ring:0 0 0 2px rgba(0,0,0,.8),0 0 0 4px rgba(56,189,248,.75);--ktt-gradient-spectrum:linear-gradient(90deg,#f87171,#fbbf24,#4ade80,#38bdf8,#818cf8,#e879f9);--ktt-gradient-blue-v:linear-gradient(180deg,#7dd3fc 0%,#3b82f6 38%,#1e3a8a 72%,#000 100%);--ktt-gradient-blue-h:linear-gradient(90deg,#67e8f9 0%,#3b82f6 55%,#1d4ed8 100%);--ktt-gradient-blue-soft:linear-gradient(145deg,rgba(125,211,252,.22) 0%,rgba(59,130,246,.14) 50%,rgba(30,58,138,.08) 100%);--ktt-gradient-header:linear-gradient(180deg,rgba(125,211,252,.18) 0%,rgba(59,130,246,.08) 45%,transparent 100%);--ktt-gradient-hero:radial-gradient(ellipse 90% 80% at 50% 0%,rgba(56,189,248,.28),rgba(29,78,216,.12) 45%,transparent 70%),linear-gradient(180deg,rgba(125,211,252,.12),rgba(0,0,0,.2));--ktt-gradient-undo:linear-gradient(90deg,rgba(56,189,248,.35),rgba(129,140,248,.2),transparent);--ktt-gradient-progress:linear-gradient(90deg,#67e8f9,#38bdf8,#3b82f6,#818cf8);--ktt-gradient-text:linear-gradient(180deg,#e0f2fe 0%,#7dd3fc 40%,#3b82f6 100%);--ktt-accent-ui:#fbbf24;--ktt-accent-mixed:#4ade80;--ktt-accent-network:#38bdf8;--ktt-accent-default:#60a5fa}',
+    "@media (prefers-color-scheme:light){:host{--ktt-surface:rgba(255,255,255,.88);--ktt-surface-elevated:rgba(255,255,255,.95);--ktt-surface-container:rgba(15,23,42,.05);--ktt-surface-container-high:rgba(15,23,42,.08);--ktt-surface-hover:rgba(15,23,42,.07);--ktt-glass:rgba(255,255,255,.72);--ktt-on-surface:#0f172a;--ktt-on-surface-variant:#475569;--ktt-on-surface-muted:#64748b;--ktt-outline:rgba(15,23,42,.12);--ktt-outline-variant:rgba(15,23,42,.06);--ktt-primary:#0284c7;--ktt-primary-deep:#1d4ed8;--ktt-on-primary:#fff;--ktt-primary-container:rgba(2,132,199,.10);--ktt-on-primary-container:#0369a1;--ktt-link:#0284c7;--ktt-glow:0 0 24px rgba(2,132,199,.15),0 8px 32px rgba(15,23,42,.08);--ktt-glow-hover:0 0 32px rgba(2,132,199,.22),0 12px 40px rgba(15,23,42,.10);--ktt-gradient-header:linear-gradient(180deg,rgba(125,211,252,.20) 0%,transparent 100%);--ktt-gradient-hero:radial-gradient(ellipse 90% 80% at 50% 0%,rgba(56,189,248,.14),transparent 65%),linear-gradient(180deg,rgba(241,245,249,.9),rgba(255,255,255,.6));--ktt-gradient-undo:linear-gradient(90deg,rgba(2,132,199,.16),transparent);--ktt-gradient-text:linear-gradient(180deg,#0369a1,#0284c7,#0ea5e9)}}",
+    "@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}",
+    /* ── Panel: black glass + spectral rim ── */
+    ".panel{position:relative;width:286px;color:var(--ktt-on-surface);background:var(--ktt-surface);backdrop-filter:var(--ktt-blur);-webkit-backdrop-filter:var(--ktt-blur);border-radius:var(--ktt-radius-lg);overflow:hidden;font:13px/1.45 var(--ktt-font);opacity:var(--ktt-idle-opacity);transition:opacity .35s cubic-bezier(.4,0,.2,1),box-shadow .35s cubic-bezier(.4,0,.2,1);box-shadow:var(--ktt-glow)}",
+    '.panel::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:var(--ktt-gradient-spectrum);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;opacity:.45}',
+    '.panel::after{content:"";position:absolute;inset:1px;border-radius:calc(var(--ktt-radius-lg) - 1px);background:linear-gradient(180deg,rgba(125,211,252,.06),transparent 35%);pointer-events:none;z-index:0}',
+    ".panelAura{position:absolute;inset:-40% -30% auto -30%;height:70%;background:radial-gradient(ellipse at 50% 0%,rgba(56,189,248,.32),rgba(29,78,216,.12) 40%,transparent 68%);pointer-events:none;z-index:0;filter:blur(8px)}",
+    ":host(:hover) .panel{box-shadow:var(--ktt-glow-hover);opacity:1}",
+    ".panel.collapsed .panelContent{display:none}",
+    ".panelContent{position:relative;z-index:1}",
+    /* ── Header ── */
+    ".header{position:relative;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:10px 12px 9px;background:var(--ktt-gradient-header),var(--ktt-glass);backdrop-filter:var(--ktt-blur);-webkit-backdrop-filter:var(--ktt-blur);user-select:none;min-height:34px;cursor:move;overflow:hidden;border-bottom:1px solid var(--ktt-outline-variant)}",
+    '.header::after{content:"";position:absolute;left:10%;right:10%;top:0;height:1px;background:var(--ktt-gradient-spectrum);opacity:.55;pointer-events:none}',
+    ".headerDefault{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;flex:1;position:relative;z-index:1}",
+    ".panel.undo-active .header{background:var(--ktt-gradient-undo),var(--ktt-primary-container)}",
+    "@keyframes undoFlash{0%,100%{filter:brightness(1)}50%{filter:brightness(1.2)}}",
+    "@keyframes orbPulse{0%,100%{opacity:.75;transform:scale(1)}50%{opacity:1;transform:scale(1.06)}}",
+    "@keyframes spectrumShift{0%,100%{filter:hue-rotate(0deg)}50%{filter:hue-rotate(18deg)}}",
+    ".panel.undo-fresh .header{animation:undoFlash .6s ease-in-out 4,orbPulse 2.4s ease-in-out infinite}",
+    ".panel.undo-active .headerDefault{display:none}",
+    ".headerDrag{display:flex;align-items:center;gap:9px;min-width:0;flex:1;cursor:move}",
+    ".headerControls{display:flex;align-items:center;gap:6px;flex-shrink:0;position:relative;z-index:1}",
+    ".headerBtn{width:28px;height:28px;flex-shrink:0;cursor:pointer;border-radius:var(--ktt-radius-pill);background:var(--ktt-glass);backdrop-filter:var(--ktt-blur);-webkit-backdrop-filter:var(--ktt-blur);border-color:var(--ktt-outline-variant)}",
+    ".headerBtn svg{width:13px;height:13px}",
+    ".brandMark{position:relative;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--ktt-gradient-blue-h);color:#fff;font-size:10px;font-weight:700;flex-shrink:0;box-shadow:0 0 14px rgba(56,189,248,.5);animation:orbPulse 3.5s ease-in-out infinite}",
+    '.brandMark::before{content:"";position:absolute;inset:-2px;border-radius:50%;padding:1px;background:var(--ktt-gradient-spectrum);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.7;animation:spectrumShift 6s ease-in-out infinite}',
+    ".title{font-weight:800;letter-spacing:-.03em;font-size:13px;color:#fff}",
+    ".versionBtn{appearance:none;border:1px solid var(--ktt-outline-variant);background:var(--ktt-glass);backdrop-filter:var(--ktt-blur);-webkit-backdrop-filter:var(--ktt-blur);color:var(--ktt-on-surface-variant);border-radius:var(--ktt-radius-pill);padding:5px 11px;font:11px var(--ktt-font);cursor:pointer;white-space:nowrap;transition:background .2s cubic-bezier(.4,0,.2,1),color .2s ease,box-shadow .2s ease}",
+    ".versionBtn:hover{background:var(--ktt-surface-hover);color:#fff;box-shadow:0 0 16px rgba(56,189,248,.2)}",
+    ".badge{font-size:9px;border-radius:var(--ktt-radius-pill);padding:4px 10px;background:var(--ktt-gradient-blue-h);color:#fff;text-transform:uppercase;font-weight:800;letter-spacing:.07em;box-shadow:0 0 14px rgba(56,189,248,.4)}",
+    /* ── Project strip ── */
+    ".projectBox{margin:0;padding:8px 12px 7px;border-bottom:1px solid var(--ktt-outline-variant);display:grid;gap:6px;background:linear-gradient(180deg,rgba(255,255,255,.04),transparent)}",
+    ".projectBox.filterOn{border-bottom-color:transparent;background:linear-gradient(90deg,rgba(56,189,248,.14),transparent);box-shadow:inset 3px 0 0 var(--ktt-primary)}",
+    ".projectStrip{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}",
+    ".projectStrip .select.field{padding:6px 24px 6px 10px;font-size:10px;min-height:30px;border-radius:var(--ktt-radius-pill);font-weight:600;background:var(--ktt-glass);backdrop-filter:var(--ktt-blur);-webkit-backdrop-filter:var(--ktt-blur)}",
+    ".projectActionRail{display:flex;align-items:stretch;border-radius:var(--ktt-radius-pill);background:var(--ktt-glass);backdrop-filter:var(--ktt-blur);-webkit-backdrop-filter:var(--ktt-blur);border:1px solid var(--ktt-outline-variant);overflow:hidden;isolation:isolate}",
+    ".projectActionBtn{flex:0 0 auto;width:28px;height:28px;border:none!important;border-radius:0!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:transparent!important;padding:0;color:var(--ktt-on-surface-variant);box-shadow:none!important;transition:background .22s cubic-bezier(.4,0,.2,1),color .22s ease}",
+    ".projectActionBtn svg{width:13px;height:13px}",
+    ".projectActionBtn:hover{background:rgba(255,255,255,.1)!important;color:#fff;box-shadow:none!important;transform:none}",
+    ".projectActionBtn:active{transform:scale(.96)!important}",
+    ".projectActionBtn.is-active{background:var(--ktt-gradient-blue-h)!important;color:#fff!important;box-shadow:inset 0 0 24px rgba(56,189,248,.25)!important}",
+    ".projectActionBtn--accent:hover{background:var(--ktt-primary-container)!important;color:var(--ktt-link)!important}",
+    ".projectActionBtn--danger:hover{background:rgba(248,113,113,.14)!important;color:#fca5a5!important}",
+    ".projectActionSep{width:1px;align-self:stretch;margin:5px 0;background:var(--ktt-outline-variant);flex-shrink:0}",
+    ".projectSearchPanel{display:grid;gap:6px}",
+    ".projectSearchPanel[hidden]{display:none}",
+    ".projectSearchInputRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}",
+    ".projectSearchInputRow .field{padding:8px 11px;font-size:11px;min-height:34px}",
+    ".projectSearchClose{width:34px;height:34px;border-radius:var(--ktt-radius-pill);border:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}",
+    ".projectSearchResults{display:grid;gap:5px;max-height:150px;overflow:auto}",
+    ".projectSearchResult{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;padding:9px 11px;text-align:left;background:var(--ktt-glass);backdrop-filter:var(--ktt-blur);-webkit-backdrop-filter:var(--ktt-blur);border:1px solid var(--ktt-outline-variant);border-radius:var(--ktt-radius-md);cursor:pointer;transition:background .2s ease,box-shadow .2s ease,transform .2s ease}",
+    ".projectSearchResult:hover{background:rgba(56,189,248,.12);box-shadow:0 0 18px rgba(56,189,248,.18);transform:translateX(2px)}",
+    ".projectSearchResultName{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".projectSearchResultMeta{color:var(--ktt-on-surface-muted);font-size:9px;white-space:nowrap}",
+    ".projectSearchEmpty{padding:4px 2px;color:var(--ktt-on-surface-muted);font-size:10px}",
+    ".projectEditor{display:grid;gap:8px}",
+    ".projectBox.compact .projectEditor{display:none}",
+    ".projectFields{display:grid;gap:6px}",
+    ".projectSuggestions{display:grid;gap:6px;padding:10px;border:1px solid rgba(251,191,36,.35);border-radius:var(--ktt-radius-md);background:var(--ktt-warning-container)}",
+    ".projectSuggestions[hidden]{display:none}",
+    ".projectSuggestionsTitle{font-size:10px;line-height:1.35;color:var(--ktt-warning);font-weight:700}",
+    ".projectSuggestionsList{display:grid;gap:5px}",
+    ".projectSuggestion{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;text-align:left;padding:8px 10px;background:var(--ktt-glass);border:1px solid var(--ktt-outline-variant);border-radius:var(--ktt-radius-sm);cursor:pointer;transition:background .15s ease}",
+    ".projectSuggestion:hover{background:var(--ktt-surface-hover)}",
+    ".projectSuggestion.exact{border-color:rgba(251,191,36,.5);background:var(--ktt-warning-container)}",
+    ".projectSuggestionMain{min-width:0;display:grid;gap:2px}",
+    ".projectSuggestionName{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".projectSuggestionMeta{font-size:9px;color:var(--ktt-on-surface-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".projectSuggestionAction{font-size:9px;color:var(--ktt-link);align-self:center;font-weight:700}",
+    ".projectCreateAnyway{font-size:10px;padding:7px 10px;background:transparent;border-color:var(--ktt-outline)}",
+    ".projectActionsRow{display:grid;grid-template-columns:1fr auto;gap:6px}",
+    ".projectActionsRow button{font-weight:700}",
+    ".projectHint{color:var(--ktt-on-surface-muted);font-size:11px;line-height:1.35}",
+    /* ── Tabs: frosted segmented control ── */
+    ".tabs{padding:7px 12px 0}",
+    ".tabsTrack{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;padding:3px;border-radius:var(--ktt-radius-pill);background:var(--ktt-glass);backdrop-filter:var(--ktt-blur);-webkit-backdrop-filter:var(--ktt-blur);border:1px solid var(--ktt-outline-variant);overflow:hidden;isolation:isolate}",
+    ".tab{appearance:none;border:none;outline:none;background:transparent;color:var(--ktt-on-surface-variant);border-radius:var(--ktt-radius-pill);padding:6px 8px;font:11px var(--ktt-font);cursor:pointer;transition:background .25s cubic-bezier(.4,0,.2,1),color .25s ease,box-shadow .25s ease;font-weight:600;overflow:hidden;background-clip:padding-box}",
+    ".tab:hover{background:rgba(255,255,255,.08);color:#fff}",
+    ".tab.active{background:var(--ktt-gradient-blue-h);color:#fff;box-shadow:0 0 20px rgba(56,189,248,.4)}",
+    ".tabPanel{display:none}",
+    ".tabPanel.active{display:block}",
+    ".body{padding:10px 12px 14px}",
+    ".summaryTop{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:6px;align-items:start;margin-bottom:6px}",
+    /* ── Hero banner: compact inline ── */
+    ".heroBanner{position:relative;padding:9px 11px 10px;border-radius:var(--ktt-radius-md);background:var(--ktt-gradient-hero);border:1px solid var(--ktt-outline-variant);overflow:hidden;display:grid;gap:4px}",
+    '.heroBanner::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:linear-gradient(180deg,rgba(125,211,252,.45),rgba(129,140,248,.25),transparent 55%);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;opacity:.5}',
+    ".heroBannerGlow{position:absolute;right:-10%;top:-60%;width:60%;height:120%;background:radial-gradient(circle,rgba(56,189,248,.3),transparent 65%);pointer-events:none;filter:blur(10px)}",
+    ".heroTop{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}",
+    ".heroLabel{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--ktt-on-surface-variant)}",
+    ".heroSource{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ktt-on-surface-muted)}",
+    ".heroValue{font-size:22px;font-weight:800;line-height:1;letter-spacing:-.04em;background:var(--ktt-gradient-text);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 12px rgba(56,189,248,.26))}",
+    /* ── Project bar: inline compact ── */
+    ".projectBar{padding:9px 11px 10px;border-radius:var(--ktt-radius-md);background:var(--ktt-glass);border:1px solid var(--ktt-outline-variant);display:grid;gap:4px}",
+    ".projectBarHead{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0}",
+    ".projectBarLabel{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ktt-on-surface-muted)}",
+    ".projectBarValue{font-size:18px;line-height:1;font-weight:800;color:var(--ktt-link);letter-spacing:-.03em}",
+    ".projectBarBreakdown{display:grid;gap:0}",
+    ".projectBreakdownRow{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:var(--ktt-on-surface-variant);white-space:nowrap;padding-top:4px;border-top:1px solid var(--ktt-outline-variant)}",
+    ".projectBreakdownName{color:var(--ktt-on-surface-variant)}",
+    ".projectBreakdownValue{font-weight:700;color:var(--ktt-on-surface);margin-left:3px}",
+    ".projectBreakdownEmpty{color:var(--ktt-on-surface-muted);font-size:9px}",
+    ".sectionHead{display:flex;align-items:center;gap:6px;margin:2px 0 6px}",
+    '.sectionHead::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(56,189,248,.3),transparent)}',
+    ".sectionTitle{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--ktt-on-surface-muted)}",
+    /* ── Event rows: compact inline ── */
+    ".events{display:flex;flex-direction:column;gap:4px;max-height:156px;overflow:auto}",
+    ".eventCard{display:grid;grid-template-columns:3px 1fr;gap:0;border-radius:var(--ktt-radius-sm);background:rgba(15,23,42,.55);border:1px solid var(--ktt-outline-variant);overflow:hidden;transition:transform .15s ease,box-shadow .15s ease}",
+    ".eventCard:hover{transform:translateX(2px);box-shadow:0 0 14px rgba(56,189,248,.12)}",
+    ".eventAccent{background:var(--ktt-gradient-blue-v)}",
+    ".eventCard--ui .eventAccent{background:linear-gradient(180deg,#fbbf24,#f97316)}",
+    ".eventCard--mixed .eventAccent{background:linear-gradient(180deg,#4ade80,#22c55e)}",
+    ".eventCard--network .eventAccent{background:var(--ktt-gradient-blue-v)}",
+    ".eventBody{padding:6px 9px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 8px;align-items:center;min-width:0}",
+    ".eventTop{display:flex;align-items:center;gap:6px;min-width:0;flex:1}",
+    ".histSpendMain{display:contents}",
+    ".histTime{font-size:10px;font-weight:700;color:var(--ktt-on-primary-container);white-space:nowrap}",
+    ".eventBody .histAmount{color:#fff;font-weight:800;font-size:11px;flex-shrink:0}",
+    ".histSpendService{color:var(--ktt-on-surface-variant);white-space:nowrap;font-size:10px}",
+    ".source{color:var(--ktt-on-surface-muted);text-transform:uppercase;font-size:8px;letter-spacing:.06em;font-weight:700;flex-shrink:0}",
+    ".eventTime{grid-column:1;grid-row:1}",
+    ".eventAmount{grid-column:2;grid-row:1;justify-self:end}",
+    ".eventService{grid-column:1;grid-row:2;min-width:0;color:var(--ktt-on-surface-variant);font-size:8px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".eventSource{grid-column:2;grid-row:2;justify-self:end;font-size:7px;opacity:.72}",
+    /* ── History ── */
+    ".history{display:flex;flex-direction:column;gap:6px;max-height:360px;overflow:auto;padding-right:2px}",
+    ".histItem{display:grid;grid-template-columns:3px 1fr;border-radius:var(--ktt-radius-sm);background:rgba(15,23,42,.65);border:1px solid var(--ktt-outline-variant);transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;position:relative}",
+    ".histAccent{border-radius:var(--ktt-radius-sm) 0 0 var(--ktt-radius-sm);background:var(--ktt-gradient-blue-v);min-height:100%}",
+    ".histItem--ui .histAccent{background:linear-gradient(180deg,#fbbf24,#f97316)}",
+    ".histItem--mixed .histAccent{background:linear-gradient(180deg,#4ade80,#22c55e)}",
+    ".histItem--network .histAccent{background:var(--ktt-gradient-blue-v)}",
+    ".histBody{padding:8px 10px 8px 10px;display:flex;flex-direction:column;gap:4px;min-width:0}",
+    ".histHead{display:flex;align-items:center;justify-content:space-between;gap:8px}",
+    ".histMain{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}",
+    ".histBody .histAmount{color:#fff;font-weight:800;font-size:14px;line-height:1.2;letter-spacing:-.02em}",
+    ".histSub{display:flex;flex-wrap:wrap;align-items:center;gap:6px}",
+    ".histService{font-size:11px;font-weight:700;color:var(--ktt-link);white-space:nowrap}",
+    ".histItem:hover{transform:translateY(-1px);box-shadow:0 0 22px rgba(56,189,248,.14);border-color:rgba(56,189,248,.28)}",
+    ".histDelete{width:24px;height:24px;flex-shrink:0;border:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;opacity:.5;padding:0}",
+    ".histDelete:hover{opacity:1;background:rgba(255,255,255,.12)!important}",
+    ".histMeta{color:var(--ktt-on-surface-variant);font-size:10px;display:flex;flex-wrap:wrap;gap:5px}",
+    ".pill{border:1px solid var(--ktt-outline-variant);border-radius:var(--ktt-radius-pill);padding:2px 8px;background:rgba(255,255,255,.08);font-size:10px;font-weight:600;color:var(--ktt-on-surface-variant)}",
+    ".raw{color:var(--ktt-on-surface-muted);font-size:11px;line-height:1.45;word-break:break-word}",
+    ".rawLink{color:var(--ktt-link);text-decoration:none;font-weight:600}",
+    ".rawLink:hover{text-decoration:underline}",
+    ".histHeader{display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--ktt-on-surface-variant);margin-bottom:6px;padding:8px 10px;border-radius:var(--ktt-radius-sm);background:var(--ktt-glass);backdrop-filter:var(--ktt-blur);-webkit-backdrop-filter:var(--ktt-blur);border:1px solid var(--ktt-outline-variant)}",
+    ".histHeaderTop{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}",
+    ".histHeaderLeft{display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden}",
+    ".histFilterBadge{flex-shrink:0;background:var(--ktt-gradient-blue-h);color:#fff;border-radius:var(--ktt-radius-pill);padding:3px 10px;font-size:10px;font-weight:800;line-height:1.35;box-shadow:0 0 14px rgba(56,189,248,.3)}",
+    ".histHeaderSummary{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".histHeader strong{color:#fff}",
+    ".histHeaderMeta{color:var(--ktt-on-surface-muted);font-size:10px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    ".histShowAll{flex-shrink:0;appearance:none;border:1px solid var(--ktt-outline-variant);background:var(--ktt-glass);color:var(--ktt-link);border-radius:var(--ktt-radius-pill);padding:5px 12px;font:10px/1.3 var(--ktt-font);cursor:pointer;font-weight:700;transition:box-shadow .2s ease}",
+    ".histShowAll:hover{box-shadow:0 0 16px rgba(56,189,248,.2)}",
+    ".histShowAll.active{background:var(--ktt-gradient-blue-h);border-color:transparent;color:#fff;box-shadow:0 0 16px rgba(56,189,248,.24)}",
+    ".histItem--matched{border-color:rgba(56,189,248,.45);background:linear-gradient(135deg,rgba(56,189,248,.16),rgba(15,23,42,.62));box-shadow:0 0 18px rgba(56,189,248,.12)}",
+    ".grid{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:baseline}",
+    ".label{color:var(--ktt-on-surface-variant)}",
+    ".value{font-weight:700;text-align:right;color:#fff;font-size:14px}",
+    ".muted{color:var(--ktt-on-surface-variant)}",
+    /* ── Form controls ── */
+    ".select.field{cursor:pointer;padding-right:28px}",
+    ".field{width:100%;box-sizing:border-box;border:1px solid var(--ktt-outline-variant);background:var(--ktt-glass);backdrop-filter:var(--ktt-blur);-webkit-backdrop-filter:var(--ktt-blur);color:#fff;border-radius:var(--ktt-radius-sm);padding:9px 12px;font:12px var(--ktt-font);outline:none;transition:border-color .2s ease,box-shadow .2s ease}",
+    ".field:focus{border-color:rgba(56,189,248,.6);box-shadow:var(--ktt-focus-ring)}",
+    ".field:focus-visible{outline:none}",
+    ".miniBtn{width:30px;height:30px}",
+    ".miniBtn svg{width:14px;height:14px}",
+    ".miniBtn.is-active{background:var(--ktt-primary-container)!important;border-color:rgba(56,189,248,.5)!important;color:var(--ktt-link)!important;box-shadow:0 0 14px rgba(56,189,248,.25)!important}",
+    ".miniBtn.is-disabled{opacity:.35;pointer-events:none}",
+    /* ── M3 Expressive checkboxes ── */
+    ".m3Check{position:relative;display:inline-flex;align-items:center;gap:10px;cursor:pointer;user-select:none}",
+    ".m3Check input{position:absolute;opacity:0;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}",
+    ".m3CheckBox{position:relative;flex-shrink:0;width:20px;height:20px;border-radius:6px;border:2px solid var(--ktt-outline);background:rgba(0,0,0,.22);box-sizing:border-box;transition:border-color .22s cubic-bezier(.4,0,.2,1),background .22s ease,box-shadow .22s ease,transform .18s cubic-bezier(.4,0,.2,1)}",
+    ".m3Check:hover .m3CheckBox{border-color:rgba(56,189,248,.55);box-shadow:0 0 14px rgba(56,189,248,.18)}",
+    ".m3Check input:focus-visible+.m3CheckBox{box-shadow:var(--ktt-focus-ring)}",
+    ".m3Check input:checked+.m3CheckBox{border-color:transparent;background:var(--ktt-gradient-blue-h);box-shadow:0 0 18px rgba(56,189,248,.35);transform:scale(1.04)}",
+    '.m3Check input:checked+.m3CheckBox::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}',
+    ".filterChip .m3CheckBox{width:16px;height:16px;border-radius:5px;border-width:1.5px}",
+    ".filterChip:has(input:checked) .m3CheckBox{background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.55);box-shadow:none;transform:none}",
+    ".filterChip:has(input:checked) .m3CheckBox::after{left:4px;top:1px;width:4px;height:8px;border-width:0 2px 2px 0}",
+    /* ── Buttons ── */
+    "button{appearance:none;border:1px solid var(--ktt-outline-variant);background:var(--ktt-glass);backdrop-filter:var(--ktt-blur);-webkit-backdrop-filter:var(--ktt-blur);color:#fff;border-radius:var(--ktt-radius-pill);padding:8px 12px;font:12px var(--ktt-font);cursor:pointer;min-width:0;transition:background .2s ease,box-shadow .2s ease,transform .15s ease;font-weight:600}",
+    "button:hover{background:rgba(255,255,255,.14);box-shadow:0 0 14px rgba(56,189,248,.12)}",
+    "button:active{transform:scale(.98)}",
+    "button:focus-visible{outline:none;box-shadow:var(--ktt-focus-ring)}",
+    "button.active{background:var(--ktt-gradient-blue-h);border:none}",
+    ".tabsTrack .tab{border:none;backdrop-filter:none;-webkit-backdrop-filter:none;overflow:hidden;background-clip:padding-box}",
+    ".tabsTrack .tab.active{border:none;backdrop-filter:none;-webkit-backdrop-filter:none;transform:none}",
+    ".projectActionRail .projectActionBtn{border:none;backdrop-filter:none;-webkit-backdrop-filter:none}",
+    ".badge,.histFilterBadge,.undoAction{border:none}",
+    ".iconBtn{position:relative;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:var(--ktt-radius-pill)}",
+    ".iconBtn svg{width:17px;height:17px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}",
+    ".iconBtn[data-tooltip]::after{content:attr(data-tooltip);position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);padding:6px 10px;border-radius:var(--ktt-radius-sm);background:rgba(0,0,0,.9);border:1px solid var(--ktt-outline-variant);color:#fff;font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s,transform .12s;box-shadow:var(--ktt-glow);z-index:2}",
+    '.iconBtn[data-tooltip]::before{content:"";position:absolute;left:50%;bottom:calc(100% + 3px);transform:translateX(-50%);border:5px solid transparent;border-top-color:rgba(0,0,0,.9);opacity:0;pointer-events:none;transition:opacity .12s;z-index:2}',
+    ".iconBtn[data-tooltip]:hover::after{opacity:1;transform:translateX(-50%) translateY(-2px)}",
+    ".iconBtn[data-tooltip]:hover::before{opacity:1}",
+    ".empty{color:var(--ktt-on-surface-variant);font-size:12px;padding:14px 10px;text-align:center;border-radius:var(--ktt-radius-md);background:var(--ktt-glass);border:1px dashed var(--ktt-outline-variant)}",
+    /* ── Settings ── */
+    ".settingsForm{display:grid;gap:8px}",
+    ".acc{border:1px solid var(--ktt-outline-variant);border-radius:var(--ktt-radius-md);overflow:hidden;background:var(--ktt-glass);backdrop-filter:var(--ktt-blur);-webkit-backdrop-filter:var(--ktt-blur)}",
+    ".accHead{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center;padding:10px 12px;background:transparent;border:none;color:#fff;font:11px/1.2 var(--ktt-font);cursor:pointer;text-align:left;transition:background .2s ease}",
+    ".accHead:hover{background:rgba(255,255,255,.06)}",
+    ".acc.open .accHead{background:linear-gradient(90deg,rgba(56,189,248,.14),transparent)}",
+    ".accTitle{font-weight:800}",
+    ".accMeta{color:var(--ktt-on-surface-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}",
+    ".accChevron{width:12px;height:12px;opacity:.75;transition:transform .25s cubic-bezier(.4,0,.2,1);display:inline-flex}",
+    ".accChevron svg{width:12px;height:12px;stroke:currentColor}",
+    ".acc.open .accChevron{transform:rotate(180deg)}",
+    ".accBody{display:none;padding:10px 12px 12px;gap:7px}",
+    ".acc.open .accBody{display:grid}",
+    ".settingsCompactRow{display:grid;grid-template-columns:72px minmax(0,1fr);gap:4px 6px;align-items:center}",
+    ".settingsLabel{color:var(--ktt-on-surface-variant);font-size:10px;font-weight:600}",
+    ".settingsInline{display:flex;align-items:center;gap:6px;min-width:0}",
+    ".settingsValue{color:#fff;font-weight:800;font-size:10px;min-width:28px;text-align:right}",
+    ".settingsCompactRow .field{padding:5px 8px;font-size:11px;min-height:30px;border-radius:var(--ktt-radius-pill)}",
+    '.settingsCompactRow input[type="range"]{padding:0;min-height:0;height:20px;accent-color:var(--ktt-primary)}',
+    ".settingsCheck{display:inline-flex;align-items:center;gap:10px;color:#fff;font-size:10px;cursor:pointer;user-select:none;grid-column:1/-1;font-weight:600;padding:4px 0}",
+    ".settingsStatus{color:var(--ktt-on-surface-muted);font-size:10px;line-height:1.3;word-break:break-word;grid-column:1/-1}",
+    ".settingsActions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;grid-column:1/-1}",
+    ".settingsActions--pair{grid-template-columns:1fr 1fr}",
+    ".settingsActions button,.settingsReset{padding:7px 9px;font-size:10px}",
+    ".settingsReset{margin-top:2px}",
+    ".versionList{display:grid;gap:8px}",
+    ".versionItem{display:grid;gap:3px;border-top:1px solid var(--ktt-outline-variant);padding-top:8px}",
+    ".versionItem:first-child{border-top:none;padding-top:0}",
+    ".versionTop{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#fff;font-weight:800;font-size:11px}",
+    ".versionDate{color:var(--ktt-on-surface-muted);font-weight:400}",
+    ".versionChanges{margin:0;padding-left:14px;color:var(--ktt-on-surface-variant);font-size:10px;line-height:1.35}",
+    /* ── Undo ── */
+    ".undoToast{display:none;width:100%;grid-template-columns:auto minmax(0,1fr) auto auto;gap:6px;align-items:center;position:relative;z-index:1}",
+    ".panel.undo-active .undoToast{display:grid}",
+    ".undoIcon{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:var(--ktt-gradient-blue-h);color:#fff;box-shadow:0 0 18px rgba(56,189,248,.45)}",
+    ".undoIcon svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}",
+    ".undoText{display:grid;gap:0;min-width:0;color:var(--ktt-on-surface-variant);font-size:10px;line-height:1.2}",
+    ".undoText strong{color:#fff;font-size:11px;line-height:1.15}",
+    ".undoProjectButton{appearance:none;border:0;background:transparent;color:#fff;padding:0;min-width:0;max-width:100%;font:700 11px/1.15 var(--ktt-font);text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}",
+    ".undoProjectButton:hover{color:var(--ktt-link);text-decoration:underline}",
+    ".undoMeta{color:var(--ktt-on-surface-variant);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".undoAction{padding:7px 13px;font-size:11px;font-weight:800;border-radius:var(--ktt-radius-pill);background:var(--ktt-gradient-blue-h);border-color:transparent;color:#fff;box-shadow:0 0 18px rgba(56,189,248,.4)}",
+    ".undoClose{width:28px;height:28px;border-radius:50%}",
+    ".undoProgressTrack{display:none;position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.08);overflow:hidden}",
+    ".panel.undo-active .undoProgressTrack{display:block}",
+    ".undoProgressBar{display:block;width:100%;height:100%;background:var(--ktt-gradient-progress);transform-origin:left center;transition:transform .1s linear;box-shadow:0 0 12px rgba(56,189,248,.6)}",
+    ".undoProjectPicker{display:none;width:100%;position:relative;z-index:1}",
+    ".panel.undo-picking .undoToast{display:none}",
+    ".panel.undo-picking .undoProjectPicker{display:block}",
+    ".panel.undo-picking .header{background:var(--ktt-gradient-undo),var(--ktt-primary-container)}",
+    ".undoProjectChoose{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;align-items:center}",
+    ".undoProjectCreate{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;align-items:center}",
+    ".undoProjectChoose[hidden],.undoProjectCreate[hidden]{display:none}",
+    ".undoProjectPicker .field{min-height:32px;padding:6px 28px 6px 10px;font-size:10px}",
+    ".undoProjectSearch{grid-column:1/-1;padding-right:10px!important}",
+    ".undoProjectCreate .field{grid-column:1/-1;padding-right:10px}",
+    ".undoCreateProject{grid-column:1/-1;padding:8px 11px;font-size:10px;background:var(--ktt-primary-container);border-color:rgba(56,189,248,.4);color:var(--ktt-on-primary-container);font-weight:700}",
+    ".undoPickerAction{padding:7px 10px;font-size:10px;font-weight:800;background:var(--ktt-gradient-blue-h);border-color:transparent;color:#fff}",
+    ".undoPickerCancel{padding:7px 10px;font-size:10px}",
+    ".sheetsNicknameWarn{padding:9px 14px;background:var(--ktt-warning-container);border-bottom:1px solid rgba(251,191,36,.25);color:var(--ktt-warning);font-size:10px;line-height:1.35;cursor:pointer;font-weight:600}",
+    ".sheetsNicknameWarn[hidden]{display:none}",
+    '.tabPanel[data-panel="settings"]{max-height:280px;overflow:auto;padding-top:4px}'
+  ].join("");
+
   // src/core/settings.js
   function readSheetsFieldsFromForm(root) {
     if (!root || typeof root.querySelector !== "function") return {};
@@ -2682,6 +2956,272 @@
     }
     return result;
   }
+  function installPanelListeners(ctx, shadow, setPanelCollapsed) {
+    function createProjectFromUndoInputs() {
+      const nameInput = shadow.querySelector('[data-field="undoProjectCreateName"]');
+      const urlInput = shadow.querySelector('[data-field="undoProjectCreateUrl"]');
+      const created = ctx.createProjectForUndo(
+        nameInput ? nameInput.value : "",
+        urlInput ? urlInput.value : ""
+      );
+      if (!created && nameInput) {
+        nameInput.focus();
+        nameInput.setCustomValidity("\u0423\u043A\u0430\u0436\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u043F\u0440\u043E\u0435\u043A\u0442\u0430");
+        nameInput.reportValidity();
+      }
+    }
+    shadow.addEventListener("click", function(event) {
+      const actionEl = event.target.closest("[data-action]");
+      if (!actionEl) return;
+      const action = actionEl.getAttribute("data-action");
+      switch (action) {
+        case "reset":
+          ctx.resetSession();
+          break;
+        case "resetAll":
+          ctx.resetAll();
+          break;
+        case "undoSpend":
+          ctx.undoLastSpend();
+          break;
+        case "openUndoProjectPicker":
+          event.stopPropagation();
+          if (ctx.openUndoProjectPicker()) {
+            window.setTimeout(function() {
+              const input = shadow.querySelector('[data-field="undoProjectSearch"]');
+              if (input) input.focus();
+            }, 0);
+          }
+          break;
+        case "applyUndoProject": {
+          const select = shadow.querySelector('[data-field="undoProjectSelect"]');
+          ctx.applyUndoProject(select ? select.value : "");
+          break;
+        }
+        case "cancelUndoProject":
+          ctx.resumeUndoProjectPicker();
+          break;
+        case "openUndoProjectCreator":
+          if (ctx.openUndoProjectCreator()) {
+            window.setTimeout(function() {
+              const input = shadow.querySelector('[data-field="undoProjectCreateName"]');
+              if (input) {
+                input.focus();
+                input.select();
+              }
+            }, 0);
+          }
+          break;
+        case "backUndoProjectPicker":
+          ctx.closeUndoProjectCreator();
+          break;
+        case "cancelUndoProjectCreate":
+          ctx.resumeUndoProjectPicker();
+          break;
+        case "createUndoProject":
+          createProjectFromUndoInputs();
+          break;
+        case "closeUndoToast":
+          ctx.hideUndoSpend();
+          break;
+        case "showVersions":
+          event.preventDefault();
+          event.stopPropagation();
+          ctx.setActiveTab("settings");
+          window.setTimeout(function() {
+            const versionsAcc = shadow.querySelector('[data-acc="versions"]');
+            if (versionsAcc) versionsAcc.classList.add("open");
+          }, 60);
+          break;
+        case "clearProject":
+          ctx.clearProject();
+          break;
+        case "toggleProjectSearch": {
+          const opened = ctx.toggleProjectSearch();
+          if (opened) {
+            window.setTimeout(function() {
+              const input = shadow.querySelector('[data-field="projectSearchInput"]');
+              if (input) input.focus();
+            }, 0);
+          }
+          break;
+        }
+        case "closeProjectSearch":
+          ctx.closeProjectSearch();
+          ctx.renderSoon();
+          break;
+        case "editProject":
+          ctx.openProjectEditor();
+          break;
+        case "cancelProjectEdit":
+          ctx.syncProjectDraftFromActive();
+          ctx.closeProjectEditor();
+          break;
+        case "newProject":
+          ctx.beginNewProjectForm(shadow);
+          break;
+        case "deleteProject":
+          ctx.deleteSelectedProject(shadow);
+          break;
+        case "saveProject":
+        case "createProjectAnyway":
+          ctx.saveProjectFromForm(shadow);
+          break;
+        case "toggleCollapse":
+          event.stopPropagation();
+          setPanelCollapsed(!ctx.runtime.panelCollapsed);
+          break;
+        case "toggleSettingsAcc": {
+          const acc = actionEl.closest("[data-acc]");
+          if (acc) acc.classList.toggle("open");
+          break;
+        }
+        case "testSheetsConnection":
+          applySheetsFieldsFromForm(ctx, shadow);
+          {
+            const statusEl = shadow.querySelector('[data-field="settingSheetsStatus"]');
+            const testButton = shadow.querySelector('[data-action="testSheetsConnection"]');
+            if (statusEl) statusEl.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F\u2026";
+            if (testButton) testButton.disabled = true;
+            const runTest = typeof ctx.testSheetsConnection === "function" ? ctx.testSheetsConnection() : Promise.reject(new Error("sheets module not ready"));
+            runTest.then(function() {
+              if (statusEl) statusEl.textContent = "\u0421\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435 OK";
+            }).catch(function() {
+            }).finally(function() {
+              if (testButton) testButton.disabled = false;
+              ctx.renderSoon();
+            });
+          }
+          break;
+        case "retrySheetsSync":
+          applySheetsFieldsFromForm(ctx, shadow);
+          Promise.all([ctx.retryFailedSyncs(), ctx.retryProjectSyncs()]).then(function() {
+            ctx.renderSoon();
+          });
+          break;
+        case "refreshSheetsData":
+          applySheetsFieldsFromForm(ctx, shadow);
+          {
+            const statusEl = shadow.querySelector('[data-field="settingSheetsStatus"]');
+            const refreshButton = shadow.querySelector('[data-action="refreshSheetsData"]');
+            if (statusEl) statusEl.textContent = "\u041E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 \u0434\u0430\u043D\u043D\u044B\u0445\u2026";
+            if (refreshButton) refreshButton.disabled = true;
+            Promise.resolve(ctx.refreshSheetsData()).catch(function() {
+            }).then(function() {
+              if (refreshButton) refreshButton.disabled = false;
+              ctx.renderSoon();
+            });
+          }
+          break;
+        case "resetSettings":
+          ctx.resetSettings();
+          break;
+        default:
+          break;
+      }
+    });
+    shadow.querySelector('[data-field="undoProjectSearch"]').addEventListener("input", function(event) {
+      const select = shadow.querySelector('[data-field="undoProjectSelect"]');
+      ctx.setUndoProjectSearchQuery(event.currentTarget.value, select ? select.value : "");
+    });
+    shadow.querySelector('[data-field="undoProjectSelect"]').addEventListener("change", function(event) {
+      ctx.setUndoPendingProject(event.currentTarget.value);
+    });
+    ["undoProjectCreateName", "undoProjectCreateUrl"].forEach(function(field) {
+      shadow.querySelector('[data-field="' + field + '"]').addEventListener("input", function() {
+        const nameInput = shadow.querySelector('[data-field="undoProjectCreateName"]');
+        const urlInput = shadow.querySelector('[data-field="undoProjectCreateUrl"]');
+        if (nameInput) nameInput.setCustomValidity("");
+        ctx.setUndoProjectCreateDraft(
+          nameInput ? nameInput.value : "",
+          urlInput ? urlInput.value : ""
+        );
+      });
+      shadow.querySelector('[data-field="' + field + '"]').addEventListener("keydown", function(event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          createProjectFromUndoInputs();
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          ctx.closeUndoProjectCreator();
+        }
+      });
+    });
+    shadow.querySelector('[data-field="projectSearchInput"]').addEventListener("input", function(event) {
+      ctx.setProjectSearchQuery(event.currentTarget.value);
+    });
+    shadow.querySelector('[data-field="projectSearchInput"]').addEventListener("keydown", function(event) {
+      if (event.key !== "Escape") return;
+      ctx.closeProjectSearch();
+      ctx.renderSoon();
+    });
+    shadow.querySelector('[data-field="projectSearchResults"]').addEventListener("click", function(event) {
+      const button = event.target.closest("[data-project-search-id]");
+      if (!button) return;
+      ctx.selectProjectSearchResult(button.getAttribute("data-project-search-id"));
+    });
+    shadow.querySelector('[data-field="projectSuggestionsList"]').addEventListener("click", function(event) {
+      const button = event.target.closest("[data-project-id]");
+      if (!button) return;
+      ctx.selectProject(button.getAttribute("data-project-id"));
+    });
+    shadow.querySelector('[data-field="projectSelect"]').addEventListener("change", function(event) {
+      const id = event.currentTarget.value;
+      if (!id) {
+        ctx.clearProject();
+        return;
+      }
+      ctx.selectProject(id);
+    });
+    shadow.querySelector('[data-field="projectName"]').addEventListener("input", function(event) {
+      ctx.syncProjectDraftFromInputs(event.currentTarget.getRootNode());
+    });
+    shadow.querySelector('[data-field="projectUrl"]').addEventListener("input", function(event) {
+      ctx.syncProjectDraftFromInputs(event.currentTarget.getRootNode());
+    });
+    Array.from(shadow.querySelectorAll("[data-tab]")).forEach(function(button) {
+      button.addEventListener("click", function() {
+        ctx.setActiveTab(button.getAttribute("data-tab"));
+      });
+    });
+    const nicknameWarn = shadow.querySelector('[data-field="sheetsNicknameWarn"]');
+    if (nicknameWarn) {
+      nicknameWarn.addEventListener("click", function() {
+        ctx.setActiveTab("settings");
+        const sheetsAcc = shadow.querySelector('[data-acc="sheets"]');
+        if (sheetsAcc) sheetsAcc.classList.add("open");
+      });
+    }
+    shadow.querySelector('[data-field="settingIdleOpacity"]').addEventListener("input", function(event) {
+      const percent = Number(event.currentTarget.value);
+      ctx.updateSetting("idleOpacity", percent / 100);
+    });
+    shadow.querySelector('[data-field="settingSummaryEvents"]').addEventListener("change", function(event) {
+      ctx.updateSetting("summaryEventsCount", Number(event.currentTarget.value));
+    });
+    shadow.querySelector('[data-field="settingHistoryLimit"]').addEventListener("change", function(event) {
+      ctx.updateSetting("historyDisplayLimit", Number(event.currentTarget.value));
+    });
+    shadow.querySelector('[data-field="settingPanelWidth"]').addEventListener("change", function(event) {
+      ctx.updateSetting("panelWidth", Number(event.currentTarget.value));
+    });
+    shadow.querySelector('[data-field="settingRememberPosition"]').addEventListener("change", function(event) {
+      ctx.updateSetting("rememberPanelPosition", event.currentTarget.checked === true);
+    });
+    shadow.querySelector('[data-field="settingSheetsEnabled"]').addEventListener("change", function(event) {
+      ctx.updateSetting("sheetsEnabled", event.currentTarget.checked === true);
+    });
+    shadow.querySelector('[data-field="settingSheetsNickname"]').addEventListener("change", function(event) {
+      ctx.updateSetting("sheetsNickname", event.currentTarget.value);
+    });
+    shadow.querySelector('[data-field="settingSheetsWebAppUrl"]').addEventListener("change", function(event) {
+      ctx.updateSetting("sheetsWebAppUrl", event.currentTarget.value);
+    });
+    shadow.querySelector('[data-field="settingSheetsSecretToken"]').addEventListener("change", function(event) {
+      ctx.updateSetting("sheetsSecretToken", event.currentTarget.value);
+    });
+  }
   function createPanelModule(ctx) {
     function getPanelMount() {
       return document.documentElement || document.body || null;
@@ -2690,10 +3230,22 @@
       const mount = getPanelMount();
       if (!mount) return;
       if (ctx.runtime.panelHost) {
-        if (!ctx.runtime.panelHost.isConnected) {
-          mount.appendChild(ctx.runtime.panelHost);
+        const existingShadow = ctx.runtime.panelHost.shadowRoot;
+        const needsRecreate = existingShadow && (!existingShadow.querySelector(".summaryTop") || !existingShadow.querySelector(".heroBanner") || !existingShadow.querySelector(".projectBar"));
+        if (needsRecreate) {
+          ctx.runtime.panelHost.remove();
+          ctx.runtime.panelHost = null;
+          ctx.runtime.shadowRoot = null;
+        } else {
+          if (!ctx.runtime.panelHost.isConnected) {
+            mount.appendChild(ctx.runtime.panelHost);
+          }
+          if (existingShadow) {
+            const styleEl = existingShadow.querySelector("style");
+            if (styleEl) styleEl.textContent = PANEL_STYLES;
+          }
+          return;
         }
-        return;
       }
       const savedPanel = sanitizePanel(
         readJson(PANEL_KEY, {}),
@@ -2707,191 +3259,20 @@
         right: (savedPanel.right != null ? savedPanel.right : 16) + "px",
         bottom: (savedPanel.bottom != null ? savedPanel.bottom : 16) + "px",
         zIndex: "2147483647",
-        font: "13px/1.35 Arial, sans-serif"
+        font: '13px/1.4 "Google Sans",Roboto,Arial,sans-serif'
       });
       host.style.setProperty("--ktt-idle-opacity", String(ctx.runtime.settings && ctx.runtime.settings.idleOpacity || 0.2));
       const shadow = host.attachShadow({ mode: "open" });
       shadow.innerHTML = [
         "<style>",
-        ":host{display:block;position:relative;--ktt-idle-opacity:.2}",
-        ":host(:hover) .panel,.panel.undo-active{opacity:1}",
-        ".panel{position:relative;width:286px;color:#f6f7f8;background:rgba(18,20,24,.92);border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 30px rgba(0,0,0,.26);border-radius:8px;overflow:hidden;font:13px/1.35 Arial,sans-serif;backdrop-filter:blur(8px);opacity:var(--ktt-idle-opacity);transition:opacity .2s ease}",
-        ".panel.collapsed .panelContent{display:none}",
-        ".panelContent{position:relative}",
-        ".header{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:rgba(255,255,255,.06);user-select:none;min-height:28px;cursor:move}",
-        ".headerDefault{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;flex:1}",
-        ".panel.undo-active .header{background:rgba(45,108,223,.14)}",
-        "@keyframes undoFlash{0%,100%{background:rgba(45,108,223,.14);box-shadow:inset 0 0 0 0 rgba(110,164,255,0)}50%{background:rgba(45,108,223,.48);box-shadow:inset 0 0 18px rgba(110,164,255,.3)}}",
-        ".panel.undo-fresh .header{animation:undoFlash .5s ease-in-out 4}",
-        ".panel.undo-active .headerDefault{display:none}",
-        ".headerDrag{display:flex;align-items:center;gap:8px;min-width:0;flex:1;cursor:move}",
-        ".headerControls{display:flex;align-items:center;gap:6px;flex-shrink:0}",
-        ".headerBtn{width:28px;height:28px;flex-shrink:0;cursor:pointer}",
-        ".headerBtn svg{width:15px;height:15px}",
-        ".title{font-weight:700;letter-spacing:0}",
-        ".versionBtn{appearance:none;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);color:#d8dde6;border-radius:999px;padding:2px 7px;font:11px Arial,sans-serif;cursor:pointer;white-space:nowrap}",
-        ".versionBtn:hover{background:rgba(255,255,255,.14);color:#fff}",
-        ".badge{font-size:11px;border-radius:999px;padding:2px 7px;background:#2d6cdf;color:#fff;text-transform:uppercase}",
-        ".body{padding:10px 12px 12px}",
-        ".tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 10px 0}",
-        ".tab{appearance:none;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#bfc6d1;border-radius:6px;padding:6px 8px;font:12px Arial,sans-serif;cursor:pointer}",
-        ".tab.active{background:#2d6cdf;border-color:#2d6cdf;color:#fff}",
-        ".tabPanel{display:none}",
-        ".tabPanel.active{display:block}",
-        ".grid{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:baseline}",
-        ".label{color:#aeb6c2}",
-        ".value{font-weight:700;text-align:right;color:#fff}",
-        ".muted{color:#aeb6c2}",
-        ".events{margin-top:10px;border-top:1px solid rgba(255,255,255,.12);padding-top:8px;display:flex;flex-direction:column;gap:5px;max-height:138px;overflow:auto}",
-        ".event{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:center;color:#d8dde6;font-size:12px}",
-        ".history{margin-top:10px;display:flex;flex-direction:column;gap:8px;max-height:320px;overflow:auto}",
-        ".histItem{border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:8px;background:rgba(255,255,255,.04)}",
-        ".histTop{display:flex;justify-content:space-between;gap:8px;color:#fff;font-weight:700;font-size:12px}",
-        ".histSpendMain{min-width:0;flex:1;display:flex;align-items:center;gap:6px;flex-wrap:wrap}",
-        ".histTime{display:inline-flex;align-items:center;border:1px solid rgba(142,182,255,.28);background:rgba(45,108,223,.18);color:#d6e4ff;border-radius:999px;padding:1px 6px;font-size:11px;line-height:1.35;font-weight:700}",
-        ".histAmount{color:#fff;font-weight:800}",
-        ".histSpendService{color:#d8dde6;white-space:nowrap}",
-        ".histDelete{width:24px;height:24px;flex-shrink:0;opacity:.72}",
-        ".histDelete:hover{opacity:1}",
-        ".histMeta{margin-top:5px;color:#bfc6d1;font-size:11px;display:flex;flex-wrap:wrap;gap:5px}",
-        ".pill{border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:1px 6px;background:rgba(255,255,255,.05)}",
-        ".raw{margin-top:5px;color:#8f98a6;font-size:11px;word-break:break-word}",
-        ".projectBox{margin:0;padding:8px 10px 6px;border-bottom:1px solid rgba(255,255,255,.12);display:grid;gap:6px}",
-        ".projectCompactRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px;align-items:center}",
-        ".projectCompactTools{display:flex;gap:2px;align-items:center;flex-shrink:0}",
-        ".projectCompactRow .select.field{padding:5px 22px 5px 8px;font-size:11px;min-height:28px}",
-        ".projectCompactTools .miniBtn{width:24px;height:24px;flex-shrink:0}",
-        ".projectSearchPanel{display:grid;gap:5px}",
-        ".projectSearchPanel[hidden]{display:none}",
-        ".projectSearchInputRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px}",
-        ".projectSearchInputRow .field{padding:5px 7px;font-size:11px;min-height:28px}",
-        ".projectSearchClose{width:28px;height:28px}",
-        ".projectSearchResults{display:grid;gap:3px;max-height:150px;overflow:auto}",
-        ".projectSearchResult{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;padding:5px 7px;text-align:left;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:6px}",
-        ".projectSearchResult:hover{background:rgba(45,108,223,.13);border-color:rgba(45,108,223,.4)}",
-        ".projectSearchResultName{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-        ".projectSearchResultMeta{color:#8f98a6;font-size:9px;white-space:nowrap}",
-        ".projectSearchEmpty{padding:4px 2px;color:#8f98a6;font-size:10px}",
-        ".projectEditor{display:grid;gap:6px}",
-        ".projectBox.compact .projectEditor{display:none}",
-        ".projectFields{display:grid;gap:6px}",
-        ".projectSuggestions{display:grid;gap:5px;padding:7px;border:1px solid rgba(242,184,75,.35);border-radius:7px;background:rgba(242,184,75,.08)}",
-        ".projectSuggestions[hidden]{display:none}",
-        ".projectSuggestionsTitle{font-size:10px;line-height:1.35;color:#f2d49b;font-weight:700}",
-        ".projectSuggestionsList{display:grid;gap:4px}",
-        ".projectSuggestion{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;text-align:left;padding:6px 7px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px}",
-        ".projectSuggestion.exact{border-color:rgba(242,184,75,.65);background:rgba(242,184,75,.12)}",
-        ".projectSuggestionMain{min-width:0;display:grid;gap:2px}",
-        ".projectSuggestionName{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-        ".projectSuggestionMeta{font-size:9px;color:#9da6b4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-        ".projectSuggestionAction{font-size:9px;color:#8eb6ff;align-self:center}",
-        ".projectCreateAnyway{font-size:10px;padding:5px 7px;background:transparent;border-color:rgba(255,255,255,.18)}",
-        ".projectActionsRow{display:grid;grid-template-columns:1fr auto;gap:6px}",
-        ".projectActionsRow button{font-weight:600}",
-        ".projectHint{color:#8f98a6;font-size:11px;line-height:1.35}",
-        ".projectFilterRow{display:none;grid-template-columns:1fr auto;gap:6px;align-items:center;font-size:11px;color:#bfc6d1}",
-        ".projectFilterRow.visible{display:grid}",
-        ".projectBox.filterOn{border-bottom-color:#2d6cdf}",
-        ".projectFilter{display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none}",
-        ".projectFilter input{width:13px;height:13px;margin:0;cursor:pointer}",
-        ".projectMiniStat{color:#8eb6ff;font-weight:700;white-space:nowrap;font-size:11px}",
-        ".projectGrid{margin-top:8px;border-top:1px solid rgba(255,255,255,.12);padding-top:8px}",
-        ".projectGrid .label{color:#8eb6ff}",
-        ".projectBreakdown{grid-column:1/-1;display:grid;gap:4px;margin-top:2px}",
-        ".projectBreakdownRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;color:#d8dde6;font-size:12px}",
-        ".projectBreakdownName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-        ".projectBreakdownValue{font-weight:700;color:#fff;text-align:right}",
-        ".projectBreakdownEmpty{color:#8f98a6;font-size:11px}",
-        ".histHeader{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#bfc6d1;margin-bottom:8px}",
-        ".histHeaderTop{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}",
-        ".histHeaderLeft{display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden}",
-        ".histFilterBadge{flex-shrink:0;border:1px solid rgba(45,108,223,.45);background:rgba(45,108,223,.18);color:#d6e4ff;border-radius:999px;padding:1px 7px;font-size:10px;font-weight:700;line-height:1.35}",
-        ".histHeaderSummary{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#bfc6d1}",
-        ".histHeader strong{color:#fff}",
-        ".histHeaderMeta{color:#8f98a6;font-size:10px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-        ".histShowAll{flex-shrink:0;appearance:none;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#d6e4ff;border-radius:999px;padding:2px 8px;font:10px/1.3 Arial,sans-serif;cursor:pointer}",
-        ".histShowAll:hover{background:rgba(255,255,255,.12)}",
-        ".histItem--matched{border-color:rgba(45,108,223,.45);background:rgba(45,108,223,.08)}",
-        ".select.field{cursor:pointer;padding-right:24px}",
-        ".field{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;border-radius:6px;padding:7px 8px;font:12px Arial,sans-serif;outline:none}",
-        ".field:focus{border-color:#2d6cdf;background:rgba(255,255,255,.09)}",
-        ".miniBtn{width:26px;height:26px}",
-        ".miniBtn svg{width:14px;height:14px}",
-        ".dot{width:7px;height:7px;border-radius:50%;background:#28b67a}",
-        ".source{color:#aeb6c2;text-transform:uppercase;font-size:10px}",
-        "button{appearance:none;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#fff;border-radius:6px;padding:6px 8px;font:12px Arial,sans-serif;cursor:pointer;min-width:0}",
-        "button:hover{background:rgba(255,255,255,.14)}",
-        "button.active{background:#2d6cdf;border-color:#2d6cdf}",
-        ".iconBtn{position:relative;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:7px}",
-        ".iconBtn svg{width:17px;height:17px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}",
-        ".iconBtn[data-tooltip]::after{content:attr(data-tooltip);position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);padding:5px 7px;border-radius:5px;background:rgba(8,10,14,.96);border:1px solid rgba(255,255,255,.14);color:#fff;font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s, transform .12s;box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:2}",
-        '.iconBtn[data-tooltip]::before{content:"";position:absolute;left:50%;bottom:calc(100% + 3px);transform:translateX(-50%);border:5px solid transparent;border-top-color:rgba(8,10,14,.96);opacity:0;pointer-events:none;transition:opacity .12s;z-index:2}',
-        ".iconBtn[data-tooltip]:hover::after{opacity:1;transform:translateX(-50%) translateY(-2px)}",
-        ".iconBtn[data-tooltip]:hover::before{opacity:1}",
-        ".empty{color:#aeb6c2;font-size:12px}",
-        ".settingsForm{display:grid;gap:4px}",
-        ".acc{border:1px solid rgba(255,255,255,.1);border-radius:6px;overflow:hidden;background:rgba(255,255,255,.02)}",
-        ".accHead{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center;padding:5px 8px;background:rgba(255,255,255,.05);border:none;color:#e8ecf2;font:11px/1.2 Arial,sans-serif;cursor:pointer;text-align:left}",
-        ".accTitle{font-weight:700}",
-        ".accMeta{color:#8f98a6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}",
-        ".accChevron{width:12px;height:12px;opacity:.75;transition:transform .15s ease;display:inline-flex}",
-        ".accChevron svg{width:12px;height:12px;stroke:currentColor}",
-        ".acc.open .accChevron{transform:rotate(180deg)}",
-        ".accBody{display:none;padding:6px 8px 7px;gap:5px}",
-        ".acc.open .accBody{display:grid}",
-        ".settingsCompactRow{display:grid;grid-template-columns:72px minmax(0,1fr);gap:4px 6px;align-items:center}",
-        ".settingsLabel{color:#aeb6c2;font-size:10px}",
-        ".settingsInline{display:flex;align-items:center;gap:6px;min-width:0}",
-        ".settingsValue{color:#fff;font-weight:700;font-size:10px;min-width:28px;text-align:right}",
-        ".settingsCompactRow .field{padding:4px 6px;font-size:11px;min-height:24px}",
-        '.settingsCompactRow input[type="range"]{padding:0;min-height:0;height:18px}',
-        ".settingsCheck{display:inline-flex;align-items:center;gap:5px;color:#d8dde6;font-size:10px;cursor:pointer;user-select:none;grid-column:1/-1}",
-        ".settingsCheck input{width:12px;height:12px;margin:0;cursor:pointer}",
-        ".settingsStatus{color:#9aa3b2;font-size:10px;line-height:1.3;word-break:break-word;grid-column:1/-1}",
-        ".settingsActions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;grid-column:1/-1}",
-        ".settingsActions--pair{grid-template-columns:1fr 1fr}",
-        ".settingsActions button,.settingsReset{padding:4px 6px;font-size:10px}",
-        ".settingsReset{margin-top:2px}",
-        ".versionList{display:grid;gap:7px}",
-        ".versionItem{display:grid;gap:3px;border-top:1px solid rgba(255,255,255,.08);padding-top:7px}",
-        ".versionItem:first-child{border-top:none;padding-top:0}",
-        ".versionTop{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#fff;font-weight:700;font-size:11px}",
-        ".versionDate{color:#8f98a6;font-weight:400}",
-        ".versionChanges{margin:0;padding-left:14px;color:#bfc6d1;font-size:10px;line-height:1.35}",
-        ".undoToast{display:none;width:100%;grid-template-columns:auto minmax(0,1fr) auto auto;gap:6px;align-items:center}",
-        ".panel.undo-active .undoToast{display:grid}",
-        ".undoIcon{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(45,108,223,.32);color:#fff}",
-        ".undoIcon svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}",
-        ".undoText{display:grid;gap:0;min-width:0;color:#d8dde6;font-size:10px;line-height:1.2}",
-        ".undoText strong{color:#fff;font-size:11px;line-height:1.15}",
-        ".undoProjectButton{appearance:none;border:0;background:transparent;color:#fff;padding:0;min-width:0;max-width:100%;font:700 11px/1.15 Arial,sans-serif;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}",
-        ".undoProjectButton:hover{color:#9fc0ff;text-decoration:underline}",
-        ".undoMeta{color:#bfc6d1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-        ".undoAction{padding:4px 8px;font-size:11px;font-weight:700;border-radius:999px;background:#2d6cdf;border-color:#2d6cdf}",
-        ".undoClose{width:22px;height:22px;border-radius:999px}",
-        ".undoProgressTrack{display:none;position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.12);overflow:hidden}",
-        ".panel.undo-active .undoProgressTrack{display:block}",
-        ".undoProgressBar{display:block;width:100%;height:100%;background:linear-gradient(90deg,#6ea4ff,#2d6cdf);transform-origin:left center;transition:transform .1s linear;box-shadow:0 0 7px rgba(110,164,255,.75)}",
-        ".undoProjectPicker{display:none;width:100%}",
-        ".panel.undo-picking .undoToast{display:none}",
-        ".panel.undo-picking .undoProjectPicker{display:block}",
-        ".undoProjectChoose{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;align-items:center}",
-        ".undoProjectCreate{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;align-items:center}",
-        ".undoProjectChoose[hidden],.undoProjectCreate[hidden]{display:none}",
-        ".undoProjectPicker .field{min-height:26px;padding:4px 22px 4px 7px;font-size:10px}",
-        ".undoProjectSearch{grid-column:1/-1;padding-right:7px!important}",
-        ".undoProjectCreate .field{grid-column:1/-1;padding-right:7px}",
-        ".undoCreateProject{grid-column:1/-1;padding:5px 7px;font-size:10px;background:rgba(45,108,223,.16);border-color:rgba(110,164,255,.45);color:#cfe0ff}",
-        ".undoPickerAction{padding:4px 7px;font-size:10px;font-weight:700}",
-        ".undoPickerCancel{padding:4px 7px;font-size:10px;background:rgba(255,255,255,.06)}",
-        ".sheetsNicknameWarn{padding:5px 10px;background:rgba(242,184,75,.14);border-bottom:1px solid rgba(242,184,75,.28);color:#f2d49b;font-size:10px;line-height:1.35;cursor:pointer}",
-        ".sheetsNicknameWarn[hidden]{display:none}",
-        '.tabPanel[data-panel="settings"]{max-height:260px;overflow:auto;padding-top:2px}',
+        PANEL_STYLES,
         "</style>",
         '<div class="panel' + (ctx.runtime.panelCollapsed ? " collapsed" : "") + '">',
+        '  <div class="panelAura" aria-hidden="true"></div>',
         '  <div class="header" data-drag-handle>',
         '    <div class="headerDefault" data-field="headerDefault">',
         '      <div class="headerDrag">',
+        '        <span class="brandMark" aria-hidden="true">\u2726</span>',
         '        <div class="title">AITT</div>',
         '        <div class="badge" data-field="serviceName">none</div>',
         "      </div>",
@@ -2926,14 +3307,16 @@
         "  </div>",
         '  <div class="panelContent">',
         '  <div class="projectBox compact" data-field="projectBox">',
-        '    <div class="projectCompactRow">',
+        '    <div class="projectStrip">',
         '      <select class="field select" data-field="projectSelect" aria-label="\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442"></select>',
-        '      <div class="projectCompactTools">',
-        '        <button type="button" class="iconBtn miniBtn" data-action="toggleProjectSearch" data-tooltip="\u041F\u043E\u0438\u0441\u043A \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432" aria-label="\u041F\u043E\u0438\u0441\u043A \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432">' + iconSvg("search") + "</button>",
-        '        <button type="button" class="iconBtn miniBtn" data-action="editProject" data-tooltip="\u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442" aria-label="\u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442">' + iconSvg("pencil") + "</button>",
-        '        <button type="button" class="iconBtn miniBtn" data-action="newProject" data-tooltip="\u041D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442" aria-label="\u041D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442">' + iconSvg("plus") + "</button>",
-        '        <button type="button" class="iconBtn miniBtn" data-action="deleteProject" data-tooltip="\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442" aria-label="\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442">' + iconSvg("trash-2") + "</button>",
-        '        <button type="button" class="iconBtn miniBtn" data-action="clearProject" data-tooltip="\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442" aria-label="\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442">' + iconSvg("x") + "</button>",
+        '      <div class="projectActionRail" role="toolbar" aria-label="\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u044F \u0441 \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u043C">',
+        '        <button type="button" class="iconBtn projectActionBtn" data-action="toggleProjectSearch" data-tooltip="\u041F\u043E\u0438\u0441\u043A \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432" aria-label="\u041F\u043E\u0438\u0441\u043A \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432">' + iconSvg("search") + "</button>",
+        '        <button type="button" class="iconBtn projectActionBtn" data-action="editProject" data-tooltip="\u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442" aria-label="\u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442">' + iconSvg("pencil") + "</button>",
+        '        <span class="projectActionSep" aria-hidden="true"></span>',
+        '        <button type="button" class="iconBtn projectActionBtn projectActionBtn--accent" data-action="newProject" data-tooltip="\u041D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442" aria-label="\u041D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442">' + iconSvg("plus") + "</button>",
+        '        <span class="projectActionSep" aria-hidden="true"></span>',
+        '        <button type="button" class="iconBtn projectActionBtn projectActionBtn--danger" data-action="deleteProject" data-tooltip="\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442" aria-label="\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442">' + iconSvg("trash-2") + "</button>",
+        '        <button type="button" class="iconBtn projectActionBtn" data-action="clearProject" data-tooltip="\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442" aria-label="\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043F\u0440\u043E\u0435\u043A\u0442">' + iconSvg("x") + "</button>",
         "      </div>",
         "    </div>",
         '    <div class="projectSearchPanel" data-field="projectSearchPanel" hidden>',
@@ -2942,13 +3325,6 @@
         '        <button type="button" class="iconBtn projectSearchClose" data-action="closeProjectSearch" data-tooltip="\u0417\u0430\u043A\u0440\u044B\u0442\u044C \u043F\u043E\u0438\u0441\u043A" aria-label="\u0417\u0430\u043A\u0440\u044B\u0442\u044C \u043F\u043E\u0438\u0441\u043A">' + iconSvg("x") + "</button>",
         "      </div>",
         '      <div class="projectSearchResults" data-field="projectSearchResults"></div>',
-        "    </div>",
-        '    <div class="projectFilterRow" data-field="projectFilterRow">',
-        '      <label class="projectFilter">',
-        '        <input type="checkbox" data-field="projectFilterToggle">',
-        "        <span>\u0422\u043E\u043B\u044C\u043A\u043E \u044D\u0442\u043E\u0442 \u043F\u0440\u043E\u0435\u043A\u0442</span>",
-        "      </label>",
-        '      <span class="projectMiniStat" data-field="projectMiniStat"></span>',
         "    </div>",
         '    <div class="projectEditor" data-field="projectEditor">',
         '      <div class="projectFields">',
@@ -2969,19 +3345,32 @@
         "  </div>",
         '  <div class="sheetsNicknameWarn" data-field="sheetsNicknameWarn" hidden>\u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \u0438\u043C\u044F \u0432 \u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u2192 Google Sheets</div>',
         '  <div class="tabs">',
-        '    <button type="button" class="tab" data-tab="summary">\u0421\u0432\u043E\u0434\u043A\u0430</button>',
-        '    <button type="button" class="tab" data-tab="history">\u0418\u0441\u0442\u043E\u0440\u0438\u044F</button>',
-        '    <button type="button" class="tab" data-tab="settings">\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438</button>',
+        '    <div class="tabsTrack">',
+        '      <button type="button" class="tab" data-tab="summary">\u0421\u0432\u043E\u0434\u043A\u0430</button>',
+        '      <button type="button" class="tab" data-tab="history">\u0418\u0441\u0442\u043E\u0440\u0438\u044F</button>',
+        '      <button type="button" class="tab" data-tab="settings">\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438</button>',
+        "    </div>",
         "  </div>",
         '  <div class="body">',
         '   <div class="tabPanel" data-panel="summary">',
-        '    <div class="grid">',
-        '      <div class="label">\u0411\u0430\u043B\u0430\u043D\u0441</div><div class="value" data-field="balance">-</div>',
+        '    <div class="summaryTop">',
+        '      <div class="heroBanner">',
+        '        <div class="heroBannerGlow" aria-hidden="true"></div>',
+        '        <div class="heroTop">',
+        '          <span class="heroLabel">\u0411\u0430\u043B\u0430\u043D\u0441</span>',
+        '          <span class="heroSource" data-field="source">\u2014</span>',
+        "        </div>",
+        '        <div class="heroValue" data-field="balance">-</div>',
+        "      </div>",
+        '      <div class="projectBar" data-field="projectGrid" hidden>',
+        '        <div class="projectBarHead">',
+        '          <span class="projectBarLabel">\u041F\u0440\u043E\u0435\u043A\u0442</span>',
+        '          <span class="projectBarValue" data-field="projectTotal">0</span>',
+        "        </div>",
+        '        <div class="projectBarBreakdown" data-field="projectBreakdown"></div>',
+        "      </div>",
         "    </div>",
-        '    <div class="projectGrid grid" data-field="projectGrid" hidden>',
-        '      <div class="label">\u0418\u0442\u043E\u0433\u043E \u043F\u043E \u043F\u0440\u043E\u0435\u043A\u0442\u0443</div><div class="value" data-field="projectTotal">0</div>',
-        '      <div class="projectBreakdown" data-field="projectBreakdown"></div>',
-        "    </div>",
+        '    <div class="sectionHead"><span class="sectionTitle">\u041F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0435</span></div>',
         '    <div class="events" data-field="events"></div>',
         "   </div>",
         '   <div class="tabPanel" data-panel="history">',
@@ -3012,8 +3401,9 @@
         '              <option value="320">320 px</option>',
         "            </select>",
         "          </div>",
-        '          <label class="settingsCheck">',
+        '          <label class="m3Check settingsCheck">',
         '            <input type="checkbox" data-field="settingRememberPosition">',
+        '            <span class="m3CheckBox" aria-hidden="true"></span>',
         "            <span>\u0417\u0430\u043F\u043E\u043C\u0438\u043D\u0430\u0442\u044C \u043F\u043E\u0437\u0438\u0446\u0438\u044E</span>",
         "          </label>",
         "        </div>",
@@ -3061,8 +3451,9 @@
         '          <span class="accChevron">' + iconSvg("chevron-down") + "</span>",
         "        </button>",
         '        <div class="accBody">',
-        '          <label class="settingsCheck">',
+        '          <label class="m3Check settingsCheck">',
         '            <input type="checkbox" data-field="settingSheetsEnabled">',
+        '            <span class="m3CheckBox" aria-hidden="true"></span>',
         "            <span>\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F \u0442\u0440\u0430\u0442 \u0438 \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432</span>",
         "          </label>",
         '          <div class="settingsCompactRow">',
@@ -3104,259 +3495,7 @@
         "  </div>",
         "</div>"
       ].join("");
-      shadow.querySelector('[data-action="reset"]').addEventListener("click", function() {
-        ctx.resetSession();
-      });
-      shadow.querySelector('[data-action="resetAll"]').addEventListener("click", function() {
-        ctx.resetAll();
-      });
-      shadow.querySelector('[data-action="undoSpend"]').addEventListener("click", function() {
-        ctx.undoLastSpend();
-      });
-      shadow.querySelector('[data-action="openUndoProjectPicker"]').addEventListener("click", function(event) {
-        event.stopPropagation();
-        if (ctx.openUndoProjectPicker()) {
-          window.setTimeout(function() {
-            const input = shadow.querySelector('[data-field="undoProjectSearch"]');
-            if (input) input.focus();
-          }, 0);
-        }
-      });
-      shadow.querySelector('[data-action="applyUndoProject"]').addEventListener("click", function() {
-        const select = shadow.querySelector('[data-field="undoProjectSelect"]');
-        ctx.applyUndoProject(select ? select.value : "");
-      });
-      shadow.querySelector('[data-action="cancelUndoProject"]').addEventListener("click", function() {
-        ctx.resumeUndoProjectPicker();
-      });
-      shadow.querySelector('[data-field="undoProjectSearch"]').addEventListener("input", function(event) {
-        const select = shadow.querySelector('[data-field="undoProjectSelect"]');
-        ctx.setUndoProjectSearchQuery(event.currentTarget.value, select ? select.value : "");
-      });
-      shadow.querySelector('[data-field="undoProjectSelect"]').addEventListener("change", function(event) {
-        ctx.setUndoPendingProject(event.currentTarget.value);
-      });
-      shadow.querySelector('[data-action="openUndoProjectCreator"]').addEventListener("click", function() {
-        if (ctx.openUndoProjectCreator()) {
-          window.setTimeout(function() {
-            const input = shadow.querySelector('[data-field="undoProjectCreateName"]');
-            if (input) {
-              input.focus();
-              input.select();
-            }
-          }, 0);
-        }
-      });
-      shadow.querySelector('[data-action="backUndoProjectPicker"]').addEventListener("click", function() {
-        ctx.closeUndoProjectCreator();
-      });
-      shadow.querySelector('[data-action="cancelUndoProjectCreate"]').addEventListener("click", function() {
-        ctx.resumeUndoProjectPicker();
-      });
-      function createProjectFromUndoInputs() {
-        const nameInput = shadow.querySelector('[data-field="undoProjectCreateName"]');
-        const urlInput = shadow.querySelector('[data-field="undoProjectCreateUrl"]');
-        const created = ctx.createProjectForUndo(
-          nameInput ? nameInput.value : "",
-          urlInput ? urlInput.value : ""
-        );
-        if (!created && nameInput) {
-          nameInput.focus();
-          nameInput.setCustomValidity("\u0423\u043A\u0430\u0436\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u043F\u0440\u043E\u0435\u043A\u0442\u0430");
-          nameInput.reportValidity();
-        }
-      }
-      shadow.querySelector('[data-action="createUndoProject"]').addEventListener("click", createProjectFromUndoInputs);
-      ["undoProjectCreateName", "undoProjectCreateUrl"].forEach(function(field) {
-        shadow.querySelector('[data-field="' + field + '"]').addEventListener("input", function() {
-          const nameInput = shadow.querySelector('[data-field="undoProjectCreateName"]');
-          const urlInput = shadow.querySelector('[data-field="undoProjectCreateUrl"]');
-          if (nameInput) nameInput.setCustomValidity("");
-          ctx.setUndoProjectCreateDraft(
-            nameInput ? nameInput.value : "",
-            urlInput ? urlInput.value : ""
-          );
-        });
-        shadow.querySelector('[data-field="' + field + '"]').addEventListener("keydown", function(event) {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            createProjectFromUndoInputs();
-          }
-          if (event.key === "Escape") {
-            event.preventDefault();
-            ctx.closeUndoProjectCreator();
-          }
-        });
-      });
-      shadow.querySelector('[data-action="closeUndoToast"]').addEventListener("click", function() {
-        ctx.hideUndoSpend();
-      });
-      shadow.querySelector('[data-action="showVersions"]').addEventListener("click", function(event) {
-        event.preventDefault();
-        event.stopPropagation();
-        ctx.setActiveTab("settings");
-        window.setTimeout(function() {
-          const versionsAcc = shadow.querySelector('[data-acc="versions"]');
-          if (versionsAcc) versionsAcc.classList.add("open");
-        }, 60);
-      });
-      shadow.querySelector('[data-action="clearProject"]').addEventListener("click", function() {
-        ctx.clearProject();
-      });
-      shadow.querySelector('[data-action="toggleProjectSearch"]').addEventListener("click", function() {
-        const opened = ctx.toggleProjectSearch();
-        if (opened) {
-          window.setTimeout(function() {
-            const input = shadow.querySelector('[data-field="projectSearchInput"]');
-            if (input) input.focus();
-          }, 0);
-        }
-      });
-      shadow.querySelector('[data-action="closeProjectSearch"]').addEventListener("click", function() {
-        ctx.closeProjectSearch();
-        ctx.renderSoon();
-      });
-      shadow.querySelector('[data-field="projectSearchInput"]').addEventListener("input", function(event) {
-        ctx.setProjectSearchQuery(event.currentTarget.value);
-      });
-      shadow.querySelector('[data-field="projectSearchInput"]').addEventListener("keydown", function(event) {
-        if (event.key !== "Escape") return;
-        ctx.closeProjectSearch();
-        ctx.renderSoon();
-      });
-      shadow.querySelector('[data-field="projectSearchResults"]').addEventListener("click", function(event) {
-        const button = event.target.closest("[data-project-search-id]");
-        if (!button) return;
-        ctx.selectProjectSearchResult(button.getAttribute("data-project-search-id"));
-      });
-      shadow.querySelector('[data-action="editProject"]').addEventListener("click", function() {
-        ctx.openProjectEditor();
-      });
-      shadow.querySelector('[data-action="cancelProjectEdit"]').addEventListener("click", function() {
-        ctx.syncProjectDraftFromActive();
-        ctx.closeProjectEditor();
-      });
-      shadow.querySelector('[data-action="newProject"]').addEventListener("click", function() {
-        ctx.beginNewProjectForm(shadow);
-      });
-      shadow.querySelector('[data-action="deleteProject"]').addEventListener("click", function() {
-        ctx.deleteSelectedProject(shadow);
-      });
-      shadow.querySelector('[data-action="saveProject"]').addEventListener("click", function() {
-        ctx.saveProjectFromForm(shadow);
-      });
-      shadow.querySelector('[data-action="createProjectAnyway"]').addEventListener("click", function() {
-        ctx.saveProjectFromForm(shadow);
-      });
-      shadow.querySelector('[data-field="projectSuggestionsList"]').addEventListener("click", function(event) {
-        const button = event.target.closest("[data-project-id]");
-        if (!button) return;
-        ctx.selectProject(button.getAttribute("data-project-id"));
-      });
-      shadow.querySelector('[data-field="projectSelect"]').addEventListener("change", function(event) {
-        const id = event.currentTarget.value;
-        if (!id) {
-          ctx.clearProject();
-          return;
-        }
-        ctx.selectProject(id);
-      });
-      shadow.querySelector('[data-field="projectName"]').addEventListener("input", function(event) {
-        ctx.syncProjectDraftFromInputs(event.currentTarget.getRootNode());
-      });
-      shadow.querySelector('[data-field="projectUrl"]').addEventListener("input", function(event) {
-        ctx.syncProjectDraftFromInputs(event.currentTarget.getRootNode());
-      });
-      shadow.querySelector('[data-field="projectFilterToggle"]').addEventListener("change", function(event) {
-        ctx.setProjectFilterEnabled(event.currentTarget.checked);
-      });
-      shadow.querySelector('[data-action="toggleCollapse"]').addEventListener("click", function(event) {
-        event.stopPropagation();
-        setPanelCollapsed(!ctx.runtime.panelCollapsed);
-      });
-      Array.from(shadow.querySelectorAll("[data-tab]")).forEach(function(button) {
-        button.addEventListener("click", function() {
-          ctx.setActiveTab(button.getAttribute("data-tab"));
-        });
-      });
-      Array.from(shadow.querySelectorAll('[data-action="toggleSettingsAcc"]')).forEach(function(button) {
-        button.addEventListener("click", function() {
-          const acc = button.closest("[data-acc]");
-          if (acc) acc.classList.toggle("open");
-        });
-      });
-      const nicknameWarn = shadow.querySelector('[data-field="sheetsNicknameWarn"]');
-      if (nicknameWarn) {
-        nicknameWarn.addEventListener("click", function() {
-          ctx.setActiveTab("settings");
-          const sheetsAcc = shadow.querySelector('[data-acc="sheets"]');
-          if (sheetsAcc) sheetsAcc.classList.add("open");
-        });
-      }
-      shadow.querySelector('[data-field="settingIdleOpacity"]').addEventListener("input", function(event) {
-        const percent = Number(event.currentTarget.value);
-        ctx.updateSetting("idleOpacity", percent / 100);
-      });
-      shadow.querySelector('[data-field="settingSummaryEvents"]').addEventListener("change", function(event) {
-        ctx.updateSetting("summaryEventsCount", Number(event.currentTarget.value));
-      });
-      shadow.querySelector('[data-field="settingHistoryLimit"]').addEventListener("change", function(event) {
-        ctx.updateSetting("historyDisplayLimit", Number(event.currentTarget.value));
-      });
-      shadow.querySelector('[data-field="settingPanelWidth"]').addEventListener("change", function(event) {
-        ctx.updateSetting("panelWidth", Number(event.currentTarget.value));
-      });
-      shadow.querySelector('[data-field="settingRememberPosition"]').addEventListener("change", function(event) {
-        ctx.updateSetting("rememberPanelPosition", event.currentTarget.checked === true);
-      });
-      shadow.querySelector('[data-field="settingSheetsEnabled"]').addEventListener("change", function(event) {
-        ctx.updateSetting("sheetsEnabled", event.currentTarget.checked === true);
-      });
-      shadow.querySelector('[data-field="settingSheetsNickname"]').addEventListener("change", function(event) {
-        ctx.updateSetting("sheetsNickname", event.currentTarget.value);
-      });
-      shadow.querySelector('[data-field="settingSheetsWebAppUrl"]').addEventListener("change", function(event) {
-        ctx.updateSetting("sheetsWebAppUrl", event.currentTarget.value);
-      });
-      shadow.querySelector('[data-field="settingSheetsSecretToken"]').addEventListener("change", function(event) {
-        ctx.updateSetting("sheetsSecretToken", event.currentTarget.value);
-      });
-      shadow.querySelector('[data-action="testSheetsConnection"]').addEventListener("click", function() {
-        applySheetsFieldsFromForm(ctx, shadow);
-        const statusEl = shadow.querySelector('[data-field="settingSheetsStatus"]');
-        const testButton = shadow.querySelector('[data-action="testSheetsConnection"]');
-        if (statusEl) statusEl.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F\u2026";
-        if (testButton) testButton.disabled = true;
-        const runTest = typeof ctx.testSheetsConnection === "function" ? ctx.testSheetsConnection() : Promise.reject(new Error("sheets module not ready"));
-        runTest.then(function() {
-          if (statusEl) statusEl.textContent = "\u0421\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435 OK";
-        }).catch(function() {
-        }).finally(function() {
-          if (testButton) testButton.disabled = false;
-          ctx.renderSoon();
-        });
-      });
-      shadow.querySelector('[data-action="retrySheetsSync"]').addEventListener("click", function() {
-        applySheetsFieldsFromForm(ctx, shadow);
-        Promise.all([ctx.retryFailedSyncs(), ctx.retryProjectSyncs()]).then(function() {
-          ctx.renderSoon();
-        });
-      });
-      shadow.querySelector('[data-action="refreshSheetsData"]').addEventListener("click", function() {
-        applySheetsFieldsFromForm(ctx, shadow);
-        const statusEl = shadow.querySelector('[data-field="settingSheetsStatus"]');
-        const refreshButton = shadow.querySelector('[data-action="refreshSheetsData"]');
-        if (statusEl) statusEl.textContent = "\u041E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 \u0434\u0430\u043D\u043D\u044B\u0445\u2026";
-        if (refreshButton) refreshButton.disabled = true;
-        Promise.resolve(ctx.refreshSheetsData()).catch(function() {
-        }).then(function() {
-          if (refreshButton) refreshButton.disabled = false;
-          ctx.renderSoon();
-        });
-      });
-      shadow.querySelector('[data-action="resetSettings"]').addEventListener("click", function() {
-        ctx.resetSettings();
-      });
+      installPanelListeners(ctx, shadow, setPanelCollapsed);
       installPanelDrag(host, shadow.querySelector(".header"));
       mount.appendChild(host);
       ctx.runtime.panelHost = host;
@@ -3599,28 +3738,44 @@
       ctx.saveUiState();
       renderSoon();
     }
+    function getHistorySourceClass(event) {
+      const sourceType = event.source || "default";
+      if (sourceType === "ui" || sourceType === "mixed" || sourceType === "network") {
+        return " histItem--" + sourceType;
+      }
+      return "";
+    }
     function createHistoryItem(event, context) {
       context = context || {};
       const item = document.createElement("div");
-      item.className = "histItem";
+      item.className = "histItem" + getHistorySourceClass(event);
       if (context.hasProject && !context.filterOn && eventMatchesProject(event, context.activeProject)) {
         item.className += " histItem--matched";
       }
-      const top = document.createElement("div");
-      top.className = "histTop";
-      const left = document.createElement("div");
-      left.className = "histSpendMain";
+      const accent = document.createElement("div");
+      accent.className = "histAccent";
+      accent.setAttribute("aria-hidden", "true");
+      const body = document.createElement("div");
+      body.className = "histBody";
+      const header = document.createElement("div");
+      header.className = "histHead";
+      const main = document.createElement("div");
+      main.className = "histMain";
+      const amount = document.createElement("div");
+      amount.className = "histAmount";
+      amount.textContent = "\u2212" + formatCredit(event.amount) + (event.estimated ? " est." : "");
+      const sub = document.createElement("div");
+      sub.className = "histSub";
       const time = document.createElement("span");
       time.className = "histTime";
       time.textContent = formatTime(event.ts);
-      const amount = document.createElement("span");
-      amount.className = "histAmount";
-      amount.textContent = "-" + formatCredit(event.amount) + (event.estimated ? " est." : "");
-      left.appendChild(time);
-      left.appendChild(amount);
-      const right = document.createElement("div");
-      right.className = "histSpendService";
-      right.textContent = event.serviceName || event.service || ctx.getActiveAdapter().name;
+      const service = document.createElement("span");
+      service.className = "histService";
+      service.textContent = event.serviceName || event.service || ctx.getActiveAdapter().name;
+      sub.appendChild(time);
+      sub.appendChild(service);
+      main.appendChild(amount);
+      main.appendChild(sub);
       const deleteButton = document.createElement("button");
       deleteButton.type = "button";
       deleteButton.className = "iconBtn miniBtn histDelete";
@@ -3632,22 +3787,24 @@
         clickEvent.stopPropagation();
         ctx.deleteSpendEvent(event.id);
       });
-      top.appendChild(left);
-      top.appendChild(right);
-      top.appendChild(deleteButton);
-      const meta = document.createElement("div");
-      meta.className = "histMeta";
-      getHistoryPills(event, { hideProjectPill: context.filterOn === true }).forEach(function(text) {
-        const pill = document.createElement("span");
-        pill.className = "pill";
-        pill.textContent = text;
-        meta.appendChild(pill);
-      });
+      header.appendChild(main);
+      header.appendChild(deleteButton);
+      body.appendChild(header);
+      const pills = getHistoryPills(event, { hideProjectPill: context.filterOn === true });
+      if (pills.length) {
+        const meta = document.createElement("div");
+        meta.className = "histMeta";
+        pills.forEach(function(text) {
+          const pill = document.createElement("span");
+          pill.className = "pill";
+          pill.textContent = text;
+          meta.appendChild(pill);
+        });
+        body.appendChild(meta);
+      }
       const detailText = event.metadata && event.metadata.prompt ? compactText(event.metadata.prompt).slice(0, 180) : hasDisplayMetadata(event) ? "" : cleanUiDetailText(event.detail, event);
       const showProjectLink = event.project && event.project.url;
       const showDetail = !!detailText;
-      item.appendChild(top);
-      item.appendChild(meta);
       if (showProjectLink || showDetail) {
         const raw = document.createElement("div");
         raw.className = "raw";
@@ -3656,48 +3813,37 @@
           link.href = event.project.url;
           link.target = "_blank";
           link.rel = "noopener noreferrer";
+          link.className = "rawLink";
           link.textContent = event.project.name || event.project.url;
-          link.style.color = "#8eb6ff";
-          link.style.textDecoration = "none";
           raw.appendChild(link);
           if (showDetail) raw.appendChild(document.createTextNode(" \xB7 " + detailText));
         } else {
           raw.textContent = detailText;
         }
-        item.appendChild(raw);
+        body.appendChild(raw);
       }
+      item.appendChild(accent);
+      item.appendChild(body);
       return item;
     }
-    function renderProjectSummary(root, activeProject, hasProject, filterOn) {
+    function renderProjectSummary(root, activeProject, hasProject) {
       const projectGrid = root.querySelector('[data-field="projectGrid"]');
       const breakdownEl = root.querySelector('[data-field="projectBreakdown"]');
       if (!projectGrid) return;
       projectGrid.hidden = !hasProject;
       if (!hasProject) return;
       const projectTotal = ctx.getProjectAllTimeTotal(activeProject);
-      setText(root, "projectTotal", "-" + formatCredit(projectTotal));
+      setText(root, "projectTotal", "\u2212" + formatCredit(projectTotal));
       if (!breakdownEl) return;
       breakdownEl.textContent = "";
-      const totals = ctx.getProjectTotalsByService(activeProject);
-      if (!totals.length) {
-        const empty = document.createElement("div");
-        empty.className = "projectBreakdownEmpty";
-        empty.textContent = "\u041F\u043E\u043A\u0430 \u043D\u0435\u0442 \u0442\u0440\u0430\u0442 \u043F\u043E \u043F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u0430\u043C";
-        breakdownEl.appendChild(empty);
-        return;
-      }
-      totals.forEach(function(item) {
-        const row = document.createElement("div");
-        row.className = "projectBreakdownRow";
-        const name = document.createElement("div");
-        name.className = "projectBreakdownName";
-        name.textContent = item.serviceName || item.service;
-        const value = document.createElement("div");
-        value.className = "projectBreakdownValue";
-        value.textContent = "-" + formatCredit(item.total);
-        row.appendChild(name);
-        row.appendChild(value);
-        breakdownEl.appendChild(row);
+      var totals = ctx.getProjectTotalsByService(activeProject);
+      if (!totals.length) return;
+      totals.forEach(function(item, i) {
+        if (i > 0) breakdownEl.appendChild(document.createTextNode(" \xB7 "));
+        var span = document.createElement("span");
+        span.className = "projectBreakdownRow";
+        span.innerHTML = '<span class="projectBreakdownName">' + escapeHtml(item.serviceName || item.service) + '</span><span class="projectBreakdownValue">\u2212' + formatCredit(item.total) + "</span>";
+        breakdownEl.appendChild(span);
       });
     }
     function renderTabs(root) {
@@ -3743,15 +3889,15 @@
           left.appendChild(summary);
         }
         top.appendChild(left);
-        if (hasProject && filterOn) {
-          const showAll = document.createElement("button");
-          showAll.type = "button";
-          showAll.className = "histShowAll";
-          showAll.textContent = "\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C";
-          showAll.addEventListener("click", function() {
-            ctx.setProjectFilterEnabled(false);
+        if (hasProject) {
+          const toggle = document.createElement("button");
+          toggle.type = "button";
+          toggle.className = "histShowAll" + (filterOn ? " active" : "");
+          toggle.textContent = filterOn ? "\u041F\u0440\u043E\u0435\u043A\u0442" : "\u0412\u0441\u0435";
+          toggle.addEventListener("click", function() {
+            ctx.setProjectFilterEnabled(!filterOn);
           });
-          top.appendChild(showAll);
+          top.appendChild(toggle);
         }
         historyHeader.appendChild(top);
         const meta = document.createElement("div");
@@ -3786,9 +3932,6 @@
       const deleteButton = root.querySelector('[data-action="deleteProject"]');
       const editButton = root.querySelector('[data-action="editProject"]');
       const projectBox = root.querySelector('[data-field="projectBox"]');
-      const filterRow = root.querySelector('[data-field="projectFilterRow"]');
-      const filterToggle = root.querySelector('[data-field="projectFilterToggle"]');
-      const miniStat = root.querySelector('[data-field="projectMiniStat"]');
       const suggestionsBox = root.querySelector('[data-field="projectSuggestions"]');
       const suggestionsTitle = root.querySelector('[data-field="projectSuggestionsTitle"]');
       const suggestionsList = root.querySelector('[data-field="projectSuggestionsList"]');
@@ -3801,21 +3944,10 @@
       const activeId = activeProject.id && ctx.findProjectById(activeProject.id) ? activeProject.id : "";
       const compact = ctx.shouldCompactProject();
       const hasProject = ctx.hasActiveProject();
-      const filterOn = ctx.isProjectFilterActive();
       const projectLibrary = ctx.listProjects();
       if (projectBox) {
         projectBox.classList.toggle("compact", compact);
-        projectBox.classList.toggle("filterOn", filterOn);
-      }
-      if (filterRow) {
-        filterRow.classList.toggle("visible", hasProject);
-      }
-      if (filterToggle && document.activeElement !== filterToggle) {
-        filterToggle.checked = filterOn;
-        filterToggle.disabled = !hasProject;
-      }
-      if (miniStat) {
-        miniStat.textContent = hasProject ? "-" + formatCredit(ctx.getProjectAllTimeTotal(activeProject)) + " \u0432\u0441\u0435\u0433\u043E" : "";
+        projectBox.classList.toggle("filterOn", false);
       }
       if (select && active !== select) {
         select.textContent = "";
@@ -3835,7 +3967,7 @@
       if (urlInput && active !== urlInput) urlInput.value = ctx.runtime.projectDraft.url || "";
       const searchOpen = ctx.runtime.projectSearchOpen === true;
       if (searchPanel) searchPanel.hidden = !searchOpen;
-      if (searchButton) searchButton.style.background = searchOpen ? "rgba(45,108,223,.35)" : "";
+      if (searchButton) searchButton.classList.toggle("is-active", searchOpen);
       if (searchInput && active !== searchInput) {
         searchInput.value = ctx.runtime.projectSearchQuery || "";
       }
@@ -3910,13 +4042,11 @@
       const selectedId = select ? select.value : "";
       if (deleteButton) {
         deleteButton.disabled = !selectedId;
-        deleteButton.style.opacity = selectedId ? "1" : "0.45";
-        deleteButton.style.pointerEvents = selectedId ? "auto" : "none";
+        deleteButton.classList.toggle("is-disabled", !selectedId);
       }
       if (editButton) {
         editButton.disabled = !selectedId;
-        editButton.style.opacity = selectedId ? "1" : "0.45";
-        editButton.style.pointerEvents = selectedId ? "auto" : "none";
+        editButton.classList.toggle("is-disabled", !selectedId);
       }
       if (hint) {
         if (activeId && activeProject.name) {
@@ -4141,14 +4271,13 @@
       const source = getDisplaySource();
       const activeProject = ctx.getActiveProject();
       const hasProject = ctx.hasActiveProject();
-      const filterOn = ctx.isProjectFilterActive();
-      const recentEvents = filterOn ? ctx.getFilteredHistory(activeProject) : history;
+      const summaryEvents = hasProject ? ctx.getFilteredHistory(activeProject) : history;
       setText(root, "serviceName", ctx.getActiveAdapter().name || "none");
       setText(root, "versionBadge", "v" + VERSION);
       setText(root, "source", source);
       setText(root, "balance", ctx.runtime.balance == null ? "-" : formatCredit(ctx.runtime.balance));
       renderProjectFields(root);
-      renderProjectSummary(root, activeProject, hasProject, filterOn);
+      renderProjectSummary(root, activeProject, hasProject);
       renderTabs(root);
       renderSettingsTab(root);
       renderUndoToast(root);
@@ -4159,41 +4288,45 @@
       const eventsEl = root.querySelector('[data-field="events"]');
       if (!eventsEl) return;
       eventsEl.textContent = "";
-      if (!recentEvents.length) {
+      if (!summaryEvents.length) {
         const empty = document.createElement("div");
         empty.className = "empty";
-        empty.textContent = filterOn ? "\u041D\u0435\u0442 \u0442\u0440\u0430\u0442 \u043F\u043E \u044D\u0442\u043E\u043C\u0443 \u043F\u0440\u043E\u0435\u043A\u0442\u0443" : "\u041F\u043E\u043A\u0430 \u043D\u0435\u0442 \u0442\u0440\u0430\u0442";
+        empty.textContent = hasProject ? "\u041D\u0435\u0442 \u0442\u0440\u0430\u0442 \u043F\u043E \u044D\u0442\u043E\u043C\u0443 \u043F\u0440\u043E\u0435\u043A\u0442\u0443" : "\u041F\u043E\u043A\u0430 \u043D\u0435\u0442 \u0442\u0440\u0430\u0442";
         eventsEl.appendChild(empty);
-        renderHistory(root, activeProject, hasProject, filterOn);
+        renderHistory(root, activeProject, hasProject, ctx.isProjectFilterActive());
         return;
       }
-      recentEvents.slice(0, ctx.getSettings().summaryEventsCount).forEach(function(event) {
+      summaryEvents.slice(0, ctx.getSettings().summaryEventsCount).forEach(function(event) {
+        const sourceType = event.source || "default";
+        const sourceClass = sourceType === "ui" || sourceType === "mixed" || sourceType === "network" ? " eventCard--" + sourceType : "";
         const row = document.createElement("div");
-        row.className = "event";
-        const dot = document.createElement("div");
-        dot.className = "dot";
-        if (event.source === "ui") dot.style.background = "#f2b84b";
-        if (event.source === "mixed") dot.style.background = "#28b67a";
-        if (event.source === "network") dot.style.background = "#2d6cdf";
-        const label = document.createElement("div");
-        label.className = "histSpendMain";
+        row.className = "eventCard" + sourceClass;
+        const accent = document.createElement("div");
+        accent.className = "eventAccent";
+        accent.setAttribute("aria-hidden", "true");
+        const body = document.createElement("div");
+        body.className = "eventBody";
         const time = document.createElement("span");
-        time.className = "histTime";
+        time.className = "histTime eventTime";
         time.textContent = formatTime(event.ts);
         const amount = document.createElement("span");
-        amount.className = "histAmount";
-        amount.textContent = "-" + formatCredit(event.amount) + (event.estimated ? " est." : "");
-        label.appendChild(time);
-        label.appendChild(amount);
-        const src = document.createElement("div");
-        src.className = "source";
-        src.textContent = (event.serviceName || event.service || ctx.getActiveAdapter().name) + " \xB7 " + (event.source || "unknown");
-        row.appendChild(dot);
-        row.appendChild(label);
-        row.appendChild(src);
+        amount.className = "histAmount eventAmount";
+        amount.textContent = "\u2212" + formatCredit(event.amount) + (event.estimated ? "~" : "");
+        const service = document.createElement("span");
+        service.className = "eventService";
+        service.textContent = event.serviceName || event.service || ctx.getActiveAdapter().name;
+        const source2 = document.createElement("span");
+        source2.className = "source eventSource";
+        source2.textContent = event.source || "unknown";
+        body.appendChild(time);
+        body.appendChild(amount);
+        body.appendChild(service);
+        body.appendChild(source2);
+        row.appendChild(accent);
+        row.appendChild(body);
         eventsEl.appendChild(row);
       });
-      renderHistory(root, activeProject, hasProject, filterOn);
+      renderHistory(root, activeProject, hasProject, ctx.isProjectFilterActive());
     }
     function renderSoon() {
       if (ctx.runtime.renderTimer) return;

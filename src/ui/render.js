@@ -115,29 +115,55 @@ export function createRender(ctx) {
         renderSoon();
     }
 
+    function getHistorySourceClass(event) {
+        const sourceType = event.source || 'default';
+        if (sourceType === 'ui' || sourceType === 'mixed' || sourceType === 'network') {
+            return ' histItem--' + sourceType;
+        }
+        return '';
+    }
+
     function createHistoryItem(event, context) {
         context = context || {};
         const item = document.createElement('div');
-        item.className = 'histItem';
+        item.className = 'histItem' + getHistorySourceClass(event);
         if (context.hasProject && !context.filterOn && eventMatchesProject(event, context.activeProject)) {
             item.className += ' histItem--matched';
         }
 
-        const top = document.createElement('div');
-        top.className = 'histTop';
-        const left = document.createElement('div');
-        left.className = 'histSpendMain';
+        const accent = document.createElement('div');
+        accent.className = 'histAccent';
+        accent.setAttribute('aria-hidden', 'true');
+
+        const body = document.createElement('div');
+        body.className = 'histBody';
+
+        const header = document.createElement('div');
+        header.className = 'histHead';
+
+        const main = document.createElement('div');
+        main.className = 'histMain';
+
+        const amount = document.createElement('div');
+        amount.className = 'histAmount';
+        amount.textContent = '−' + formatCredit(event.amount) + (event.estimated ? ' est.' : '');
+
+        const sub = document.createElement('div');
+        sub.className = 'histSub';
+
         const time = document.createElement('span');
         time.className = 'histTime';
         time.textContent = formatTime(event.ts);
-        const amount = document.createElement('span');
-        amount.className = 'histAmount';
-        amount.textContent = '-' + formatCredit(event.amount) + (event.estimated ? ' est.' : '');
-        left.appendChild(time);
-        left.appendChild(amount);
-        const right = document.createElement('div');
-        right.className = 'histSpendService';
-        right.textContent = event.serviceName || event.service || ctx.getActiveAdapter().name;
+
+        const service = document.createElement('span');
+        service.className = 'histService';
+        service.textContent = event.serviceName || event.service || ctx.getActiveAdapter().name;
+
+        sub.appendChild(time);
+        sub.appendChild(service);
+        main.appendChild(amount);
+        main.appendChild(sub);
+
         const deleteButton = document.createElement('button');
         deleteButton.type = 'button';
         deleteButton.className = 'iconBtn miniBtn histDelete';
@@ -149,18 +175,23 @@ export function createRender(ctx) {
             clickEvent.stopPropagation();
             ctx.deleteSpendEvent(event.id);
         });
-        top.appendChild(left);
-        top.appendChild(right);
-        top.appendChild(deleteButton);
 
-        const meta = document.createElement('div');
-        meta.className = 'histMeta';
-        getHistoryPills(event, { hideProjectPill: context.filterOn === true }).forEach(function (text) {
-            const pill = document.createElement('span');
-            pill.className = 'pill';
-            pill.textContent = text;
-            meta.appendChild(pill);
-        });
+        header.appendChild(main);
+        header.appendChild(deleteButton);
+        body.appendChild(header);
+
+        const pills = getHistoryPills(event, { hideProjectPill: context.filterOn === true });
+        if (pills.length) {
+            const meta = document.createElement('div');
+            meta.className = 'histMeta';
+            pills.forEach(function (text) {
+                const pill = document.createElement('span');
+                pill.className = 'pill';
+                pill.textContent = text;
+                meta.appendChild(pill);
+            });
+            body.appendChild(meta);
+        }
 
         const detailText = event.metadata && event.metadata.prompt
             ? compactText(event.metadata.prompt).slice(0, 180)
@@ -170,9 +201,6 @@ export function createRender(ctx) {
         const showProjectLink = event.project && event.project.url;
         const showDetail = !!detailText;
 
-        item.appendChild(top);
-        item.appendChild(meta);
-
         if (showProjectLink || showDetail) {
             const raw = document.createElement('div');
             raw.className = 'raw';
@@ -181,21 +209,22 @@ export function createRender(ctx) {
                 link.href = event.project.url;
                 link.target = '_blank';
                 link.rel = 'noopener noreferrer';
+                link.className = 'rawLink';
                 link.textContent = event.project.name || event.project.url;
-                link.style.color = '#8eb6ff';
-                link.style.textDecoration = 'none';
                 raw.appendChild(link);
                 if (showDetail) raw.appendChild(document.createTextNode(' · ' + detailText));
             } else {
                 raw.textContent = detailText;
             }
-            item.appendChild(raw);
+            body.appendChild(raw);
         }
 
+        item.appendChild(accent);
+        item.appendChild(body);
         return item;
     }
 
-    function renderProjectSummary(root, activeProject, hasProject, filterOn) {
+    function renderProjectSummary(root, activeProject, hasProject) {
         const projectGrid = root.querySelector('[data-field="projectGrid"]');
         const breakdownEl = root.querySelector('[data-field="projectBreakdown"]');
         if (!projectGrid) return;
@@ -204,33 +233,19 @@ export function createRender(ctx) {
         if (!hasProject) return;
 
         const projectTotal = ctx.getProjectAllTimeTotal(activeProject);
-        setText(root, 'projectTotal', '-' + formatCredit(projectTotal));
+        setText(root, 'projectTotal', '−' + formatCredit(projectTotal));
 
         if (!breakdownEl) return;
         breakdownEl.textContent = '';
-        const totals = ctx.getProjectTotalsByService(activeProject);
-        if (!totals.length) {
-            const empty = document.createElement('div');
-            empty.className = 'projectBreakdownEmpty';
-            empty.textContent = 'Пока нет трат по платформам';
-            breakdownEl.appendChild(empty);
-            return;
-        }
-        totals.forEach(function (item) {
-            const row = document.createElement('div');
-            row.className = 'projectBreakdownRow';
-
-            const name = document.createElement('div');
-            name.className = 'projectBreakdownName';
-            name.textContent = item.serviceName || item.service;
-
-            const value = document.createElement('div');
-            value.className = 'projectBreakdownValue';
-            value.textContent = '-' + formatCredit(item.total);
-
-            row.appendChild(name);
-            row.appendChild(value);
-            breakdownEl.appendChild(row);
+        var totals = ctx.getProjectTotalsByService(activeProject);
+        if (!totals.length) return;
+        totals.forEach(function (item, i) {
+            if (i > 0) breakdownEl.appendChild(document.createTextNode(' · '));
+            var span = document.createElement('span');
+            span.className = 'projectBreakdownRow';
+            span.innerHTML = '<span class="projectBreakdownName">' + escapeHtml(item.serviceName || item.service) + '</span>'
+                + '<span class="projectBreakdownValue">−' + formatCredit(item.total) + '</span>';
+            breakdownEl.appendChild(span);
         });
     }
 
@@ -286,15 +301,15 @@ export function createRender(ctx) {
             }
             top.appendChild(left);
 
-            if (hasProject && filterOn) {
-                const showAll = document.createElement('button');
-                showAll.type = 'button';
-                showAll.className = 'histShowAll';
-                showAll.textContent = 'Сбросить';
-                showAll.addEventListener('click', function () {
-                    ctx.setProjectFilterEnabled(false);
+            if (hasProject) {
+                const toggle = document.createElement('button');
+                toggle.type = 'button';
+                toggle.className = 'histShowAll' + (filterOn ? ' active' : '');
+                toggle.textContent = filterOn ? 'Проект' : 'Все';
+                toggle.addEventListener('click', function () {
+                    ctx.setProjectFilterEnabled(!filterOn);
                 });
-                top.appendChild(showAll);
+                top.appendChild(toggle);
             }
             historyHeader.appendChild(top);
 
@@ -337,9 +352,6 @@ export function createRender(ctx) {
         const deleteButton = root.querySelector('[data-action="deleteProject"]');
         const editButton = root.querySelector('[data-action="editProject"]');
         const projectBox = root.querySelector('[data-field="projectBox"]');
-        const filterRow = root.querySelector('[data-field="projectFilterRow"]');
-        const filterToggle = root.querySelector('[data-field="projectFilterToggle"]');
-        const miniStat = root.querySelector('[data-field="projectMiniStat"]');
         const suggestionsBox = root.querySelector('[data-field="projectSuggestions"]');
         const suggestionsTitle = root.querySelector('[data-field="projectSuggestionsTitle"]');
         const suggestionsList = root.querySelector('[data-field="projectSuggestionsList"]');
@@ -352,25 +364,11 @@ export function createRender(ctx) {
         const activeId = activeProject.id && ctx.findProjectById(activeProject.id) ? activeProject.id : '';
         const compact = ctx.shouldCompactProject();
         const hasProject = ctx.hasActiveProject();
-        const filterOn = ctx.isProjectFilterActive();
         const projectLibrary = ctx.listProjects();
 
         if (projectBox) {
             projectBox.classList.toggle('compact', compact);
-            projectBox.classList.toggle('filterOn', filterOn);
-        }
-
-        if (filterRow) {
-            filterRow.classList.toggle('visible', hasProject);
-        }
-        if (filterToggle && document.activeElement !== filterToggle) {
-            filterToggle.checked = filterOn;
-            filterToggle.disabled = !hasProject;
-        }
-        if (miniStat) {
-            miniStat.textContent = hasProject
-                ? '-' + formatCredit(ctx.getProjectAllTimeTotal(activeProject)) + ' всего'
-                : '';
+            projectBox.classList.toggle('filterOn', false);
         }
 
         if (select && active !== select) {
@@ -393,7 +391,7 @@ export function createRender(ctx) {
 
         const searchOpen = ctx.runtime.projectSearchOpen === true;
         if (searchPanel) searchPanel.hidden = !searchOpen;
-        if (searchButton) searchButton.style.background = searchOpen ? 'rgba(45,108,223,.35)' : '';
+        if (searchButton) searchButton.classList.toggle('is-active', searchOpen);
         if (searchInput && active !== searchInput) {
             searchInput.value = ctx.runtime.projectSearchQuery || '';
         }
@@ -473,13 +471,11 @@ export function createRender(ctx) {
         const selectedId = select ? select.value : '';
         if (deleteButton) {
             deleteButton.disabled = !selectedId;
-            deleteButton.style.opacity = selectedId ? '1' : '0.45';
-            deleteButton.style.pointerEvents = selectedId ? 'auto' : 'none';
+            deleteButton.classList.toggle('is-disabled', !selectedId);
         }
         if (editButton) {
             editButton.disabled = !selectedId;
-            editButton.style.opacity = selectedId ? '1' : '0.45';
-            editButton.style.pointerEvents = selectedId ? 'auto' : 'none';
+            editButton.classList.toggle('is-disabled', !selectedId);
         }
 
         if (hint) {
@@ -721,15 +717,14 @@ export function createRender(ctx) {
         const source = getDisplaySource();
         const activeProject = ctx.getActiveProject();
         const hasProject = ctx.hasActiveProject();
-        const filterOn = ctx.isProjectFilterActive();
-        const recentEvents = filterOn ? ctx.getFilteredHistory(activeProject) : history;
+        const summaryEvents = hasProject ? ctx.getFilteredHistory(activeProject) : history;
 
         setText(root, 'serviceName', ctx.getActiveAdapter().name || 'none');
         setText(root, 'versionBadge', 'v' + VERSION);
         setText(root, 'source', source);
         setText(root, 'balance', ctx.runtime.balance == null ? '-' : formatCredit(ctx.runtime.balance));
         renderProjectFields(root);
-        renderProjectSummary(root, activeProject, hasProject, filterOn);
+        renderProjectSummary(root, activeProject, hasProject);
         renderTabs(root);
         renderSettingsTab(root);
         renderUndoToast(root);
@@ -742,49 +737,58 @@ export function createRender(ctx) {
         const eventsEl = root.querySelector('[data-field="events"]');
         if (!eventsEl) return;
         eventsEl.textContent = '';
-        if (!recentEvents.length) {
+        if (!summaryEvents.length) {
             const empty = document.createElement('div');
             empty.className = 'empty';
-            empty.textContent = filterOn
+            empty.textContent = hasProject
                 ? 'Нет трат по этому проекту'
                 : 'Пока нет трат';
             eventsEl.appendChild(empty);
-            renderHistory(root, activeProject, hasProject, filterOn);
+            renderHistory(root, activeProject, hasProject, ctx.isProjectFilterActive());
             return;
         }
 
-        recentEvents.slice(0, ctx.getSettings().summaryEventsCount).forEach(function (event) {
+        summaryEvents.slice(0, ctx.getSettings().summaryEventsCount).forEach(function (event) {
+            const sourceType = event.source || 'default';
+            const sourceClass = sourceType === 'ui' || sourceType === 'mixed' || sourceType === 'network'
+                ? ' eventCard--' + sourceType
+                : '';
             const row = document.createElement('div');
-            row.className = 'event';
+            row.className = 'eventCard' + sourceClass;
 
-            const dot = document.createElement('div');
-            dot.className = 'dot';
-            if (event.source === 'ui') dot.style.background = '#f2b84b';
-            if (event.source === 'mixed') dot.style.background = '#28b67a';
-            if (event.source === 'network') dot.style.background = '#2d6cdf';
+            const accent = document.createElement('div');
+            accent.className = 'eventAccent';
+            accent.setAttribute('aria-hidden', 'true');
 
-            const label = document.createElement('div');
-            label.className = 'histSpendMain';
+            const body = document.createElement('div');
+            body.className = 'eventBody';
+
             const time = document.createElement('span');
-            time.className = 'histTime';
+            time.className = 'histTime eventTime';
             time.textContent = formatTime(event.ts);
+
             const amount = document.createElement('span');
-            amount.className = 'histAmount';
-            amount.textContent = '-' + formatCredit(event.amount) + (event.estimated ? ' est.' : '');
-            label.appendChild(time);
-            label.appendChild(amount);
+            amount.className = 'histAmount eventAmount';
+            amount.textContent = '−' + formatCredit(event.amount) + (event.estimated ? '~' : '');
 
-            const src = document.createElement('div');
-            src.className = 'source';
-            src.textContent = (event.serviceName || event.service || ctx.getActiveAdapter().name) + ' · ' + (event.source || 'unknown');
+            const service = document.createElement('span');
+            service.className = 'eventService';
+            service.textContent = event.serviceName || event.service || ctx.getActiveAdapter().name;
 
-            row.appendChild(dot);
-            row.appendChild(label);
-            row.appendChild(src);
+            const source = document.createElement('span');
+            source.className = 'source eventSource';
+            source.textContent = event.source || 'unknown';
+
+            body.appendChild(time);
+            body.appendChild(amount);
+            body.appendChild(service);
+            body.appendChild(source);
+            row.appendChild(accent);
+            row.appendChild(body);
             eventsEl.appendChild(row);
         });
 
-        renderHistory(root, activeProject, hasProject, filterOn);
+        renderHistory(root, activeProject, hasProject, ctx.isProjectFilterActive());
     }
 
     function renderSoon() {
