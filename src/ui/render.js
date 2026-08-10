@@ -131,10 +131,6 @@ export function createRender(ctx) {
             item.className += ' histItem--matched';
         }
 
-        const accent = document.createElement('div');
-        accent.className = 'histAccent';
-        accent.setAttribute('aria-hidden', 'true');
-
         const body = document.createElement('div');
         body.className = 'histBody';
 
@@ -219,7 +215,6 @@ export function createRender(ctx) {
             body.appendChild(raw);
         }
 
-        item.appendChild(accent);
         item.appendChild(body);
         return item;
     }
@@ -229,23 +224,22 @@ export function createRender(ctx) {
         const breakdownEl = root.querySelector('[data-field="projectBreakdown"]');
         if (!projectGrid) return;
 
-        projectGrid.hidden = !hasProject;
-        if (!hasProject) return;
+        if (breakdownEl) breakdownEl.textContent = '';
+        if (!hasProject) {
+            projectGrid.hidden = true;
+            return;
+        }
 
-        const projectTotal = ctx.getProjectAllTimeTotal(activeProject);
-        setText(root, 'projectTotal', '−' + formatCredit(projectTotal));
+        const totals = ctx.getProjectTotalsByService(activeProject);
+        projectGrid.hidden = !totals.length;
+        if (!breakdownEl || !totals.length) return;
 
-        if (!breakdownEl) return;
-        breakdownEl.textContent = '';
-        var totals = ctx.getProjectTotalsByService(activeProject);
-        if (!totals.length) return;
-        totals.forEach(function (item, i) {
-            if (i > 0) breakdownEl.appendChild(document.createTextNode(' · '));
-            var span = document.createElement('span');
-            span.className = 'projectBreakdownRow';
-            span.innerHTML = '<span class="projectBreakdownName">' + escapeHtml(item.serviceName || item.service) + '</span>'
-                + '<span class="projectBreakdownValue">−' + formatCredit(item.total) + '</span>';
-            breakdownEl.appendChild(span);
+        totals.forEach(function (item) {
+            const chip = document.createElement('span');
+            chip.className = 'serviceChip';
+            chip.innerHTML = '<span class="serviceChipName">' + escapeHtml(item.serviceName || item.service) + '</span>'
+                + '<span class="serviceChipValue">−' + formatCredit(item.total) + '</span>';
+            breakdownEl.appendChild(chip);
         });
     }
 
@@ -261,7 +255,16 @@ export function createRender(ctx) {
     function renderHistory(root, activeProject, hasProject, filterOn) {
         const historyEl = root.querySelector('[data-field="history"]');
         const historyHeader = root.querySelector('[data-field="historyHeader"]');
+        const historyFilter = root.querySelector('[data-field="historyFilter"]');
+        const historyAcc = root.querySelector('[data-acc="history"]');
         if (!historyEl) return;
+
+        if (historyAcc) {
+            const toggle = historyAcc.querySelector('.histAccToggle');
+            if (toggle) {
+                toggle.setAttribute('aria-expanded', historyAcc.classList.contains('open') ? 'true' : 'false');
+            }
+        }
 
         if (historyHeader) {
             historyHeader.textContent = '';
@@ -300,24 +303,25 @@ export function createRender(ctx) {
                 left.appendChild(summary);
             }
             top.appendChild(left);
-
-            if (hasProject) {
-                const toggle = document.createElement('button');
-                toggle.type = 'button';
-                toggle.className = 'histShowAll' + (filterOn ? ' active' : '');
-                toggle.textContent = filterOn ? 'Проект' : 'Все';
-                toggle.addEventListener('click', function () {
-                    ctx.setProjectFilterEnabled(!filterOn);
-                });
-                top.appendChild(toggle);
-            }
             historyHeader.appendChild(top);
 
             const meta = document.createElement('div');
             meta.className = 'histHeaderMeta';
-            meta.textContent = 'Сессия ' + formatCredit(ctx.getSession().total || 0)
-                + ' · Сегодня ' + formatCredit(getTodayTotal());
+            meta.textContent = formatCredit(ctx.getSession().total || 0)
+                + ' · ' + formatCredit(getTodayTotal());
             historyHeader.appendChild(meta);
+        }
+
+        if (historyFilter) {
+            historyFilter.textContent = '';
+            if (hasProject) {
+                const toggle = document.createElement('button');
+                toggle.type = 'button';
+                toggle.className = 'histShowAll' + (filterOn ? ' active' : '');
+                toggle.setAttribute('data-action', 'toggleProjectFilter');
+                toggle.textContent = filterOn ? 'Проект' : 'Все';
+                historyFilter.appendChild(toggle);
+            }
         }
 
         historyEl.textContent = '';
@@ -714,15 +718,12 @@ export function createRender(ctx) {
         if (!ctx.runtime.shadowRoot) return;
         const root = ctx.runtime.shadowRoot;
         const history = ctx.getHistory();
-        const source = getDisplaySource();
         const activeProject = ctx.getActiveProject();
         const hasProject = ctx.hasActiveProject();
         const summaryEvents = hasProject ? ctx.getFilteredHistory(activeProject) : history;
 
         setText(root, 'serviceName', ctx.getActiveAdapter().name || 'none');
         setText(root, 'versionBadge', 'v' + VERSION);
-        setText(root, 'source', source);
-        setText(root, 'balance', ctx.runtime.balance == null ? '-' : formatCredit(ctx.runtime.balance));
         renderProjectFields(root);
         renderProjectSummary(root, activeProject, hasProject);
         renderTabs(root);
@@ -734,61 +735,139 @@ export function createRender(ctx) {
             nicknameWarn.hidden = !needsSheetsNickname(ctx.getSettings());
         }
 
+        renderRecentEvents(root, summaryEvents, hasProject);
+        renderHistory(root, activeProject, hasProject, ctx.isProjectFilterActive());
+    }
+
+    function createEventChip(event) {
+        const sourceType = event.source || 'default';
+        const sourceClass = sourceType === 'ui' || sourceType === 'mixed' || sourceType === 'network'
+            ? ' eventCard--' + sourceType
+            : '';
+        const row = document.createElement('div');
+        row.className = 'eventCard' + sourceClass;
+        row.setAttribute('data-event-id', String(event.id || ''));
+
+        const body = document.createElement('div');
+        body.className = 'eventBody';
+
+        const time = document.createElement('span');
+        time.className = 'histTime eventTime';
+        time.textContent = formatTime(event.ts);
+
+        const amount = document.createElement('span');
+        amount.className = 'histAmount eventAmount';
+        amount.textContent = '−' + formatCredit(event.amount) + (event.estimated ? '~' : '');
+
+        const service = document.createElement('span');
+        service.className = 'eventService';
+        service.textContent = event.serviceName || event.service || ctx.getActiveAdapter().name;
+
+        const source = document.createElement('span');
+        source.className = 'source eventSource';
+        source.textContent = event.source || 'unknown';
+
+        body.appendChild(time);
+        body.appendChild(amount);
+        body.appendChild(service);
+        body.appendChild(source);
+        row.appendChild(body);
+        return row;
+    }
+
+    function renderRecentEvents(root, summaryEvents, hasProject) {
         const eventsEl = root.querySelector('[data-field="events"]');
         if (!eventsEl) return;
-        eventsEl.textContent = '';
-        if (!summaryEvents.length) {
+
+        const nextEvents = summaryEvents.slice(0, ctx.getSettings().summaryEventsCount);
+        const nextIds = nextEvents.map(function (event) {
+            return String(event && event.id || '');
+        });
+        const prevIds = Array.isArray(ctx.runtime.summaryEventIds)
+            ? ctx.runtime.summaryEventIds.slice()
+            : [];
+
+        if (!nextEvents.length) {
+            eventsEl.textContent = '';
             const empty = document.createElement('div');
             empty.className = 'empty';
             empty.textContent = hasProject
                 ? 'Нет трат по этому проекту'
                 : 'Пока нет трат';
             eventsEl.appendChild(empty);
-            renderHistory(root, activeProject, hasProject, ctx.isProjectFilterActive());
+            ctx.runtime.summaryEventIds = [];
             return;
         }
 
-        summaryEvents.slice(0, ctx.getSettings().summaryEventsCount).forEach(function (event) {
-            const sourceType = event.source || 'default';
-            const sourceClass = sourceType === 'ui' || sourceType === 'mixed' || sourceType === 'network'
-                ? ' eventCard--' + sourceType
-                : '';
-            const row = document.createElement('div');
-            row.className = 'eventCard' + sourceClass;
+        const sameList = prevIds.join('|') === nextIds.join('|')
+            && eventsEl.querySelectorAll('.eventCard').length === nextIds.length;
+        if (sameList) return;
 
-            const accent = document.createElement('div');
-            accent.className = 'eventAccent';
-            accent.setAttribute('aria-hidden', 'true');
+        const firstIsNew = !!nextIds[0] && nextIds[0] !== prevIds[0];
+        const shiftedTail = nextIds.slice(1).join('|') === prevIds.slice(0, Math.max(0, nextIds.length - 1)).join('|');
+        const canIncremental = firstIsNew && prevIds.length > 0 && shiftedTail
+            && eventsEl.querySelectorAll('.eventCard').length > 0;
 
-            const body = document.createElement('div');
-            body.className = 'eventBody';
+        if (canIncremental) {
+            const oldCards = Array.from(eventsEl.querySelectorAll('.eventCard'));
+            const prevRects = new Map();
+            oldCards.forEach(function (card) {
+                prevRects.set(card.getAttribute('data-event-id'), card.getBoundingClientRect());
+            });
 
-            const time = document.createElement('span');
-            time.className = 'histTime eventTime';
-            time.textContent = formatTime(event.ts);
+            const chip = createEventChip(nextEvents[0]);
+            chip.classList.add('eventCard--enter');
+            eventsEl.insertBefore(chip, eventsEl.firstChild);
 
-            const amount = document.createElement('span');
-            amount.className = 'histAmount eventAmount';
-            amount.textContent = '−' + formatCredit(event.amount) + (event.estimated ? '~' : '');
+            while (eventsEl.querySelectorAll('.eventCard').length > nextIds.length) {
+                const last = eventsEl.lastElementChild;
+                if (!last || !last.classList.contains('eventCard')) break;
+                eventsEl.removeChild(last);
+            }
 
-            const service = document.createElement('span');
-            service.className = 'eventService';
-            service.textContent = event.serviceName || event.service || ctx.getActiveAdapter().name;
+            window.requestAnimationFrame(function () {
+                oldCards.forEach(function (card) {
+                    if (!card.isConnected) return;
+                    const prev = prevRects.get(card.getAttribute('data-event-id'));
+                    if (!prev) return;
+                    const nextRect = card.getBoundingClientRect();
+                    const dx = prev.left - nextRect.left;
+                    if (Math.abs(dx) < 1) return;
+                    card.style.transform = 'translateX(' + dx + 'px)';
+                    card.style.transition = 'none';
+                    window.requestAnimationFrame(function () {
+                        card.style.transition = 'transform .34s cubic-bezier(.4,0,.2,1)';
+                        card.style.transform = '';
+                        const clear = function () {
+                            card.style.transition = '';
+                            card.removeEventListener('transitionend', clear);
+                        };
+                        card.addEventListener('transitionend', clear);
+                    });
+                });
+                if (typeof eventsEl.scrollTo === 'function') {
+                    eventsEl.scrollTo({ left: 0, behavior: 'smooth' });
+                } else {
+                    eventsEl.scrollLeft = 0;
+                }
+            });
 
-            const source = document.createElement('span');
-            source.className = 'source eventSource';
-            source.textContent = event.source || 'unknown';
+            ctx.runtime.summaryEventIds = nextIds;
+            return;
+        }
 
-            body.appendChild(time);
-            body.appendChild(amount);
-            body.appendChild(service);
-            body.appendChild(source);
-            row.appendChild(accent);
-            row.appendChild(body);
-            eventsEl.appendChild(row);
+        eventsEl.textContent = '';
+        nextEvents.forEach(function (event, index) {
+            const chip = createEventChip(event);
+            if (firstIsNew && prevIds.length && index === 0) {
+                chip.classList.add('eventCard--enter');
+            }
+            eventsEl.appendChild(chip);
         });
-
-        renderHistory(root, activeProject, hasProject, ctx.isProjectFilterActive());
+        ctx.runtime.summaryEventIds = nextIds;
+        if (firstIsNew && prevIds.length) {
+            eventsEl.scrollLeft = 0;
+        }
     }
 
     function renderSoon() {

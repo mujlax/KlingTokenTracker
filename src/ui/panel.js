@@ -137,9 +137,17 @@ function installPanelListeners(ctx, shadow, setPanelCollapsed) {
                 break;
             case 'toggleSettingsAcc': {
                 const acc = actionEl.closest('[data-acc]');
-                if (acc) acc.classList.toggle('open');
+                if (acc) {
+                    const open = acc.classList.toggle('open');
+                    const toggle = acc.querySelector('.histAccToggle, .accHead');
+                    if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                }
                 break;
             }
+            case 'toggleProjectFilter':
+                event.stopPropagation();
+                ctx.setProjectFilterEnabled(!ctx.isProjectFilterActive());
+                break;
             case 'testSheetsConnection':
                 applySheetsFieldsFromForm(ctx, shadow);
                 {
@@ -299,9 +307,11 @@ export function createPanelModule(ctx) {
         if (ctx.runtime.panelHost) {
             const existingShadow = ctx.runtime.panelHost.shadowRoot;
             const needsRecreate = existingShadow && (
-                !existingShadow.querySelector('.summaryTop')
-                || !existingShadow.querySelector('.heroBanner')
-                || !existingShadow.querySelector('.projectBar')
+                !existingShadow.querySelector('.summaryChips')
+                || existingShadow.querySelector('.statChip')
+                || existingShadow.querySelector('.summaryStats')
+                || existingShadow.querySelector('.summaryTop')
+                || existingShadow.querySelector('[data-field="source"]')
             );
             if (needsRecreate) {
                 ctx.runtime.panelHost.remove();
@@ -426,29 +436,26 @@ export function createPanelModule(ctx) {
             '  </div>',
             '  <div class="body">',
             '   <div class="tabPanel" data-panel="summary">',
-            '    <div class="summaryTop">',
-            '      <div class="heroBanner">',
-            '        <div class="heroBannerGlow" aria-hidden="true"></div>',
-            '        <div class="heroTop">',
-            '          <span class="heroLabel">Баланс</span>',
-            '          <span class="heroSource" data-field="source">—</span>',
-            '        </div>',
-            '        <div class="heroValue" data-field="balance">-</div>',
-            '      </div>',
-            '      <div class="projectBar" data-field="projectGrid" hidden>',
-            '        <div class="projectBarHead">',
-            '          <span class="projectBarLabel">Проект</span>',
-            '          <span class="projectBarValue" data-field="projectTotal">0</span>',
-            '        </div>',
-            '        <div class="projectBarBreakdown" data-field="projectBreakdown"></div>',
-            '      </div>',
+            '    <div class="summaryCard" data-field="projectGrid" hidden>',
+            '      <div class="summaryCardGlow" aria-hidden="true"></div>',
+            '      <div class="summaryChips" data-field="projectBreakdown"></div>',
             '    </div>',
             '    <div class="sectionHead"><span class="sectionTitle">Последние</span></div>',
             '    <div class="events" data-field="events"></div>',
             '   </div>',
             '   <div class="tabPanel" data-panel="history">',
-            '    <div class="histHeader" data-field="historyHeader"></div>',
-            '    <div class="history" data-field="history"></div>',
+            '    <div class="acc historyAcc open" data-acc="history">',
+            '      <div class="histAccBar">',
+            '        <button type="button" class="accHead histAccToggle" data-action="toggleSettingsAcc" aria-expanded="true">',
+            '          <div class="histHeader" data-field="historyHeader"></div>',
+            '          <span class="accChevron">' + iconSvg('chevron-down') + '</span>',
+            '        </button>',
+            '        <div class="histAccFilter" data-field="historyFilter"></div>',
+            '      </div>',
+            '      <div class="accBody histAccBody">',
+            '        <div class="history" data-field="history"></div>',
+            '      </div>',
+            '    </div>',
             '   </div>',
             '   <div class="tabPanel" data-panel="settings">',
             '    <div class="settingsForm">',

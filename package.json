@@ -1,6 +1,6 @@
 {
   "name": "ai-token-tracker",
-  "version": "0.9.6",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "scripts": {
