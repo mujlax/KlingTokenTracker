@@ -763,14 +763,9 @@ export function createRender(ctx) {
         service.className = 'eventService';
         service.textContent = event.serviceName || event.service || ctx.getActiveAdapter().name;
 
-        const source = document.createElement('span');
-        source.className = 'source eventSource';
-        source.textContent = event.source || 'unknown';
-
         body.appendChild(time);
         body.appendChild(amount);
         body.appendChild(service);
-        body.appendChild(source);
         row.appendChild(body);
         return row;
     }

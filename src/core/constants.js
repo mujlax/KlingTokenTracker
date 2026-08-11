@@ -1,5 +1,13 @@
-export const VERSION = '1.2.0';
+export const VERSION = '1.2.1';
 export const VERSION_HISTORY = [
+    {
+        version: '1.2.1',
+        date: '2026-08-11',
+        changes: [
+            'В чипах последних трат убраны подписи remote/local',
+            'Число затраты в чипе увеличено'
+        ]
+    },
     {
         version: '1.2.0',
         date: '2026-08-10',

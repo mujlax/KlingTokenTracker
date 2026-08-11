@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI Token Tracker
 // @namespace    http://tampermonkey.net/
-// @version      1.2.0
+// @version      1.2.1
 // @description  Учёт расхода AI-кредитов при генерации: панель, проекты, история, синхронизация с Google Sheets.
 // @match        *://kling.ai/*
 // @match        *://*.kling.ai/*
@@ -20,8 +20,16 @@
 
 (() => {
   // src/core/constants.js
-  var VERSION = "1.2.0";
+  var VERSION = "1.2.1";
   var VERSION_HISTORY = [
+    {
+      version: "1.2.1",
+      date: "2026-08-11",
+      changes: [
+        "\u0412 \u0447\u0438\u043F\u0430\u0445 \u043F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0445 \u0442\u0440\u0430\u0442 \u0443\u0431\u0440\u0430\u043D\u044B \u043F\u043E\u0434\u043F\u0438\u0441\u0438 remote/local",
+        "\u0427\u0438\u0441\u043B\u043E \u0437\u0430\u0442\u0440\u0430\u0442\u044B \u0432 \u0447\u0438\u043F\u0435 \u0443\u0432\u0435\u043B\u0438\u0447\u0435\u043D\u043E"
+      ]
+    },
     {
       version: "1.2.0",
       date: "2026-08-10",
@@ -2697,17 +2705,16 @@
     ".eventCard--ui::before{background:var(--ktt-accent-ui)}",
     ".eventCard--mixed::before{background:var(--ktt-accent-mixed)}",
     ".eventCard--network::before{background:var(--ktt-accent-network)}",
-    ".eventBody{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 8px;align-items:center;padding:0}",
+    ".eventBody{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;gap:0 8px;align-items:center;padding:0}",
     ".eventTop{display:flex;align-items:center;gap:6px;min-width:0;flex:1}",
     ".histSpendMain{display:contents}",
     ".histTime{font-size:10px;font-weight:700;color:var(--ktt-on-primary-container);white-space:nowrap}",
-    ".eventBody .histAmount{color:#fff;font-weight:800;font-size:11px;flex-shrink:0}",
+    ".eventBody .histAmount{color:#fff;font-weight:800;font-size:16px;line-height:1.1;letter-spacing:-.03em;flex-shrink:0}",
     ".histSpendService{color:var(--ktt-on-surface-variant);white-space:nowrap;font-size:10px}",
     ".source{color:var(--ktt-on-surface-muted);text-transform:uppercase;font-size:8px;letter-spacing:.06em;font-weight:700;flex-shrink:0}",
     ".eventTime{grid-column:1;grid-row:1}",
-    ".eventAmount{grid-column:2;grid-row:1;justify-self:end}",
+    ".eventAmount{grid-column:2;grid-row:1/span 2;align-self:center;justify-self:end}",
     ".eventService{grid-column:1;grid-row:2;min-width:0;color:var(--ktt-on-surface-variant);font-size:8px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-    ".eventSource{grid-column:2;grid-row:2;justify-self:end;font-size:7px;opacity:.72}",
     "@keyframes eventChipEnter{from{opacity:0;transform:translateX(-18px) scale(.96)}to{opacity:1;transform:translateX(0) scale(1)}}",
     ".eventCard--enter{animation:eventChipEnter .34s cubic-bezier(.4,0,.2,1) both}",
     "@media (prefers-reduced-motion:reduce){.eventCard--enter{animation:none}}",
@@ -4326,13 +4333,9 @@
       const service = document.createElement("span");
       service.className = "eventService";
       service.textContent = event.serviceName || event.service || ctx.getActiveAdapter().name;
-      const source = document.createElement("span");
-      source.className = "source eventSource";
-      source.textContent = event.source || "unknown";
       body.appendChild(time);
       body.appendChild(amount);
       body.appendChild(service);
-      body.appendChild(source);
       row.appendChild(body);
       return row;
     }
