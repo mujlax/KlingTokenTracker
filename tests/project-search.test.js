@@ -18,6 +18,33 @@ const PROJECTS = [
     { id: 'p6', name: 'Bono Studio', url: '', status: 'active', createdAt: 4, updatedAt: 4 }
 ];
 
+const BITRIX_PROJECTS = [
+    {
+        id: 'alcon1',
+        name: 'Alcon // ИИ-ролики // 05.06.2026 // ИИ // Паша',
+        url: 'https://b24.bono.today/company/personal/user/58/tasks/task/view/111/',
+        status: 'active',
+        createdAt: 50,
+        updatedAt: 50
+    },
+    {
+        id: 'alcon2',
+        name: 'Alcon // Видеоролик для NSM // 08.07.2026 // ИИ // Паша',
+        url: 'https://b24.bono.today/company/personal/user/58/tasks/task/view/222/',
+        status: 'active',
+        createdAt: 60,
+        updatedAt: 60
+    },
+    {
+        id: 'yandex1',
+        name: 'Яндекс Еда // BONODESIGN-710 // Whisper',
+        url: 'https://b24.bono.today/company/personal/user/9/tasks/task/view/333/',
+        status: 'active',
+        createdAt: 70,
+        updatedAt: 70
+    }
+];
+
 test('normalizeProjectName normalizes Unicode, Cyrillic and punctuation', function () {
     assert.equal(normalizeProjectName('  ЁЛКА—News! '), 'елка news');
 });
@@ -39,17 +66,50 @@ test('findProjectSuggestions ranks exact URL before fuzzy names', function () {
 });
 
 test('findProjectSuggestions supports a small typo after four characters', function () {
-    const suggestions = findProjectSuggestions(PROJECTS, { name: 'bononewz', url: '' });
+    const suggestions = findProjectSuggestions(PROJECTS, { name: 'bononewz campaign', url: '' });
     assert.equal(suggestions[0].id, 'p2');
 });
 
 test('findProjectSuggestions excludes archived/current projects and caps results', function () {
-    const suggestions = findProjectSuggestions(PROJECTS, { name: 'bon', url: '' }, {
+    const suggestions = findProjectSuggestions(PROJECTS, { name: 'bononews', url: '' }, {
         excludeId: 'p2',
         limit: 2
     });
-    assert.equal(suggestions.length, 2);
+    assert.equal(suggestions.length, 1);
+    assert.equal(suggestions[0].id, 'p4');
     assert.equal(suggestions.some(function (item) { return item.id === 'p2' || item.id === 'p3'; }), false);
+});
+
+test('findProjectSuggestions ignores shared Bitrix host without matching path', function () {
+    const suggestions = findProjectSuggestions(BITRIX_PROJECTS, {
+        name: 'Alcon // ИИ-ролики // 05.06.2026 // ИИ // Паша',
+        url: 'https://b24.bono.today/company/personal/user/58/tasks/task/view/999/'
+    });
+    assert.equal(suggestions.some(function (item) { return item.id === 'yandex1'; }), false);
+    assert.equal(suggestions.some(function (item) { return item.id === 'alcon2'; }), false);
+});
+
+test('findProjectSuggestions treats exact Bitrix URL as unique match', function () {
+    const suggestions = findProjectSuggestions(BITRIX_PROJECTS, {
+        name: 'Совсем другое название',
+        url: 'https://b24.bono.today/company/personal/user/58/tasks/task/view/111/'
+    });
+    assert.equal(suggestions.length, 1);
+    assert.equal(suggestions[0].id, 'alcon1');
+    assert.equal(suggestions[0].matchExact, true);
+});
+
+test('findProjectSuggestions matches near-identical names without relying on host', function () {
+    const suggestions = findProjectSuggestions(BITRIX_PROJECTS, {
+        name: 'Alcon // ИИ-ролики // 05.06.2026 // ИИ // Паша',
+        url: ''
+    });
+    assert.equal(suggestions[0].id, 'alcon1');
+    assert.equal(suggestions.some(function (item) { return item.id === 'yandex1'; }), false);
+});
+
+test('findProjectSuggestions waits for a longer name before warning', function () {
+    assert.deepEqual(findProjectSuggestions(PROJECTS, { name: 'bon', url: '' }), []);
 });
 
 test('sortProjectsByCreatedAt puts newest active projects first', function () {

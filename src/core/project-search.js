@@ -44,6 +44,12 @@ function getUrlHost(value) {
     return normalized ? normalized.split('/')[0] : '';
 }
 
+function getUrlPath(normalized) {
+    if (!normalized) return '';
+    const slash = normalized.indexOf('/');
+    return slash >= 0 ? normalized.slice(slash) : '';
+}
+
 function levenshteinDistance(left, right) {
     if (left === right) return 0;
     if (!left) return right.length;
@@ -67,6 +73,12 @@ function levenshteinDistance(left, right) {
     return previous[right.length];
 }
 
+function significantTokens(value) {
+    return String(value || '').split(' ').filter(function (token) {
+        return token.length >= 4;
+    });
+}
+
 function nameMatchScore(query, candidate) {
     if (!query || !candidate) return 0;
     if (query === candidate) return 0.98;
@@ -74,38 +86,58 @@ function nameMatchScore(query, candidate) {
     if (candidate.indexOf(query) >= 0 || query.indexOf(candidate) >= 0) return 0.8;
     if (query.length < 4 || candidate.length < 4) return 0;
 
-    const queryTokens = query.split(' ').filter(Boolean);
-    const candidateTokens = candidate.split(' ').filter(Boolean);
+    const queryTokens = significantTokens(query);
+    const candidateTokens = significantTokens(candidate);
+    if (!queryTokens.length || !candidateTokens.length) return 0;
+
     let shared = 0;
     let bestTokenSimilarity = 0;
     queryTokens.forEach(function (token) {
         if (candidateTokens.indexOf(token) >= 0) shared += 1;
-        if (token.length < 4) return;
         candidateTokens.forEach(function (candidateToken) {
-            if (candidateToken.length < 4) return;
             const tokenLength = Math.max(token.length, candidateToken.length);
             const tokenSimilarity = 1 - (levenshteinDistance(token, candidateToken) / tokenLength);
             if (tokenSimilarity > bestTokenSimilarity) bestTokenSimilarity = tokenSimilarity;
         });
     });
-    const tokenScore = queryTokens.length ? 0.76 * (shared / queryTokens.length) : 0;
-    const tokenTypoScore = bestTokenSimilarity >= 0.72 ? 0.7 * bestTokenSimilarity : 0;
+
+    // Require meaningful overlap: at least half of query tokens, and ≥2 when query is long
+    const overlapRatio = shared / queryTokens.length;
+    const minShared = queryTokens.length >= 3 ? 2 : 1;
+    const tokenScore = shared >= minShared && overlapRatio >= 0.6
+        ? 0.78 * overlapRatio
+        : 0;
+    const tokenTypoScore = bestTokenSimilarity >= 0.8 ? 0.76 * bestTokenSimilarity : 0;
 
     const maxLength = Math.max(query.length, candidate.length);
     const similarity = maxLength ? 1 - (levenshteinDistance(query, candidate) / maxLength) : 0;
-    const typoScore = similarity >= 0.72 ? 0.7 * similarity : 0;
+    const typoScore = similarity >= 0.8 ? 0.78 * similarity : 0;
     return Math.max(tokenScore, tokenTypoScore, typoScore);
 }
 
 function urlMatchScore(query, candidate) {
     if (!query || !candidate) return 0;
     if (query === candidate) return 1;
-    const queryHost = query.split('/')[0];
-    const candidateHost = candidate.split('/')[0];
-    if (queryHost && queryHost === candidateHost) return 0.9;
-    if (candidate.indexOf(query) >= 0 || query.indexOf(candidate) >= 0) return 0.84;
+
+    const queryPath = getUrlPath(query);
+    const candidatePath = getUrlPath(candidate);
+    // Same host alone is not a match — Bitrix and similar tools share one host.
+    // Only count URL when the path also meaningfully overlaps.
+    if (!queryPath || !candidatePath || queryPath.length < 2 || candidatePath.length < 2) {
+        return 0;
+    }
+
+    if (candidate.indexOf(query) === 0 || query.indexOf(candidate) === 0) return 0.96;
+    if (candidatePath.indexOf(queryPath) === 0 || queryPath.indexOf(candidatePath) === 0) {
+        const queryHost = query.split('/')[0];
+        const candidateHost = candidate.split('/')[0];
+        if (queryHost && queryHost === candidateHost) return 0.94;
+    }
     return 0;
 }
+
+const SUGGESTION_SCORE_THRESHOLD = 0.72;
+const SEARCH_SCORE_THRESHOLD = 0.55;
 
 export function scoreProjectMatch(project, query) {
     const nameQuery = normalizeProjectName(query && query.name);
@@ -114,8 +146,29 @@ export function scoreProjectMatch(project, query) {
     const projectUrl = normalizeProjectUrl(project && project.url);
     const nameScore = nameMatchScore(nameQuery, projectName);
     const urlScore = urlMatchScore(urlQuery, projectUrl);
+
+    // Concrete different URLs mean different projects unless the name is nearly identical.
+    if (urlQuery && projectUrl && urlQuery !== projectUrl && urlScore < 0.94) {
+        if (nameScore < 0.86) {
+            return {
+                score: 0,
+                exact: false,
+                nameScore: nameScore,
+                urlScore: urlScore
+            };
+        }
+        return {
+            score: nameScore,
+            exact: nameQuery === projectName,
+            nameScore: nameScore,
+            urlScore: urlScore
+        };
+    }
+
     let score = Math.max(nameScore, urlScore);
-    if (nameScore >= 0.55 && urlScore >= 0.55) score = Math.min(1, score + 0.03);
+    if (nameScore >= SUGGESTION_SCORE_THRESHOLD && urlScore >= 0.94) {
+        score = Math.min(1, score + 0.03);
+    }
     return {
         score: score,
         exact: (nameQuery && nameQuery === projectName) || (urlQuery && urlQuery === projectUrl),
@@ -130,7 +183,8 @@ export function findProjectSuggestions(projects, query, options) {
     const excludeId = String(settings.excludeId || '');
     const nameQuery = normalizeProjectName(query && query.name);
     const urlQuery = normalizeProjectUrl(query && query.url);
-    if (nameQuery.length < 2 && !urlQuery) return [];
+    // Need a real name fragment or a concrete URL before warning about duplicates
+    if (nameQuery.length < 4 && !urlQuery) return [];
 
     return (Array.isArray(projects) ? projects : []).filter(function (project) {
         return project && project.status !== 'archived' && project.id !== excludeId;
@@ -141,7 +195,7 @@ export function findProjectSuggestions(projects, query, options) {
             matchExact: match.exact
         });
     }).filter(function (project) {
-        return project.matchScore >= 0.55;
+        return project.matchScore >= SUGGESTION_SCORE_THRESHOLD;
     }).sort(function (left, right) {
         if (right.matchScore !== left.matchScore) return right.matchScore - left.matchScore;
         return Number(right.updatedAt || 0) - Number(left.updatedAt || 0);
@@ -164,7 +218,7 @@ export function searchProjectsByName(projects, query, options) {
     const needle = normalizeProjectName(query);
     const sorted = sortProjectsByCreatedAt(projects);
     const matches = needle ? sorted.filter(function (project) {
-        return nameMatchScore(needle, normalizeProjectName(project.name)) >= 0.55;
+        return nameMatchScore(needle, normalizeProjectName(project.name)) >= SEARCH_SCORE_THRESHOLD;
     }) : sorted;
     return matches.slice(0, limit);
 }
