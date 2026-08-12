@@ -1,5 +1,12 @@
-export const VERSION = '1.2.2';
+export const VERSION = '1.2.3';
 export const VERSION_HISTORY = [
+    {
+        version: '1.2.3',
+        date: '2026-08-12',
+        changes: [
+            'В undo-баре полностью видно название проекта'
+        ]
+    },
     {
         version: '1.2.2',
         date: '2026-08-12',
