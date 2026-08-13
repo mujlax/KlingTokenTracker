@@ -1,5 +1,12 @@
-export const VERSION = '1.2.3';
+export const VERSION = '1.2.4';
 export const VERSION_HISTORY = [
+    {
+        version: '1.2.4',
+        date: '2026-08-13',
+        changes: [
+            'В настройках панели можно выбрать тему: Авто, Тёмная или Светлая'
+        ]
+    },
     {
         version: '1.2.3',
         date: '2026-08-12',

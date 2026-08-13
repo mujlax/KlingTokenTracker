@@ -279,6 +279,9 @@ function installPanelListeners(ctx, shadow, setPanelCollapsed) {
     shadow.querySelector('[data-field="settingPanelWidth"]').addEventListener('change', function (event) {
         ctx.updateSetting('panelWidth', Number(event.currentTarget.value));
     });
+    shadow.querySelector('[data-field="settingColorTheme"]').addEventListener('change', function (event) {
+        ctx.updateSetting('colorTheme', event.currentTarget.value);
+    });
     shadow.querySelector('[data-field="settingRememberPosition"]').addEventListener('change', function (event) {
         ctx.updateSetting('rememberPanelPosition', event.currentTarget.checked === true);
     });
@@ -462,7 +465,7 @@ export function createPanelModule(ctx) {
             '      <div class="acc open" data-acc="panel">',
             '        <button type="button" class="accHead" data-action="toggleSettingsAcc">',
             '          <span class="accTitle">Панель</span>',
-            '          <span class="accMeta" data-field="settingAccMetaPanel">20% · 286px</span>',
+            '          <span class="accMeta" data-field="settingAccMetaPanel">20% · 286px · авто</span>',
             '          <span class="accChevron">' + iconSvg('chevron-down') + '</span>',
             '        </button>',
             '        <div class="accBody">',
@@ -479,6 +482,14 @@ export function createPanelModule(ctx) {
             '              <option value="260">260 px</option>',
             '              <option value="286">286 px</option>',
             '              <option value="320">320 px</option>',
+            '            </select>',
+            '          </div>',
+            '          <div class="settingsCompactRow">',
+            '            <span class="settingsLabel">Тема</span>',
+            '            <select class="field select" data-field="settingColorTheme">',
+            '              <option value="auto">Авто</option>',
+            '              <option value="dark">Тёмная</option>',
+            '              <option value="light">Светлая</option>',
             '            </select>',
             '          </div>',
             '          <label class="m3Check settingsCheck">',

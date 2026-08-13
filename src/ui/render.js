@@ -501,6 +501,7 @@ export function createRender(ctx) {
         const summarySelect = root.querySelector('[data-field="settingSummaryEvents"]');
         const historySelect = root.querySelector('[data-field="settingHistoryLimit"]');
         const widthSelect = root.querySelector('[data-field="settingPanelWidth"]');
+        const themeSelect = root.querySelector('[data-field="settingColorTheme"]');
         const rememberCheckbox = root.querySelector('[data-field="settingRememberPosition"]');
 
         const opacityPercent = Math.round(settings.idleOpacity * 100);
@@ -519,13 +520,17 @@ export function createRender(ctx) {
         if (widthSelect && active !== widthSelect) {
             widthSelect.value = String(settings.panelWidth);
         }
+        if (themeSelect && active !== themeSelect) {
+            themeSelect.value = String(settings.colorTheme || 'auto');
+        }
         if (rememberCheckbox && active !== rememberCheckbox) {
             rememberCheckbox.checked = settings.rememberPanelPosition === true;
         }
 
+        const themeLabels = { auto: 'авто', dark: 'тёмная', light: 'светлая' };
         const panelMeta = root.querySelector('[data-field="settingAccMetaPanel"]');
         if (panelMeta) {
-            panelMeta.textContent = opacityPercent + '% · ' + settings.panelWidth + 'px';
+            panelMeta.textContent = opacityPercent + '% · ' + settings.panelWidth + 'px · ' + (themeLabels[settings.colorTheme] || 'авто');
         }
         const displayMeta = root.querySelector('[data-field="settingAccMetaDisplay"]');
         if (displayMeta) {

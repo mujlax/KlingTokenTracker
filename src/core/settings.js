@@ -29,6 +29,7 @@ export const DEFAULT_SETTINGS = {
     historyDisplayLimit: 50,
     rememberPanelPosition: false,
     panelWidth: 286,
+    colorTheme: 'auto',
     sheetsEnabled: true,
     sheetsWebAppUrl: DEFAULT_SHEETS_WEB_APP_URL,
     sheetsSecretToken: DEFAULT_SHEETS_SECRET_TOKEN,
@@ -40,10 +41,16 @@ export const DEFAULT_SETTINGS = {
 const SUMMARY_COUNTS = [1, 3, 5, 10];
 const HISTORY_LIMITS = [25, 50, 100];
 const PANEL_WIDTHS = [260, 286, 320];
+const COLOR_THEMES = ['auto', 'dark', 'light'];
 
 function pickWhitelist(value, allowed, fallback) {
     const num = Number(value);
     return allowed.indexOf(num) >= 0 ? num : fallback;
+}
+
+function pickTheme(value) {
+    const theme = String(value || '').trim().toLowerCase();
+    return COLOR_THEMES.indexOf(theme) >= 0 ? theme : DEFAULT_SETTINGS.colorTheme;
 }
 
 export function sanitizeSettings(value) {
@@ -55,6 +62,7 @@ export function sanitizeSettings(value) {
         historyDisplayLimit: pickWhitelist(input.historyDisplayLimit, HISTORY_LIMITS, DEFAULT_SETTINGS.historyDisplayLimit),
         rememberPanelPosition: input.rememberPanelPosition === true,
         panelWidth: pickWhitelist(input.panelWidth, PANEL_WIDTHS, DEFAULT_SETTINGS.panelWidth),
+        colorTheme: pickTheme(input.colorTheme),
         sheetsEnabled: input.sheetsEnabled === false ? false : true,
         sheetsWebAppUrl: String(input.sheetsWebAppUrl || '').trim().slice(0, 500) || DEFAULT_SHEETS_WEB_APP_URL,
         sheetsSecretToken: String(input.sheetsSecretToken || '').trim().slice(0, 200) || DEFAULT_SHEETS_SECRET_TOKEN,
@@ -77,6 +85,7 @@ export function applyPanelSettings(ctx) {
 
     const settings = ctx.runtime.settings || DEFAULT_SETTINGS;
     host.style.setProperty('--ktt-idle-opacity', String(settings.idleOpacity));
+    host.setAttribute('data-theme', settings.colorTheme || DEFAULT_SETTINGS.colorTheme);
 
     const panel = shadowRoot.querySelector('.panel');
     if (panel) {

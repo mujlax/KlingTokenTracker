@@ -22,6 +22,14 @@ test('sanitizeSettings validates whitelist values', function () {
     assert.equal(sanitizeSettings({ panelWidth: 320 }).panelWidth, 320);
 });
 
+test('sanitizeSettings validates colorTheme values', function () {
+    assert.equal(sanitizeSettings({}).colorTheme, 'auto');
+    assert.equal(sanitizeSettings({ colorTheme: 'dark' }).colorTheme, 'dark');
+    assert.equal(sanitizeSettings({ colorTheme: 'light' }).colorTheme, 'light');
+    assert.equal(sanitizeSettings({ colorTheme: 'neon' }).colorTheme, 'auto');
+    assert.equal(sanitizeSettings({ colorTheme: 'DARK' }).colorTheme, 'dark');
+});
+
 test('sanitizeSettings preserves rememberPanelPosition boolean', function () {
     assert.equal(sanitizeSettings({ rememberPanelPosition: true }).rememberPanelPosition, true);
     assert.equal(sanitizeSettings({ rememberPanelPosition: 'yes' }).rememberPanelPosition, false);
