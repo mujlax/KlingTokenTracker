@@ -1,5 +1,12 @@
-export const VERSION = '1.2.4';
+export const VERSION = '1.2.5';
 export const VERSION_HISTORY = [
+    {
+        version: '1.2.5',
+        date: '2026-10-01',
+        changes: [
+            'Исправлен учёт цены со скидкой на Higgsfield: старая и новая цены больше не склеиваются'
+        ]
+    },
     {
         version: '1.2.4',
         date: '2026-08-13',

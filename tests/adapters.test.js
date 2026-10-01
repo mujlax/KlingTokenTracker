@@ -7,6 +7,7 @@ import {
     parseSeedanceSettingsFromText
 } from '../src/adapters/seedance.js';
 import { initAdapters, getActiveAdapter } from '../src/adapters/registry.js';
+import { createHiggsfieldAdapter } from '../src/adapters/higgsfield.js';
 
 test('extractHiggsfieldCost parses Generate sparkle price', function () {
     assert.equal(extractHiggsfieldCost('Generate ✦ 16'), 16);
@@ -18,6 +19,71 @@ test('extractHiggsfieldCost parses Generate sparkle price', function () {
 test('buildHiggsfieldDetail keeps only button text', function () {
     assert.equal(buildHiggsfieldDetail('Generate6.25', 6.25), 'Generate6.25');
     assert.equal(buildHiggsfieldDetail('', 6.25), 'Generate 6.25');
+});
+
+test('Higgsfield uses the discounted price in separated button text', function () {
+    assert.equal(extractHiggsfieldCost('Generate ✦ 24 12'), 12);
+    assert.equal(extractHiggsfieldCost('Generate 24 12'), 12);
+    assert.equal(extractHiggsfieldCost('Generate ✦ 12.5 6.25'), 6.25);
+    assert.equal(extractHiggsfieldCost('Generate ✦ 24 12 Generate ✦ 24 12'), 12);
+});
+
+function higgsfieldButton(oldPriceStyle = {}, oldPriceTag = 'SPAN') {
+    const ownerDocument = { defaultView: { getComputedStyle: node => node.style || {} } };
+    const text = value => ({ nodeType: 3, textContent: value });
+    const element = (tagName, children, style = {}) => ({
+        nodeType: 1, tagName, childNodes: children, style, ownerDocument,
+        get textContent() { return children.map(child => child.textContent).join(''); }
+    });
+    const button = element('BUTTON', [text('Generate'),
+        element('SVG', [text('icon')]),
+        element(oldPriceTag, [text('24')], oldPriceStyle),
+        element('SPAN', [text('12')])]);
+    button.getAttribute = name => name === 'aria-label' ? 'Generate 24' : '';
+    button.parentElement = null;
+    return button;
+}
+
+test('Higgsfield separates adjacent DOM prices instead of recording 2412', function () {
+    const button = higgsfieldButton();
+    assert.equal(button.textContent, 'Generateicon2412');
+    const adapter = createHiggsfieldAdapter({
+        getPanelHost: () => null,
+        addDiagnostic: () => {}
+    });
+    const parsed = adapter.parseGenerateClick(button, null);
+    assert.equal(parsed.amount, 12);
+    assert.equal(parsed.estimated, false);
+});
+
+test('Higgsfield excludes crossed-out and hidden DOM prices', function () {
+    for (const [style, tag] of [
+        [{ textDecorationLine: 'line-through' }, 'SPAN'],
+        [{ display: 'none' }, 'SPAN'],
+        [{ visibility: 'hidden' }, 'SPAN'],
+        [{}, 'S'],
+        [{}, 'DEL']
+    ]) {
+        const button = higgsfieldButton(style, tag);
+        // Also cover an old price rendered after the current price.
+        button.childNodes.reverse();
+        assert.equal(extractHiggsfieldCost(button.textContent, button), 12);
+    }
+});
+
+test('Higgsfield keeps regular, fractional and free DOM prices', function () {
+    for (const value of ['16', '6.25', '6,25', '0']) {
+        const button = higgsfieldButton();
+        button.childNodes.splice(2, 1);
+        button.childNodes[2].childNodes[0].textContent = value;
+        assert.equal(extractHiggsfieldCost(button.textContent, button), Number(value.replace(',', '.')));
+    }
+});
+
+test('Higgsfield does not record a crossed-out price when the current price is absent', function () {
+    const button = higgsfieldButton({ textDecorationLine: 'line-through' });
+    button.childNodes.pop();
+    assert.ok(Number.isNaN(extractHiggsfieldCost(button.textContent, button)));
 });
 
 test('calculateSeedanceCost calculates 720P Pro 4s', function () {

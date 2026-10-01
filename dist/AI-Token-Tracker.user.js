@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI Token Tracker
 // @namespace    http://tampermonkey.net/
-// @version      1.2.4
+// @version      1.2.5
 // @description  Учёт расхода AI-кредитов при генерации: панель, проекты, история, синхронизация с Google Sheets.
 // @match        *://kling.ai/*
 // @match        *://*.kling.ai/*
@@ -20,8 +20,15 @@
 
 (() => {
   // src/core/constants.js
-  var VERSION = "1.2.4";
+  var VERSION = "1.2.5";
   var VERSION_HISTORY = [
+    {
+      version: "1.2.5",
+      date: "2026-10-01",
+      changes: [
+        "\u0418\u0441\u043F\u0440\u0430\u0432\u043B\u0435\u043D \u0443\u0447\u0451\u0442 \u0446\u0435\u043D\u044B \u0441\u043E \u0441\u043A\u0438\u0434\u043A\u043E\u0439 \u043D\u0430 Higgsfield: \u0441\u0442\u0430\u0440\u0430\u044F \u0438 \u043D\u043E\u0432\u0430\u044F \u0446\u0435\u043D\u044B \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0435 \u0441\u043A\u043B\u0435\u0438\u0432\u0430\u044E\u0442\u0441\u044F"
+      ]
+    },
     {
       version: "1.2.4",
       date: "2026-08-13",
@@ -372,15 +379,31 @@
     if (!numbers.length) return NaN;
     return parseLooseNumber(numbers[numbers.length - 1]);
   }
-  function extractHiggsfieldCost(text) {
-    const normalized = compactText(text);
+  function getHiggsfieldPriceText(element) {
+    const parts = [];
+    const view = element.ownerDocument && element.ownerDocument.defaultView;
+    function visit(node) {
+      if (node.nodeType === 3) {
+        parts.push(node.textContent || "");
+        return;
+      }
+      if (node.nodeType !== 1) return;
+      if (/^(S|DEL|SVG)$/i.test(node.tagName || "") || node.hidden) return;
+      const style = view && view.getComputedStyle(node);
+      if (style && (style.display === "none" || style.visibility === "hidden" || /line-through/.test(style.textDecorationLine || style.textDecoration || ""))) return;
+      for (const child of node.childNodes || []) visit(child);
+    }
+    visit(element);
+    return compactText(parts.join(" "));
+  }
+  function extractHiggsfieldCost(text, clickable) {
+    const normalized = clickable && clickable.childNodes ? getHiggsfieldPriceText(clickable) : compactText(text);
     if (!normalized) return NaN;
-    const primary = normalized.match(/generate\s*[✦✧⋆*]\s*(\d+(?:[.,]\d+)?)/i);
-    if (primary) return parseLooseNumber(primary[1]);
-    const glued = normalized.match(/generate\s*(\d+(?:[.,]\d+)?)/i);
-    if (glued) return parseLooseNumber(glued[1]);
-    const sparkle = normalized.match(/[✦✧⋆*]\s*(\d+(?:[.,]\d+)?)/);
-    if (sparkle) return parseLooseNumber(sparkle[1]);
+    const price = normalized.match(/(?:generate\s*[✦✧⋆*]?|[✦✧⋆*])\s*(\d+(?:[.,]\d+)?(?:\s+\d+(?:[.,]\d+)?)*)/i);
+    if (price) {
+      const numbers2 = price[1].match(/\d+(?:[.,]\d+)?/g);
+      return parseLooseNumber(numbers2[numbers2.length - 1]);
+    }
     if (!/generate/i.test(normalized)) return NaN;
     const numbers = normalized.match(/\d+(?:[.,]\d+)?/g) || [];
     if (!numbers.length) return NaN;
@@ -790,7 +813,7 @@
           h.addDiagnostic("ignored higgsfield generate click outside button bounds", directText, getElementRectSummary(clickable));
           return null;
         }
-        const amount = extractHiggsfieldCost(directText);
+        const amount = extractHiggsfieldCost(directText, clickable);
         const metadata = parseHiggsfieldMetadata(clickable, h.getPanelHost());
         const detail = buildHiggsfieldDetail(directText, amount);
         if (!isFiniteCredit(amount) || amount <= 0) {

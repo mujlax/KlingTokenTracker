@@ -99,4 +99,4 @@ GitHub Actions runs `npm test`, `npm run build`, and `node --check` on push and 
 
 ## Version
 
-0.9.6
+1.2.5

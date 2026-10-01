@@ -51,18 +51,40 @@ export function extractCostFromUiText(text) {
     return parseLooseNumber(numbers[numbers.length - 1]);
 }
 
-export function extractHiggsfieldCost(text) {
-    const normalized = compactText(text);
+function getHiggsfieldPriceText(element) {
+    const parts = [];
+    const view = element.ownerDocument && element.ownerDocument.defaultView;
+
+    function visit(node) {
+        if (node.nodeType === 3) {
+            parts.push(node.textContent || '');
+            return;
+        }
+        if (node.nodeType !== 1) return;
+        // Old prices remain in textContent, even when crossed out or hidden.
+        if (/^(S|DEL|SVG)$/i.test(node.tagName || '') || node.hidden) return;
+        const style = view && view.getComputedStyle(node);
+        if (style && (style.display === 'none' || style.visibility === 'hidden' ||
+            /line-through/.test(style.textDecorationLine || style.textDecoration || ''))) return;
+        for (const child of node.childNodes || []) visit(child);
+    }
+
+    visit(element);
+    // Keep adjacent price elements separate: <span>24</span><span>12</span>.
+    return compactText(parts.join(' '));
+}
+
+export function extractHiggsfieldCost(text, clickable) {
+    const normalized = clickable && clickable.childNodes
+        ? getHiggsfieldPriceText(clickable)
+        : compactText(text);
     if (!normalized) return NaN;
 
-    const primary = normalized.match(/generate\s*[✦✧⋆*]\s*(\d+(?:[.,]\d+)?)/i);
-    if (primary) return parseLooseNumber(primary[1]);
-
-    const glued = normalized.match(/generate\s*(\d+(?:[.,]\d+)?)/i);
-    if (glued) return parseLooseNumber(glued[1]);
-
-    const sparkle = normalized.match(/[✦✧⋆*]\s*(\d+(?:[.,]\d+)?)/);
-    if (sparkle) return parseLooseNumber(sparkle[1]);
+    const price = normalized.match(/(?:generate\s*[✦✧⋆*]?|[✦✧⋆*])\s*(\d+(?:[.,]\d+)?(?:\s+\d+(?:[.,]\d+)?)*)/i);
+    if (price) {
+        const numbers = price[1].match(/\d+(?:[.,]\d+)?/g);
+        return parseLooseNumber(numbers[numbers.length - 1]);
+    }
 
     if (!/generate/i.test(normalized)) return NaN;
 

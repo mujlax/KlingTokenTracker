@@ -28,7 +28,7 @@ export function createHiggsfieldAdapter(h) {
                 return null;
             }
 
-            const amount = extractHiggsfieldCost(directText);
+            const amount = extractHiggsfieldCost(directText, clickable);
             const metadata = parseHiggsfieldMetadata(clickable, h.getPanelHost());
             const detail = buildHiggsfieldDetail(directText, amount);
 
